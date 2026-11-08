@@ -2,7 +2,7 @@
 
 pull()      collecte l'existant sur Trakt, Plex (compte + serveur), Letterboxd et les swipes,
             et le fusionne dans la table media_state (sauvegarde locale).
-act()       applique une action faite dans CinéSync à chaque service capable de la stocker,
+act()       applique une action faite dans SynCiné à chaque service capable de la stocker,
             puis l'enregistre localement — même si un service est en panne.
 _two_way() synchronisation automatique : watchlists identiques des deux côtés (ajouts et retraits),
             vus et notes recopiés là où ils manquent, avec garde-fous (voir la fonction).
@@ -381,6 +381,9 @@ def _plex_episode_history(ctx: Ctx, show_ids: set[int]) -> dict[int, list[dict]]
 
 # Écritures déjà échouées (titre introuvable…), par compte : pas de nouvel essai en boucle
 _failed_once: dict[int, set[tuple]] = defaultdict(set)
+# Vus / notes écrits sur le compte plex.tv pour des titres absents de la bibliothèque : la relecture ne voit
+# que la bibliothèque du serveur, on retient donc ces écritures pour ne pas les refaire à chaque passage.
+_pushed_to_account: dict[int, set[tuple]] = defaultdict(set)
 
 
 async def _two_way(ctx: Ctx, collected: dict, rows: dict, prev_watchlist: dict, dry_run: bool = False) -> dict:
@@ -553,18 +556,22 @@ async def _two_way(ctx: Ctx, collected: dict, rows: dict, prev_watchlist: dict, 
         sem = asyncio.Semaphore(4)
         counts = {"watched": 0, "ratings": 0}
 
+        pushed = _pushed_to_account[_uid(ctx)]
+
         async def plex_write(kind: str, k, value=None):
-            if (k, "plex", kind) in failed:
+            hit = lib_index.get(k)
+            if (k, "plex", kind) in failed or (not hit and (k, kind, value) in pushed):
                 return
             async with sem:
                 try:
-                    hit = lib_index.get(k)
                     if kind == "watched":
                         await (ctx.plex_own.scrobble(hit["rating_key"]) if hit else ctx.plex_account.mark_watched(*k))
                         mark("watched", [k], "plex")
                     else:
                         await (ctx.plex_own.rate(hit["rating_key"], value) if hit else ctx.plex_account.rate(k[0], k[1], value))
                     counts[kind] += 1
+                    if not hit:
+                        pushed.add((k, kind, value))
                 except ServiceError:
                     failed.add((k, "plex", kind))
 

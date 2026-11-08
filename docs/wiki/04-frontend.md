@@ -106,12 +106,14 @@ Tailwind v4 is loaded with `@import 'tailwindcss'` in `index.css` and the `@tail
 
 ## Opening native apps: `WatchLink` and `lib/appLinks.js`
 
-`components/ui/WatchLink.jsx` renders a normal external link, and on click calls `openInApp(href, appRef)`:
+`components/ui/WatchLink.jsx` puts the app link directly in `href` when it is known (`directAppLink`), because iOS and Android only open another app from a real tap on a link, never from a JavaScript redirect. Otherwise it renders the web link and, on click, calls `openInApp(href, appRef)`, which can open `components/ui/AppChooser.jsx` ("app or browser").
+
+The Plex app only opens a title's page from its **`watch.plex.tv`** link (`/movie/<slug>`, `/show/<slug>`: the paths Plex declares in `watch.plex.tv/.well-known/apple-app-site-association` and `assetlinks.json`). `plex://` links only open the app's home screen. Episode links fall back to the show page. The user then picks their server in the app. The link comes from `plex.watch_url` in the detail payload, or from `GET /api/plex/watch-link/...` in the chooser.
 
 | Device (`device()`) | Behaviour |
 |---|---|
-| Android | Builds an `intent://` URL for known apps (`ANDROID_APPS`, Plex) with `browser_fallback_url`, so Chrome falls back to the website |
-| iOS / iPadOS | For Plex and Netflix, dispatches `cinesync:open-app`; `components/ui/AppChooser.jsx` offers "app or browser" and can remember the choice (`localStorage` key `cinesync-open-in-app`). Plex uses a `watch.plex.tv` link from `GET /api/plex/watch-link/...`, Netflix uses `nflx://` |
+| Android | `intent://` URL for known apps (`ANDROID_APPS`; Plex: the `watch.plex.tv` link with package `com.plexapp.android`) with `browser_fallback_url`, so Chrome falls back to the website. Plex without a known `watch_url` goes through the chooser |
+| iOS / iPadOS | For Plex and Netflix, the chooser offers "app or browser" and can remember the choice (`localStorage` key `cinesync-open-in-app`); once remembered, the app link goes straight into `href`. Netflix uses `nflx://` |
 | Desktop | Plain web link |
 
 ## Adding a page, step by step

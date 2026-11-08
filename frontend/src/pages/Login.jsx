@@ -118,7 +118,7 @@ function PlexLogin({ onDone, label }) {
     setError(null)
     if (mode === 'window') popup.current = window.open('', 'plex-auth', 'width=520,height=720')
     try {
-      const p = await auth.plexPin(mode, mode === 'window' ? `${window.location.origin}/plex-done.html` : undefined)
+      const p = await auth.plexPin(mode)
       if (mode === 'window') {
         if (popup.current) popup.current.location.href = p.auth_url
         else popup.current = window.open(p.auth_url, '_blank')
@@ -166,6 +166,63 @@ function PlexLogin({ onDone, label }) {
   )
 }
 
+/** Deuxième étape de connexion (2FA activée) : code à 6 chiffres de l'application, ou code de secours. */
+function TwoFactorStep({ ticket, onDone, onCancel }) {
+  const t = useT()
+  const [code, setCode] = useState('')
+  const [recovery, setRecovery] = useState(false)
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      onDone(await auth.loginTwoFactor(ticket, code))
+    } catch (err) {
+      if (err.status === 410) return onCancel(err.message)
+      setError(err.message)
+      setCode('')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <p className="text-center text-sm text-text2">
+        {recovery
+          ? t('Saisis l’un de tes codes de secours (chacun ne sert qu’une fois).')
+          : t('Saisis le code à 6 chiffres affiché par ton application d’authentification.')}
+      </p>
+      <Field
+        label={recovery ? t('Code de secours') : t('Code de vérification')}
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        inputMode={recovery ? 'text' : 'numeric'}
+        autoComplete="one-time-code"
+        autoCapitalize="none"
+        placeholder={recovery ? 'xxxx-xxxx' : '123456'}
+        maxLength={recovery ? 12 : 7}
+        autoFocus
+        required
+      />
+      <ErrorLine error={error} />
+      <Button type="submit" variant="primary" className="w-full" loading={busy}>
+        <ShieldCheck className="h-4 w-4" /> {t('Vérifier')}
+      </Button>
+      <div className="flex justify-between text-xs">
+        <button type="button" onClick={() => { setRecovery((r) => !r); setCode(''); setError(null) }} className="text-text3 hover:text-text2">
+          {recovery ? t('Utiliser l’application') : t('Utiliser un code de secours')}
+        </button>
+        <button type="button" onClick={() => onCancel()} className="text-text3 hover:text-text2">
+          {t('Annuler')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export function Setup({ me }) {
   const t = useT()
   const reset = useResetSession()
@@ -189,7 +246,7 @@ export function Setup({ me }) {
   }
 
   return (
-    <Shell title={t('Bienvenue sur CinéSync')} subtitle={t('Crée le compte administrateur. Tu pourras ensuite ajouter les comptes de la famille.')}>
+    <Shell title={t('Bienvenue sur SynCiné')} subtitle={t('Crée le compte administrateur. Tu pourras ensuite ajouter les comptes de la famille.')}>
       <form onSubmit={submit} className="space-y-4">
         <Field
           label={t("Code d'installation")}
@@ -212,7 +269,7 @@ export function Setup({ me }) {
       {me.plex_login && (
         <>
           <Divider />
-          <p className="mb-3 text-xs text-text2">{t('Ton compte Plex est déjà relié à CinéSync : tu peux aussi devenir administrateur en te connectant avec lui.')}</p>
+          <p className="mb-3 text-xs text-text2">{t('Ton compte Plex est déjà relié à SynCiné : tu peux aussi devenir administrateur en te connectant avec lui.')}</p>
           <PlexLogin onDone={reset} label={t('Continuer avec mon compte Plex')} />
         </>
       )}
@@ -227,24 +284,49 @@ export function Login({ me }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [ticket, setTicket] = useState(null)
+
+  // Mot de passe ou Plex validé : session ouverte, ou code de double authentification demandé
+  const done = (res) => {
+    if (res.two_factor_required) {
+      setTicket(res.ticket)
+      setBusy(false)
+    } else reset(res)
+  }
 
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      reset(await auth.login(username, password))
+      done(await auth.login(username, password))
     } catch (err) {
       setError(err.message)
       setBusy(false)
     }
   }
 
+  if (ticket) {
+    return (
+      <Shell title={t('Double authentification')}>
+        <TwoFactorStep
+          ticket={ticket}
+          onDone={reset}
+          onCancel={(message) => {
+            setTicket(null)
+            setPassword('')
+            setError(message || null)
+          }}
+        />
+      </Shell>
+    )
+  }
+
   return (
     <Shell title={t('Connexion')}>
       {me.plex_login && (
         <>
-          <PlexLogin onDone={reset} />
+          <PlexLogin onDone={done} />
           <Divider />
         </>
       )}
@@ -333,7 +415,7 @@ export function Splash({ error, onRetry }) {
     )
   }
   return (
-    <Shell title={t('CinéSync injoignable')} subtitle={error.message}>
+    <Shell title={t('SynCiné injoignable')} subtitle={error.message}>
       <Button variant="primary" className="w-full" onClick={onRetry}>
         {t('Réessayer')}
       </Button>

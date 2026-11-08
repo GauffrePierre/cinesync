@@ -1,10 +1,11 @@
 import { api, qs } from './api'
 
-// État personnel fusionné (Trakt + Plex + Letterboxd + CinéSync) et actions synchronisées
+// État personnel fusionné (Trakt + Plex + Letterboxd + SynCiné) et actions synchronisées
 const ref = (mediaType, id, title) => ({ media_type: mediaType, tmdb_id: Number(id), title: title || '' })
 
 export const library = {
   keys: () => api.get('/library/keys'),
+  seen: () => api.get('/library/seen'),
   watchlist: (params) => api.get(`/library/watchlist${qs(params)}`),
   state: (mediaType, id) => api.get(`/library/state/${mediaType}/${id}`),
 
@@ -26,4 +27,4 @@ export const library = {
 
 export const keyOf = (mediaType, id) => `${mediaType}:${id}`
 
-export const SOURCE_LABELS = { trakt: 'Trakt', plex: 'Plex', letterboxd: 'Letterboxd', local: 'CinéSync' }
+export const SOURCE_LABELS = { trakt: 'Trakt', plex: 'Plex', letterboxd: 'Letterboxd', local: 'SynCiné' }

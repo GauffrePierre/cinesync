@@ -11,6 +11,8 @@ from app.config import config
 @lru_cache(maxsize=1)
 def server_secret() -> bytes:
     path = config.data_dir / "secret.key"
+    if path.exists() and len(path.read_text().strip()) < 64:  # fichier vide ou tronqué (arrêt brutal) : clé refaite
+        path.unlink()
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

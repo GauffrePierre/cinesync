@@ -176,7 +176,7 @@ function SourcesModal({ open, onClose }) {
                 {t('Ajouter')}
               </Button>
             </form>
-            <p className="mt-2 text-[11px] text-text3">{t('Exemples : critikat.com, youtube.com/@chaine. CinéSync trouve le flux tout seul.')}</p>
+            <p className="mt-2 text-[11px] text-text3">{t('Exemples : critikat.com, youtube.com/@chaine. SynCiné trouve le flux tout seul.')}</p>
           </section>
 
           <p className="rounded-xl bg-bg3/60 p-3 text-xs text-text2">

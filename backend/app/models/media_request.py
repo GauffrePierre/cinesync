@@ -12,7 +12,7 @@ class MediaRequest(UserScoped, Base):
     """Demande d'ajout d'un titre à la bibliothèque Plex.
 
     - Seerr connecté : envoyée tout de suite à Seerr (statut « sent »), validée ensuite dans Seerr.
-    - Sans Seerr : reste « pending » ; l'administrateur la traite depuis CinéSync.
+    - Sans Seerr : reste « pending » ; l'administrateur la traite depuis SynCiné.
     """
 
     __tablename__ = "media_requests"

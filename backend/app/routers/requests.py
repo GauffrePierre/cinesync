@@ -1,7 +1,7 @@
 """Demandes d'ajout à la bibliothèque Plex.
 
 - Admin, ou membre autorisé par l'admin, avec Seerr connecté : envoyée directement à Seerr.
-- Sinon : file d'attente, traitée par l'administrateur dans CinéSync (onglet Demandes).
+- Sinon : file d'attente, traitée par l'administrateur dans SynCiné (onglet Demandes).
 Chaque membre voit ses demandes ; l'admin les voit toutes.
 """
 
@@ -52,7 +52,7 @@ def visible(ctx: Ctx, req: MediaRequest | None) -> dict | None:
     if req is None:
         return None
     if ctx.is_admin or req.user_id == ctx.user.id:
-        return req.to_dict()
+        return _for(ctx, req.to_dict())
     return {"id": None, "tmdb_id": req.tmdb_id, "media_type": req.media_type, "status": req.status, "mine": False}
 
 
@@ -70,8 +70,13 @@ def _names(ctx: Ctx) -> dict[int, str]:
     return {u.id: u.name for u in ctx.db.query(User).all()}
 
 
-def _out(req: MediaRequest, names: dict[int, str]) -> dict:
-    return {**req.to_dict(), "user_name": names.get(req.user_id, "")}
+def _for(ctx: Ctx, d: dict) -> dict:
+    """L'adresse de Seerr (réseau du serveur) n'est montrée qu'à l'admin."""
+    return d if ctx.is_admin else {**d, "seerr_url": None}
+
+
+def _out(ctx: Ctx, req: MediaRequest, names: dict[int, str]) -> dict:
+    return _for(ctx, {**req.to_dict(), "user_name": names.get(req.user_id, "")})
 
 
 def can_send_direct(ctx: Ctx) -> bool:
@@ -102,7 +107,7 @@ def list_requests(status: str | None = None, scope: Literal["mine", "all"] = "mi
     rows = ctx.db.execute(q).scalars().all()
     names = _names(ctx)
     return {
-        "results": [_out(r, names) for r in rows],
+        "results": [_out(ctx, r, names) for r in rows],
         "pending": sum(1 for r in rows if r.status == "pending"),
         "seerr": ctx.seerr is not None,
         "direct": can_send_direct(ctx),
@@ -140,7 +145,7 @@ async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
         for admin in ctx.db.query(User).filter(User.role == "admin", User.active.is_(True)):
             _notify(ctx, admin.id, req, f"{ctx.user.name} demande « {req.title} »")
     ctx.db.commit()
-    return {"request": _out(req, _names(ctx)), "created": True, "message": message}
+    return {"request": _out(ctx, req, _names(ctx)), "created": True, "message": message}
 
 
 @router.post("/{request_id}/send")
@@ -152,7 +157,7 @@ async def send_to_seerr(request_id: int, ctx: Ctx = Depends(get_ctx)):
     if req.user_id != ctx.user.id:
         _notify(ctx, req.user_id, req, f"Ta demande « {req.title} » a été envoyée à Seerr")
     ctx.db.commit()
-    return _out(req, _names(ctx))
+    return _out(ctx, req, _names(ctx))
 
 
 @router.patch("/{request_id}")
@@ -166,7 +171,7 @@ def update_request(request_id: int, body: RequestUpdate, ctx: Ctx = Depends(get_
         verdict = "est disponible sur Plex" if body.status == "available" else "a été refusée"
         _notify(ctx, req.user_id, req, f"Ta demande « {req.title} » {verdict}")
     ctx.db.commit()
-    return _out(req, _names(ctx))
+    return _out(ctx, req, _names(ctx))
 
 
 @router.delete("/{request_id}")

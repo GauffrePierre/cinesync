@@ -21,6 +21,9 @@ export const mediaLabel = (type) => (type === 'tv' ? t('Série') : t('Film'))
 
 export const detailPath = (item) => `/${item.media_type}/${item.id}`
 
+// Lien venu d'un service extérieur : http(s) seulement (jamais javascript:, data:…)
+export const safeUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u.trim()) ? u : undefined)
+
 export function relativeTime(iso) {
   if (!iso) return ''
   // Le serveur stocke ses dates en UTC sans fuseau : sans « Z », le navigateur les lirait en heure locale

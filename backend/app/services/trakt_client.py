@@ -18,7 +18,7 @@ from app.services.http import http
 
 API = "https://api.trakt.tv"
 AUTHORIZE_URL = "https://auth.trakt.tv/oauth/authorize"
-USER_AGENT = f"CineSync/{__version__}"
+USER_AGENT = f"SynCine/{__version__}"
 OOB_REDIRECT = "urn:ietf:wg:oauth:2.0:oob"
 
 _refresh_lock = asyncio.Lock()
@@ -53,7 +53,7 @@ class TraktClient:
     def __init__(self, settings: UserSettings, db: Session):
         self.s = settings
         self.db = db
-        # Cache propre au compte CinéSync (chaque membre a son propre Trakt)
+        # Cache propre au compte SynCiné (chaque membre a son propre Trakt)
         self._ns = getattr(settings, "id", None) or 1
 
     @property

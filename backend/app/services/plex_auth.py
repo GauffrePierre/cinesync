@@ -15,7 +15,7 @@ from app.services.errors import ServiceError
 from app.services.http import http
 
 PLEX_TV = "https://plex.tv/api/v2"
-PRODUCT = "CinéSync"
+PRODUCT = "SynCiné"
 VERSION = __version__
 
 
@@ -23,10 +23,10 @@ def _headers(client_id: str, token: str | None = None) -> dict:
     h = {
         "Accept": "application/json",
         # httpx n'accepte que l'ASCII dans les en-têtes : pas d'accent ici
-        "X-Plex-Product": "CineSync",
+        "X-Plex-Product": "SynCine",
         "X-Plex-Version": VERSION,
         "X-Plex-Client-Identifier": client_id,
-        "X-Plex-Device-Name": "CineSync",
+        "X-Plex-Device-Name": "SynCine",
         "X-Plex-Platform": "Web",
     }
     if token:

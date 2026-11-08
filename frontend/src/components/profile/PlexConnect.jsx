@@ -100,7 +100,7 @@ export default function PlexConnect({ settings }) {
     // Fenêtre ouverte immédiatement (sinon bloquée comme pop-up), puis dirigée vers plex.tv
     popup.current = window.open('', 'plex-auth', 'width=520,height=720')
     try {
-      const p = await plex.authPin('window', `${window.location.origin}/plex-done.html`)
+      const p = await plex.authPin('window')
       if (popup.current) popup.current.location.href = p.auth_url
       else popup.current = window.open(p.auth_url, '_blank')
       setPin(p)
@@ -203,7 +203,7 @@ export default function PlexConnect({ settings }) {
               <span className="block truncate text-sm font-medium">
                 {s.name} {!s.owned && <span className="text-xs font-normal text-text3">· {t('partagé avec toi')}</span>}
               </span>
-              <span className="block text-[11px] text-text3">{s.connection ? t('Joignable via {kind}', { kind: t(KIND_LABEL[s.connection.kind]) }) : t('Injoignable depuis CinéSync')}</span>
+              <span className="block text-[11px] text-text3">{s.connection ? t('Joignable via {kind}', { kind: t(KIND_LABEL[s.connection.kind]) }) : t('Injoignable depuis SynCiné')}</span>
             </span>
             {select.isPending && select.variables === s.machine_id && <Loader2 className="h-4 w-4 animate-spin" />}
           </button>

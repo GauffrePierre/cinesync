@@ -1,6 +1,6 @@
 # Accounts and security
 
-CinéSync holds tokens for several personal accounts, so security is built into the core rather than bolted on. This page explains the two editions, how the first admin is created, how sessions, passwords and login throttling work, the Plex sign-in flow, admin vs member permissions, and the HTTP-level protections (same-origin check, CSP, HTTPS redirect, HSTS). It also covers SSRF-safe fetching and the signed image relay. To report a vulnerability, follow [SECURITY.md](../../SECURITY.md).
+SynCiné holds tokens for several personal accounts, so security is built into the core rather than bolted on. This page explains the two editions, how the first admin is created, how sessions, passwords and login throttling work, the Plex sign-in flow, admin vs member permissions, and the HTTP-level protections (same-origin check, CSP, HTTPS redirect, HSTS). It also covers SSRF-safe fetching and the signed image relay. To report a vulnerability, follow [SECURITY.md](../../SECURITY.md).
 
 ## Editions
 
@@ -42,6 +42,18 @@ In `services/auth.py`:
 
 Deactivating a user or resetting their password from the admin area also closes their sessions.
 
+## Two-factor authentication (TOTP)
+
+Optional, per account, in **Profile → My account**. `services/totp.py` implements RFC 6238 (HMAC-SHA1, 6 digits, 30 s) without a dependency; the QR code is drawn server-side by `segno`, so the secret never goes to a third-party service.
+
+- **Setup**: `POST /api/auth/2fa/setup` stores a *pending* secret (`totp_pending`) and returns it with the `otpauth://` URI and an SVG QR code. `POST /api/auth/2fa/enable` with a valid first code moves it to `totp_secret`, returns 10 recovery codes (shown once, stored as SHA-256 in `recovery_codes`) and closes the account's other sessions.
+- **Sign-in**: when `totp_secret` is set, a correct password (or an authorized Plex sign-in) opens **no session**. It returns `{two_factor_required, ticket}`; the ticket lives in memory for 5 minutes and allows 5 wrong codes. `POST /api/auth/login/2fa` with the ticket and a code opens the session.
+- **Codes**: ±1 period of clock drift is accepted. The last accepted counter is stored (`totp_last_counter`), so a code cannot be replayed. A recovery code is consumed when used. Wrong codes count in the rate limiter (key `2fa:{user_id}`).
+- **Lockout**: wrong codes in a row are counted on the account in the database (`totp_failures`), not only per address. From 10, the second factor is locked 1 minute, then 2, 4… (24 hours at most), and the owner gets a notification. Codes are accepted with a conditional `UPDATE` (counter or recovery-code list unchanged), so two simultaneous requests with the same code cannot both succeed.
+- **Setup** requires the current password (or, for a Plex-only account, a session opened less than 10 minutes ago), and is refused while 2FA is active: replacing the secret goes through disabling it with a code. Adding a first password to a Plex-only account also needs a recent sign-in.
+- **Disable / new recovery codes**: require a current code or a recovery code. Removing the password in the personal edition also clears 2FA (open access has nothing left to protect).
+- **Lost phone**: an admin resets it with `PATCH /api/admin/users/{id}` `{reset_two_factor: true}` (**⋯ → Reset two-factor authentication**). Not for their own account: password and 2FA changes on oneself go through Profile, where the current password or a code is required. The secret and the codes are never returned by any endpoint.
+
 ## Login rate limiting
 
 `RateLimiter` counts **failures** in a 15-minute sliding window, per key type:
@@ -53,7 +65,9 @@ Deactivating a user or resetting their password from the admin area also closes 
 | `user:{username}` | 50 | One account targeted from many addresses (high, so an attacker cannot easily lock someone out) |
 | `all:` | 300 | Global ceiling against distributed attacks |
 
-`guard_attempts()` raises 429 when any key is over its limit. A success resets the `pair` and `user` keys but never `ip` or `all`. Memory is bounded (`MAX_KEYS = 10_000`).
+`guard_attempts(request, subject, trusted)` raises 429 when any key is over its limit. The subject is prefixed by its use (`login:alice`, `2fa:3`, `setup`), so an invented username cannot drain another counter. A success resets the `pair` and `user` keys but never `ip` or `all`. Memory is bounded (`MAX_KEYS = 10_000`). Creating a Plex sign-in PIN counts against `pin:{ip}` (20 per 15 minutes).
+
+**Known devices.** After a full sign-in, the device gets a signed cookie `cinesync_device` (account id + nonce, HMAC with `secret.key`, one year, path `/api/auth`). It grants no access. It only exempts that device from the `ip` and `all` caps for its own account, so a distributed attack that fills the global cap cannot lock out existing users. Per-account caps (`pair`, `user`) still apply.
 
 The client address is `request.client.host`. uvicorn runs with `--proxy-headers` and only honours `X-Forwarded-For` from addresses in **`FORWARDED_ALLOW_IPS`** (image default `127.0.0.1,172.16.0.0/12`: the container itself and Docker networks). A client therefore cannot spoof its address to escape the limiter. If your proxy lives elsewhere, add its address.
 
@@ -64,7 +78,7 @@ Members can sign in with a Plex account that the admin has allowed (`routers/adm
 ```mermaid
 sequenceDiagram
   participant B as Browser
-  participant A as CinéSync /api/auth
+  participant A as SynCiné /api/auth
   participant P as plex.tv
 
   B->>A: POST /plex/pin (mode link or window)

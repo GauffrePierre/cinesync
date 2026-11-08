@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, Loader2, Smartphone } from 'lucide-react'
 import Modal from './Modal'
 import { api } from '../../services/api'
-import { setAppPref } from '../../lib/appLinks'
+import { PLEX_ANDROID, androidIntentFor, setAppPref } from '../../lib/appLinks'
 import { useT } from '../../i18n'
 
-// iPhone / iPad : ouvrir le titre dans l'application (Plex, Netflix) ou dans le navigateur.
+// iPhone / iPad (Plex, Netflix) et Android (Plex) : ouvrir le titre dans l'application ou dans le navigateur.
 // Plex : le lien de l'app est la page watch.plex.tv du titre, demandée au serveur si besoin.
 export default function AppChooser() {
   const t = useT()
@@ -24,11 +24,9 @@ export default function AppChooser() {
       if (!d.scheme && d.app === 'Plex' && ref?.id) {
         setLoading(true)
         try {
-          const q = new URLSearchParams()
-          if (ref.season != null) q.set('season', ref.season)
-          if (ref.episode != null) q.set('episode', ref.episode)
-          const r = await api.get(`/plex/watch-link/${ref.mediaType}/${ref.id}${q.size ? `?${q}` : ''}`)
-          setAppHref(r.url)
+          // Fiche du film ou de la série (l'app Plex n'ouvre pas les liens d'épisode)
+          const r = await api.get(`/plex/watch-link/${ref.mediaType}/${ref.id}`)
+          setAppHref(r.url && d.android ? androidIntentFor(r.url, PLEX_ANDROID, d.url) : r.url)
         } catch {
           setAppHref(null)
         } finally {
@@ -70,7 +68,7 @@ export default function AppChooser() {
             <ExternalLink className="h-4 w-4" /> {t('Ouvrir dans le navigateur')}
           </a>
           {target.app === 'Plex' && appHref && <p className="text-[11px] text-text3">{t("Dans l'app Plex, choisis ensuite ton serveur pour lancer la lecture.")}</p>}
-          {appHref && (
+          {appHref && !target.android && (
             <label className="flex items-center gap-2 pt-2 text-xs text-text2">
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4" />
               {t("Toujours ouvrir l'app {app} sans demander", { app: target.app })}

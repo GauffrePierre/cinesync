@@ -12,7 +12,7 @@ export default {
   "Demander l'ajout à l'administrateur": 'Ask the admin to add it',
   "Demander l'ajout quand il sortira": 'Request it for release',
   "Demander l'ajout": 'Request it',
-  // Statuts de demande (CinéSync et Seerr)
+  // Statuts de demande (SynCiné et Seerr)
   'En attente': 'Pending',
   'Envoyée à Seerr': 'Sent to Seerr',
   Refusée: 'Declined',

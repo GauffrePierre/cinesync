@@ -151,7 +151,7 @@ class MockTMDB:
             "original_language": "Anglais",
             "spoken_languages": ["Anglais", "Français"],
             "genres": [_GENRES.get(g, "Autre") for g in base["genre_ids"]],
-            "keywords": ["démo", "CinéSync"],
+            "keywords": ["démo", "SynCiné"],
             "certification": "12",
             "cast": [{"id": n, "name": f"Acteur·rice {n}", "character": f"Personnage {n}", "photo": None} for n in range(1, 9)],
             "crew": {

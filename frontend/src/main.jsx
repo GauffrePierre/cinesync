@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { registerSW } from 'virtual:pwa-register'
-// Police Inter servie par CinéSync (aucune requête vers Google Fonts)
+// Police Inter servie par SynCiné (aucune requête vers Google Fonts)
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
 import '@fontsource/inter/600.css'

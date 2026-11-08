@@ -1,9 +1,9 @@
-# CinéSync — un seul conteneur (interface + serveur).
+# SynCiné — un seul conteneur (interface + serveur).
 # Réglages dans .env (voir .env.example). Construire et lancer : docker compose up -d --build
 services:
   cinesync:
     build: .
-    image: ghcr.io/gauffrepierre/cinesync:latest
+    image: ghcr.io/gauffrepierre/syncine:latest
     container_name: cinesync
     restart: unless-stopped
     ports:

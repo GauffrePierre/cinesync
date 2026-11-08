@@ -18,7 +18,7 @@ export default {
   'Mes sources': 'My sources',
   Retirer: 'Remove',
   'Site, flux RSS ou chaîne YouTube': 'Website, RSS feed or YouTube channel',
-  'Exemples : critikat.com, youtube.com/@chaine. CinéSync trouve le flux tout seul.': 'Examples: critikat.com, youtube.com/@channel. CinéSync finds the feed by itself.',
+  'Exemples : critikat.com, youtube.com/@chaine. SynCiné trouve le flux tout seul.': 'Examples: critikat.com, youtube.com/@channel. SynCiné finds the feed by itself.',
   'Les articles s’ouvrent sur le site d’origine : si tu as un compte ou un abonnement (Écran Large, Le Monde…), connecte-toi sur le site dans ton navigateur pour tout lire.':
     'Articles open on the original website: if you have an account or a subscription (Écran Large, Le Monde…), sign in on that site in your browser to read everything.',
   'Clé API YouTube (admin, facultatif)': 'YouTube API key (admin, optional)',

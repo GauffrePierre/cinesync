@@ -71,9 +71,21 @@ export const useLibrary = ({ mediaType, sort, q }) =>
     getNextPageParam: (last) => (last.page * last.page_size < last.total ? last.page + 1 : undefined),
   })
 
-// --- État personnel & actions synchronisées (Trakt + Plex + CinéSync) ----------------------
+// --- État personnel & actions synchronisées (Trakt + Plex + SynCiné) ----------------------
 
 export const useLibraryKeys = () => useQuery({ queryKey: ['library-keys'], queryFn: library.keys, staleTime: 60_000 })
+
+/**
+ * Réglage « Ne plus proposer les titres déjà vus » : filtre (items) => items sans les films vus ni les
+ * séries vues et à jour. Clé ['library-keys', 'seen'] : rafraîchie avec l'état personnel.
+ */
+export function useSeenFilter() {
+  const { data: settings } = useSettings()
+  const on = !!settings?.hide_seen
+  const { data } = useQuery({ queryKey: ['library-keys', 'seen'], queryFn: library.seen, staleTime: 5 * 60_000, enabled: on })
+  const seen = on && data ? new Set(data.keys) : null
+  return (items) => (seen && items ? items.filter((i) => !seen.has(keyOf(i.media_type, i.id))) : items)
+}
 
 /** Statut d'un titre depuis la vue compacte : { inWatchlist, watched, liked, rating } */
 export function useItemState(mediaType, id) {
@@ -114,7 +126,7 @@ function syncMessage(label, services = {}) {
   }
   return {
     kind: 'success',
-    text: ok.length ? t('{label} · {services}', { label, services: ok.join(' + ') }) : t('{label} (dans CinéSync)', { label }),
+    text: ok.length ? t('{label} · {services}', { label, services: ok.join(' + ') }) : t('{label} (dans SynCiné)', { label }),
   }
 }
 

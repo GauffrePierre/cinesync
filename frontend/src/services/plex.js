@@ -5,7 +5,7 @@ export const plex = {
   status: (mediaType, id) => api.get(`/plex/status/${mediaType}/${id}`),
 
   // Connexion via le compte plex.tv
-  authPin: (mode = 'link', forwardUrl) => api.post(`/plex/auth/pin${qs({ mode, forward_url: forwardUrl })}`),
+  authPin: (mode = 'link') => api.post(`/plex/auth/pin${qs({ mode })}`),
   checkPin: (id) => api.post(`/plex/auth/pin/${id}`),
   servers: () => api.get('/plex/servers'),
   selectServer: (machineId) => api.post('/plex/servers/select', { machine_id: machineId }),

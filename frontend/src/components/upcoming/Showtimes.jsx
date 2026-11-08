@@ -6,7 +6,7 @@ import Skeleton from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import { PlexBadge } from '../ui/PlatformBadge'
 import { useShowtimes } from '../../hooks/useMedia'
-import { formatRuntime } from '../../lib/format'
+import { formatRuntime, safeUrl } from '../../lib/format'
 import { currentLocale, useT } from '../../i18n'
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -113,7 +113,7 @@ export default function Showtimes({ cinemas }) {
                         )
                         const cls = 'inline-flex items-center gap-1 rounded-lg border border-line bg-bg px-2 py-1 text-xs transition'
                         return s.booking_url ? (
-                          <a key={s.starts_at + s.version} href={s.booking_url} target="_blank" rel="noreferrer" className={`${cls} hover:-translate-y-0.5 hover:border-accent`} title={t('Réserver')}>
+                          <a key={s.starts_at + s.version} href={safeUrl(s.booking_url)} target="_blank" rel="noreferrer" className={`${cls} hover:-translate-y-0.5 hover:border-accent`} title={t('Réserver')}>
                             {label}
                           </a>
                         ) : (

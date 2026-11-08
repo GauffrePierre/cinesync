@@ -51,6 +51,14 @@ def keys(ctx: Ctx = Depends(get_ctx)):
     return out
 
 
+@router.get("/seen")
+async def seen(ctx: Ctx = Depends(get_ctx)):
+    """Titres à ne plus proposer (réglage « déjà vus ») : films vus, séries vues sans nouvel épisode depuis."""
+    from app.services.suggestions import seen_keys
+
+    return {"keys": sorted(_k(mt, tid) for mt, tid in await seen_keys(ctx))}
+
+
 @router.get("/state/{media_type}/{tmdb_id}")
 def state(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx = Depends(get_ctx)):
     return library_sync.state_of(ctx.db, media_type, tmdb_id)

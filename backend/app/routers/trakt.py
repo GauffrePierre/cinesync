@@ -3,6 +3,7 @@
 Les écritures (watchlist, vu, notes) passent par /api/library, qui les envoie à tous les services."""
 
 import secrets
+from urllib.parse import quote
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -14,7 +15,7 @@ from app.services.errors import NotConfigured, ServiceError
 
 router = APIRouter(prefix="/trakt", tags=["trakt"])
 
-# Code d'appareil en cours, par compte CinéSync
+# Code d'appareil en cours, par compte SynCiné
 _device: dict[int, str] = {}
 
 
@@ -68,7 +69,7 @@ async def device_poll(ctx: Ctx = Depends(get_ctx)):
 # PKCE (redirection ; Trakt exige une URL de retour HTTPS)
 
 
-@router.get("/oauth/start")
+@router.post("/oauth/start")  # modifie l'état : jamais en GET
 def oauth_start(request: Request, ctx: Ctx = Depends(get_ctx)):
     client = _require_app(ctx)
     verifier, challenge = client.new_pkce()
@@ -83,7 +84,7 @@ def oauth_start(request: Request, ctx: Ctx = Depends(get_ctx)):
 async def oauth_callback(request: Request, code: str = "", state: str = "", error: str = "", ctx: Ctx = Depends(get_ctx)):
     base = public_base_url(request)
     if error or not code:
-        return RedirectResponse(f"{base}/profile?trakt=error&reason={error or 'no_code'}")
+        return RedirectResponse(f"{base}/profile?trakt=error&reason={quote(error or 'no_code', safe='')}")
     if not state or state != ctx.settings.trakt_oauth_state or not ctx.settings.trakt_code_verifier:
         return RedirectResponse(f"{base}/profile?trakt=error&reason=state")
     try:

@@ -1,18 +1,18 @@
 # Getting started: server edition, administrator
 
-You're installing CinéSync for your family: you set up the services once for everyone, then add the accounts. About 20 minutes.
+You're installing SynCiné for your family: you set up the services once for everyone, then add the accounts. About 20 minutes.
 
-> Requirements: CinéSync installed with `CINESYNC_MODE=server` (the default) and, if your family uses it outside your home, an **HTTPS** address set in `PUBLIC_URL` (see the [README](../../README.en.md#https-access-and-mobile-app)).
+> Requirements: SynCiné installed with `CINESYNC_MODE=server` (the default) and, if your family uses it outside your home, an **HTTPS** address set in `PUBLIC_URL` (see the [README](../../README.en.md#https-access-and-mobile-app)).
 
 ## 1. Create the administrator account
 
-On first launch, the **Welcome to CinéSync** screen asks for a **setup code**. It is printed in the container logs:
+On first launch, the **Welcome to SynCiné** screen asks for a **setup code**. It is printed in the container logs:
 
 ```bash
 docker logs cinesync 2>&1 | grep "code pour créer"
 ```
 
-On Unraid: container icon → **Logs**. Enter the code, choose your **username** and **password** (12+ characters if CinéSync is on the Internet).
+On Unraid: container icon → **Logs**. Enter the code, choose your **username** and **password** (12+ characters if SynCiné is on the Internet).
 
 ## 2. Server services (shared by everyone)
 
@@ -39,12 +39,12 @@ For people your Plex server is already shared with:
 2. Click **Allow** next to the person. Optional:
    - **Requests sent straight to Seerr**: their requests skip your queue;
    - **Also allow signing in with a username and password**: a temporary password to pass on.
-3. Send them CinéSync's address: they sign in with **Sign in with Plex**. Everyone gets their own watched titles and Plex progress.
+3. Send them SynCiné's address: they sign in with **Sign in with Plex**. Everyone gets their own watched titles and Plex progress.
 
 ### Without a Plex account
 These accounts see nothing of your Plex server (library, server name, watched titles) and can't make add requests.
 
-1. **CinéSync accounts → Add**.
+1. **SynCiné accounts → Add**.
 2. Choose a **username** and a **temporary password** (**Generate** button), tick the options you need.
 3. Pass on the address, username and password: they change the password when they first sign in.
 
@@ -63,8 +63,9 @@ When a member requests a title:
 ## 6. Security checklist
 
 - [ ] Long, unique administrator password.
+- [ ] **Two-factor authentication** on (Profile → My account → Enable), recovery codes kept somewhere safe. If a member loses their phone: their account's **⋯** menu → **Reset two-factor authentication**.
 - [ ] Internet access only over **HTTPS** (reverse proxy or Tailscale), `PUBLIC_URL` set.
-- [ ] Regular backups of `cinesync.db` (it holds the services' tokens).
+- [ ] Automatic backups on (**Admin area → Backups**, on by default), and now and then a downloaded copy kept off the server: it holds the services' tokens.
 - [ ] Updates: `git pull && docker compose up -d --build`, or the published image.
 
 ---

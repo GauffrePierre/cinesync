@@ -19,11 +19,11 @@ class Config(BaseSettings):
     # Documentation interactive de l'API (/api/docs) : désactivée par défaut
     api_docs: bool = False
     # HSTS (forcer HTTPS dans le navigateur), en secondes ; 0 = désactivé.
-    # À n'activer que si CinéSync a son propre nom de domaine, servi uniquement en HTTPS
+    # À n'activer que si SynCiné a son propre nom de domaine, servi uniquement en HTTPS
     hsts_seconds: int = 0
     public_url: str = ""
     # Origines supplémentaires autorisées (CORS + vérification d'origine), séparées par des virgules.
-    # Vide par défaut : l'interface est servie par CinéSync lui-même (ou relayée par Vite en développement)
+    # Vide par défaut : l'interface est servie par SynCiné lui-même (ou relayée par Vite en développement)
     cors_origins: str = ""
     notification_interval_hours: int = 24
     log_level: str = "INFO"

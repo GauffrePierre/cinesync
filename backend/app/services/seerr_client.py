@@ -1,6 +1,6 @@
 """Client Seerr (Overseerr/Jellyseerr) : statut d'un titre et création de demandes.
 
-CinéSync ne télécharge rien : il crée une demande que tu valides dans Seerr.
+SynCiné ne télécharge rien : il crée une demande que tu valides dans Seerr.
 """
 
 import httpx

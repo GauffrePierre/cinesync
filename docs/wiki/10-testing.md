@@ -32,7 +32,7 @@ Run pytest from `backend/` so that `app` and `tests` are importable (the tests i
 
 ## Fixtures and fakes (`tests/conftest.py`)
 
-- **Isolated database**: before importing the app, `conftest.py` sets `DATA_DIR` to a new temporary folder (`tempfile.mkdtemp`). `config.py` reads it, so the engine points there. Your dev database is never touched.
+- **Isolated database**: before importing the app, `conftest.py` sets `DATA_DIR` to a new temporary folder (`tempfile.mkdtemp`). `config.py` reads it, so the engine points there. Your dev database is never touched, **as long as the test file lives in `backend/tests/`**: a test file run from elsewhere does not load `conftest.py`. The `db` and `fresh` fixtures therefore refuse to drop tables unless `DATA_DIR` is the temporary test folder (`assert_test_database`).
 - **`db` fixture**: drops all tables, runs `init_db()`, clears the cache and the sync engine's in-memory state (`_failed_once`, `_last_pull`), and yields a session **bound to user 1** (`bind_user(session, 1)`), like a request from the admin.
 - **`FakeTrakt`**: in-memory watchlist, watched set and ratings; options `limit` (watchlist limit), `fail` (raises `ServiceError`), `not_found`. Every write is recorded in `calls`, for example `("/sync/watchlist", [refs])` or `("add", key)`.
 - **`FakePlexAccount`**: plex.tv watchlist; `fail_writes=True` makes every write raise.

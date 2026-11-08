@@ -1,18 +1,18 @@
 # Démarrer avec la version serveur : administrateur
 
-Tu installes CinéSync pour ta famille : tu configures les services une fois pour tous, puis tu ajoutes les comptes. Compte 20 minutes.
+Tu installes SynCiné pour ta famille : tu configures les services une fois pour tous, puis tu ajoutes les comptes. Compte 20 minutes.
 
-> Prérequis : CinéSync installé avec `CINESYNC_MODE=server` (par défaut) et, si tes proches l'utilisent hors de chez toi, une adresse **HTTPS** renseignée dans `PUBLIC_URL` (voir le [README](../../README.md#accès-https-et-application-mobile)).
+> Prérequis : SynCiné installé avec `CINESYNC_MODE=server` (par défaut) et, si tes proches l'utilisent hors de chez toi, une adresse **HTTPS** renseignée dans `PUBLIC_URL` (voir le [README](../../README.md#accès-https-et-application-mobile)).
 
 ## 1. Créer le compte administrateur
 
-Au premier lancement, l'écran **Bienvenue sur CinéSync** demande un **code d'installation**. Il est affiché dans les journaux du conteneur :
+Au premier lancement, l'écran **Bienvenue sur SynCiné** demande un **code d'installation**. Il est affiché dans les journaux du conteneur :
 
 ```bash
 docker logs cinesync 2>&1 | grep "code pour créer"
 ```
 
-Sur Unraid : icône du conteneur → **Logs**. Saisis le code, choisis ton **identifiant** et ton **mot de passe** (12 caractères ou plus si CinéSync est sur Internet).
+Sur Unraid : icône du conteneur → **Logs**. Saisis le code, choisis ton **identifiant** et ton **mot de passe** (12 caractères ou plus si SynCiné est sur Internet).
 
 ## 2. Les services du serveur (partagés par tous)
 
@@ -39,12 +39,12 @@ Pour les personnes avec qui ton serveur Plex est déjà partagé :
 2. **Autoriser** à côté de la personne. Tu peux cocher :
    - **Demandes envoyées directement à Seerr** : ses demandes partent sans passer par toi ;
    - **Permettre aussi la connexion par identifiant et mot de passe** : un mot de passe provisoire à lui transmettre.
-3. Envoie-lui l'adresse de CinéSync : elle se connectera avec **Se connecter avec Plex**. Chacun retrouve ses propres vus et sa progression Plex.
+3. Envoie-lui l'adresse de SynCiné : elle se connectera avec **Se connecter avec Plex**. Chacun retrouve ses propres vus et sa progression Plex.
 
 ### Sans compte Plex
 Ces comptes ne voient rien de ton serveur Plex (bibliothèque, nom du serveur, titres vus) et ne peuvent pas faire de demandes d'ajout.
 
-1. Section **Comptes CinéSync → Ajouter**.
+1. Section **Comptes SynCiné → Ajouter**.
 2. Choisis un **identifiant** et un **mot de passe provisoire** (bouton **Générer**), coche les options si besoin.
 3. Transmets l'adresse, l'identifiant et le mot de passe : il sera changé à la première connexion.
 
@@ -63,8 +63,9 @@ Quand un membre demande l'ajout d'un titre :
 ## 6. Check-list sécurité
 
 - [ ] Mot de passe administrateur long et unique.
+- [ ] **Double authentification** activée (Profil → Mon compte → Activer), codes de secours rangés en lieu sûr. Si un membre perd son téléphone : menu **⋯** de son compte → **Réinitialiser la double authentification**.
 - [ ] Accès depuis Internet uniquement en **HTTPS** (proxy inverse ou Tailscale), `PUBLIC_URL` renseigné.
-- [ ] Sauvegardes régulières de `cinesync.db` (elle contient les jetons des services).
+- [ ] Sauvegarde automatique activée (**Espace admin → Sauvegardes**, active par défaut), et de temps en temps une copie téléchargée rangée hors du serveur : elle contient les jetons des services.
 - [ ] Mises à jour : `git pull && docker compose up -d --build`, ou l'image publiée.
 
 ---

@@ -1,6 +1,6 @@
 # Sync engine
 
-The sync engine in `backend/app/services/library_sync.py` keeps one personal state per title (watchlist, watched, rating, like, dislike) in the `media_state` table, merged from Trakt, Plex (plex.tv account and Plex server), Letterboxd and the swipe history. It has three entry points: **`pull()`** collects and merges, then optionally runs the **two-way sync** (`_two_way`) that makes Trakt and Plex agree; **`act()`** applies an action taken in CinéSync to every capable service and saves it locally; **`preview()`** shows what the two-way sync would do without writing anything. The watch history used for statistics is a separate pipeline in `services/history.py`.
+The sync engine in `backend/app/services/library_sync.py` keeps one personal state per title (watchlist, watched, rating, like, dislike) in the `media_state` table, merged from Trakt, Plex (plex.tv account and Plex server), Letterboxd and the swipe history. It has three entry points: **`pull()`** collects and merges, then optionally runs the **two-way sync** (`_two_way`) that makes Trakt and Plex agree; **`act()`** applies an action taken in SynCiné to every capable service and saves it locally; **`preview()`** shows what the two-way sync would do without writing anything. The watch history used for statistics is a separate pipeline in `services/history.py`.
 
 ## When it runs
 
@@ -116,7 +116,7 @@ Writes run in parallel; each service result is `"ok"` or an error message. **The
 
 | Source | How | Notes |
 |---|---|---|
-| Plex | `/status/sessions/history/all` of the whole server, with the admin's token, newest first until already-imported entries | Only when an admin runs it, under one global lock. Each viewing goes to the CinéSync account mapped from its Plex `accountID` (`plex_account_map`), or `0` if none |
+| Plex | `/status/sessions/history/all` of the whole server, with the admin's token, newest first until already-imported entries | Only when an admin runs it, under one global lock. Each viewing goes to the SynCiné account mapped from its Plex `accountID` (`plex_account_map`), or `0` if none |
 | Trakt | `/sync/history` (`extended=full`) since the last import minus one day | 20+ entries in the same minute (`BULK_PER_MINUTE`) are a bulk import: `approx_date=True` |
 | Letterboxd | Diary RSS | Date only, stored at 20:00 |
 

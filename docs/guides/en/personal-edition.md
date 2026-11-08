@@ -2,28 +2,28 @@
 
 For one person: no accounts, no mandatory sign-in. About 10 minutes.
 
-> Requirement: CinéSync installed with `CINESYNC_MODE=personal` in `.env` (see the [README](../../README.en.md#installation)).
+> Requirement: SynCiné installed with `CINESYNC_MODE=personal` in `.env` (see the [README](../../README.en.md#installation)).
 
 ## 1. First launch
 
-Open CinéSync's address in your browser: the app shows up straight away, with no sign-in screen.
+Open SynCiné's address in your browser: the app shows up straight away, with no sign-in screen.
 
 ## 2. Protect access (recommended)
 
-Until a password is set, **anyone who opens the address gets into your CinéSync**. If it can be reached from outside your home, protect it:
+Until a password is set, **anyone who opens the address gets into your SynCiné**. If it can be reached from outside your home, protect it:
 
 1. **Profile → My account → Protect with a password**.
-2. Choose a **username** and a **password** (at least 8 characters; 12+ if CinéSync is on the Internet).
+2. Choose a **username** and a **password** (at least 8 characters; 12+ if SynCiné is on the Internet).
 3. This device stays signed in; other devices will show the **Sign in** screen.
 
 You can go back to open access later: **My account → Password → Remove password protection**.
 
 ## 3. The TMDB key (required)
 
-Without it, CinéSync shows demo data.
+Without it, SynCiné shows demo data.
 
 1. Create a free account on [themoviedb.org](https://www.themoviedb.org/signup), then go to **Settings → API** and request a key (personal use).
-2. In CinéSync: **Profile → Connections → TMDB**, paste the key (v3) or read access token (v4), then **Test connection**.
+2. In SynCiné: **Profile → Connections → TMDB**, paste the key (v3) or read access token (v4), then **Test connection**.
 
 ## 4. Your country, services and cinemas
 
@@ -40,7 +40,7 @@ Add them from **Profile → Connections** with the **+** button ("Add a service"
 | **Trakt** | Watchlist, history, ratings, recommendations | Create an app at [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications/new) (redirect URI `urn:ietf:wg:oauth:2.0:oob`), paste its **Client ID**, then **Sign in with Trakt** and enter the code at trakt.tv/activate |
 | **Letterboxd** | Your film diary | Your Letterboxd username (public profile) |
 | **JustWatch** | Direct links to each service, new arrivals, charts | Tick **Enable JustWatch** (unofficial source) |
-| **Plex** | Your library, "Play on Plex", history | **Sign in with Plex**, enter the code at plex.tv/link; CinéSync finds your server |
+| **Plex** | Your library, "Play on Plex", history | **Sign in with Plex**, enter the code at plex.tv/link; SynCiné finds your server |
 | **Seerr** | Request titles for your library | Seerr address + API key (Seerr → Settings → General) |
 
 ## 6. Sync your lists

@@ -26,7 +26,7 @@ def test_articles_are_plain_text_with_images():
     items = news._items(feedparser.parse(RSS), {"id": "t", "name": "Ciné Test", "kind": "site"})
     first = items[0]
     assert first["title"] == "Dune & co"
-    # Image relayée par CinéSync, avec une adresse signée
+    # Image relayée par SynCiné, avec une adresse signée
     assert first["image"].startswith("/api/news/image?u=https%3A%2F%2Fcine.example%2Fdune.jpg&s=")
     # Texte brut uniquement : balises retirées, scripts supprimés avec leur contenu
     assert first["summary"] == "Critique enthousiaste"
@@ -119,3 +119,65 @@ def test_api_keys_never_logged():
     import app.main  # noqa: F401
 
     assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+
+
+# --- Revue de sécurité : réponses piégées ------------------------------------------------
+
+
+def _serve(monkeypatch, body: bytes, headers: dict):
+    import httpx
+
+    from app.services import safe_fetch
+
+    async def ok(url):
+        return url
+
+    monkeypatch.setattr(safe_fetch, "check_url", ok)
+    monkeypatch.setattr(safe_fetch, "_transport", lambda: httpx.MockTransport(lambda req: httpx.Response(200, headers=headers, stream=httpx.ByteStream(body))))
+
+
+def test_gzip_bomb_is_stopped_at_the_decompressed_size(monkeypatch):
+    import asyncio
+    import gzip
+
+    from app.services import safe_fetch
+    from app.services.errors import ServiceError
+
+    bomb = gzip.compress(b"\0" * (200 * 1024 * 1024))  # ~200 Ko compressés -> 200 Mo
+    _serve(monkeypatch, bomb, {"content-encoding": "gzip"})
+    with pytest.raises(ServiceError, match="volumineuse"):
+        asyncio.run(safe_fetch.fetch("https://example.org/feed"))
+    _serve(monkeypatch, gzip.compress(bomb), {"content-encoding": "gzip, gzip"})
+    with pytest.raises(ServiceError, match="Encodage"):
+        asyncio.run(safe_fetch.fetch("https://example.org/feed"))
+    _serve(monkeypatch, gzip.compress(b"<rss/>"), {"content-encoding": "gzip"})
+    assert asyncio.run(safe_fetch.fetch("https://example.org/feed"))[1] == b"<rss/>"
+
+
+def test_oversized_or_exotic_images_are_refused():
+    import io
+
+    from PIL import Image
+
+    from app.services import news
+
+    big = io.BytesIO()
+    Image.new("1", (5000, 4000)).save(big, "PNG")  # 20 Mpx, fichier minuscule
+    with pytest.raises(Exception):
+        news._thumbnail(big.getvalue())
+    tiff = io.BytesIO()
+    Image.new("RGB", (10, 10)).save(tiff, "TIFF")
+    with pytest.raises(Exception):
+        news._thumbnail(tiff.getvalue())
+    ok = io.BytesIO()
+    Image.new("RGB", (800, 600)).save(ok, "JPEG")
+    assert news._thumbnail(ok.getvalue())[:4] == b"RIFF"
+
+
+def test_wrapped_private_addresses_and_odd_signatures():
+    from app.services import news, safe_fetch
+
+    assert not safe_fetch._public("64:ff9b::7f00:1")  # 127.0.0.1 via NAT64
+    assert not safe_fetch._public("::192.168.1.1")
+    assert safe_fetch._public("64:ff9b::808:808")  # 8.8.8.8
+    assert not news.valid_signature("https://example.org/a.jpg", "é" * 32)  # pas d'erreur 500

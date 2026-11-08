@@ -53,7 +53,7 @@ export default function Sidebar() {
   const pending = queue?.pending || 0
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[200px] flex-col border-r border-line bg-bg2/60 px-3 py-5 backdrop-blur-xl md:flex">
+    <aside className="no-scrollbar fixed inset-y-0 left-0 z-40 hidden w-[200px] flex-col overflow-y-auto border-r border-line bg-bg2/60 px-3 py-5 backdrop-blur-xl md:flex">
       <Link to="/" className="mb-8 px-2">
         <Logo />
       </Link>
@@ -108,21 +108,22 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="mt-auto">
+      <div className="mt-auto pt-6">
+        {/* Version sur la ligne du titre « Services » : toujours visible, même avec beaucoup de services */}
+        <div className="mb-2 flex items-baseline justify-between gap-2 px-3">
+          {used.length > 0 && <p className="text-xs font-medium text-text3">{t('Services')}</p>}
+          {health?.version && (
+            <Link to="/profile" className="ml-auto text-[11px] tabular-nums text-text3 hover:text-text2" title={t('À propos')}>
+              v{health.version}
+            </Link>
+          )}
+        </div>
         {used.length > 0 && (
-          <>
-            <p className="mb-2 px-3 text-xs font-medium text-text3">{t('Services')}</p>
-            <ul className="flex flex-col gap-1">
-              {used.map((id) => (
-                <ServiceDot key={id} id={id} health={status.health[id]} />
-              ))}
-            </ul>
-          </>
-        )}
-        {health?.version && (
-          <Link to="/profile" className="mt-4 block px-3 text-[11px] text-text3 hover:text-text2" title={t('À propos')}>
-            CinéSync {health.version}
-          </Link>
+          <ul className="flex flex-col gap-1">
+            {used.map((id) => (
+              <ServiceDot key={id} id={id} health={status.health[id]} />
+            ))}
+          </ul>
         )}
       </div>
     </aside>

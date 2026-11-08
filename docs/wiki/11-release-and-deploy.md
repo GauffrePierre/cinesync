@@ -1,6 +1,6 @@
 # Release and deploy
 
-A CinéSync release is a git tag `vX.Y.Z`. Pushing the tag runs a GitHub Actions workflow that tests the code, builds a multi-architecture Docker image and publishes it to the GitHub Container Registry. Users then deploy that image with Docker Compose or the Unraid template, usually behind an HTTPS reverse proxy. This page covers versioning, the publishing pipeline, deployment options and dependency updates.
+A SynCiné release is a git tag `vX.Y.Z`. Pushing the tag runs a GitHub Actions workflow that tests the code, builds a multi-architecture Docker image and publishes it to the GitHub Container Registry. Users then deploy that image with Docker Compose or the Unraid template, usually behind an HTTPS reverse proxy. This page covers versioning, the publishing pipeline, deployment options and dependency updates.
 
 ## Versioning
 
@@ -39,7 +39,7 @@ flowchart LR
 
 - **Platforms**: `linux/amd64` (PCs, most Unraid servers) and `linux/arm64` (Raspberry Pi, Apple Silicon).
 - **Tags** (via `docker/metadata-action`): `X.Y.Z`, `X.Y`, `latest`, and `sha-<short sha>`.
-- **Registry**: `ghcr.io/${{ github.repository_owner }}/cinesync`, so `ghcr.io/gauffrepierre/cinesync` for the main repository.
+- **Registry**: `ghcr.io/${{ github.repository_owner }}/syncine`, so `ghcr.io/gauffrepierre/syncine` for the main repository.
 - **Build cache**: GitHub Actions cache (`cache-from/to: type=gha`).
 - **Hardening**: every action is pinned to a commit SHA, checkout does not persist credentials, the workflow's default permission is `contents: read`, and only the `image` job gets `packages: write`.
 
@@ -47,7 +47,7 @@ flowchart LR
 
 ### Docker Compose
 
-The repository's `docker-compose.yml` defines one service, `cinesync`, which builds from the `Dockerfile` (or pulls `ghcr.io/gauffrepierre/cinesync:latest` if you remove `build: .`), maps `${CINESYNC_BIND}:${CINESYNC_PORT}` to container port 8000, mounts `${DATA_PATH}` on `/app/data` and reads `.env`. Start from `.env.example`.
+The repository's `docker-compose.yml` defines one service, `cinesync`, which builds from the `Dockerfile` (or pulls `ghcr.io/gauffrepierre/syncine:latest` if you remove `build: .`), maps `${CINESYNC_BIND}:${CINESYNC_PORT}` to container port 8000, mounts `${DATA_PATH}` on `/app/data` and reads `.env`. Start from `.env.example`.
 
 The container:
 
@@ -59,7 +59,7 @@ Updating is `git pull && docker compose up -d --build` (or `docker compose pull 
 
 ### Unraid template
 
-`unraid/cinesync.xml` is a Docker template for Unraid's Docker manager. It points at `ghcr.io/gauffrepierre/cinesync:latest` and exposes:
+`unraid/cinesync.xml` is a Docker template for Unraid's Docker manager. It points at `ghcr.io/gauffrepierre/syncine:latest` and exposes:
 
 | Setting | Target | Default |
 |---|---|---|
@@ -98,7 +98,11 @@ Point the proxy at that address and port, and make sure the proxy's address is i
 
 ### Backups
 
-Everything is in the data folder: `cinesync.db` (accounts, settings, tokens, state), `secret.key` (signs image URLs) and `cache/` (disposable). Back up the database online with `sqlite3 cinesync.db ".backup backup.db"`, and treat backups as secrets.
+Everything is in the data folder: `cinesync.db` (accounts, settings, tokens, state), `secret.key` (signs image URLs), `cache/` (disposable) and `backups/`.
+
+`services/backup.py` makes a consistent online copy with SQLite's backup API (safe with WAL), gzips it to `backups/syncine-YYYYMMDD-HHMMSS.db.gz` (mode 600) and keeps the newest `backup_keep` files. The scheduler job `db_backup` runs hourly and backs up when the newest file is older than 23 hours and `backup_enabled` is on (server settings, row 1). The admin endpoints are under `/api/admin/backups` (list, create, settings, download, delete); file names are validated against `NAME_RE`, so nothing else in the data folder can be reached. Treat backups as secrets.
+
+Restore with the container stopped: decompress the file over `cinesync.db`, delete `cinesync.db-wal` and `cinesync.db-shm`, start again. The entrypoint fixes ownership and permissions on start.
 
 ## Dependency updates: Dependabot
 

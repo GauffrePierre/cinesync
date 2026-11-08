@@ -4,9 +4,10 @@ import asyncio
 import logging
 import random
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.models import MediaState, SwipeHistory
+from app.models import MediaState, SwipeHistory, WatchEvent
+from app.services.cache import MISS, cache
 from app.services.context import Ctx
 from app.services.enrich import enrich, refs_to_items
 from app.services.errors import ServiceError
@@ -38,6 +39,68 @@ async def excluded_keys(ctx: Ctx) -> set[tuple[str, int]]:
     if ctx.trakt:
         keys |= await _safe(ctx.trakt.watched_keys(), set())
     return keys
+
+
+def _caught_up(raw: dict, last_seen: tuple[int, int] | None, seen_on: str | None) -> bool:
+    """Série vue et à jour : pas d'épisode sorti que l'on n'a pas encore vu.
+
+    - Historique des épisodes (Plex, Trakt) : à jour si le dernier épisode diffusé a été atteint.
+    - Sinon, date du dernier visionnage : à jour si rien n'est sorti depuis.
+    - Sans aucune date : à jour seulement si la série est terminée ou annulée."""
+    last = raw.get("last_episode_to_air") or {}
+    if not last.get("air_date"):
+        return True  # rien de diffusé
+    aired = (last.get("season_number") or 0, last.get("episode_number") or 0)
+    if last_seen and aired[0] > 0:
+        return last_seen >= aired
+    if seen_on:
+        return seen_on[:10] >= last["air_date"]
+    return raw.get("status") in ("Ended", "Canceled")
+
+
+async def seen_keys(ctx: Ctx) -> set[tuple[str, int]]:
+    """Titres à ne plus proposer (réglage « déjà vus ») : films vus, séries vues et à jour."""
+    # Empreinte de l'état « vu » : la liste est recalculée dès qu'un titre ou un épisode change
+    stamp = (
+        ctx.db.execute(select(func.count(MediaState.id), func.max(MediaState.updated_at))).one(),
+        ctx.db.execute(select(func.count(WatchEvent.id), func.max(WatchEvent.watched_at))).one(),
+    )
+    key = ("seen-keys", ctx.user.id, str(stamp))
+    if (hit := cache.get(key)) is not MISS:
+        return hit
+    out: set[tuple[str, int]] = set()
+    seen_on: dict[int, str | None] = {}
+    for r in ctx.db.execute(select(MediaState).where(MediaState.watched_sources != "[]")).scalars():
+        if r.media_type == "movie":
+            out.add(("movie", r.tmdb_id))
+        else:
+            seen_on[r.tmdb_id] = r.watched_at
+    # Dernier épisode vu de chaque série (saisons spéciales exclues) et date du dernier visionnage
+    last_ep: dict[int, tuple[int, int]] = {}
+    q = select(WatchEvent.tmdb_id, WatchEvent.season, WatchEvent.episode, WatchEvent.watched_at).where(
+        WatchEvent.kind == "episode", WatchEvent.tmdb_id.isnot(None)
+    )
+    for tid, season, episode, at in ctx.db.execute(q):
+        if season and episode is not None:
+            last_ep[tid] = max(last_ep.get(tid, (0, 0)), (season, episode))
+        when = at.isoformat() if at else None
+        if when and (not seen_on.get(tid) or when > seen_on[tid]):
+            seen_on[tid] = when
+    sem = asyncio.Semaphore(8)
+
+    async def check(tid: int) -> None:
+        async with sem:
+            try:
+                raw = await ctx.tmdb._get(f"/tv/{tid}", ttl=21600)
+            except ServiceError:
+                return  # en cas de doute, la série reste proposée
+        if _caught_up(raw, last_ep.get(tid), seen_on.get(tid)):
+            out.add(("tv", tid))
+
+    if not ctx.tmdb.is_mock:
+        await asyncio.gather(*(check(tid) for tid in seen_on))
+    cache.set(key, out, 1800)
+    return out
 
 
 async def seeds(ctx: Ctx, media_types: list[str]) -> list[dict]:

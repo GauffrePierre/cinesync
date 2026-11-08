@@ -10,12 +10,17 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 |---|---|---|---|---|
 | GET | `/api/admin/users` | `list_users` | admin |  |
 | POST | `/api/admin/users` | `create_user` | admin, server edition | Compte local : l'admin choisit identifiant et mot de passe provisoire, changé à la première connexion. |
-| PATCH | `/api/admin/users/{user_id}` | `update_user` | admin |  |
+| PATCH | `/api/admin/users/{user_id}` | `update_user` | admin | `reset_two_factor: true` désactive la 2FA (téléphone perdu). |
 | DELETE | `/api/admin/users/{user_id}` | `delete_user` | admin | Supprime le compte et ses données personnelles (son historique Plex reste celui du serveur). |
-| GET | `/api/admin/plex/accounts` | `plex_accounts` | admin, server edition | Comptes Plex ayant accès au serveur, et ceux déjà autorisés à se connecter à CinéSync. |
-| POST | `/api/admin/plex/accounts` | `allow_plex_account` | admin, server edition | Autorise un compte Plex du serveur à se connecter (crée son compte CinéSync). |
+| GET | `/api/admin/plex/accounts` | `plex_accounts` | admin, server edition | Comptes Plex ayant accès au serveur, et ceux déjà autorisés à se connecter à SynCiné. |
+| POST | `/api/admin/plex/accounts` | `allow_plex_account` | admin, server edition | Autorise un compte Plex du serveur à se connecter (crée son compte SynCiné). |
 | GET | `/api/admin/plex/dashboard` | `plex_dashboard` | admin | Lectures en cours, bibliothèques (nombre de titres, analyse en cours) et état du serveur. |
 | POST | `/api/admin/plex/scan` | `plex_scan` | admin | Lance l'analyse d'une bibliothèque (ou de toutes) pour détecter les nouveaux fichiers. |
+| GET | `/api/admin/backups` | `list_backups` | admin | `{enabled, keep, items, last_error}`. |
+| POST | `/api/admin/backups` | `backup_now` | admin | Sauvegarde immédiate puis rotation. |
+| PUT | `/api/admin/backups/settings` | `backup_settings` | admin | `{enabled?, keep? (1-60)}` (ligne 1). |
+| GET | `/api/admin/backups/{name}` | `download_backup` | admin | Téléchargement (nom validé par `NAME_RE`, `no-store`). |
+| DELETE | `/api/admin/backups/{name}` | `delete_backup` | admin |  |
 | GET | `/api/admin/plex/stats` | `plex_stats` | admin | Visionnages sur le serveur (historique Plex importé) : par compte, par jour, titres les plus vus. |
 
 ## `auth.py`
@@ -25,6 +30,11 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | GET | `/api/auth/me` | `me` | public |  |
 | POST | `/api/auth/setup` | `setup` | public, server edition | Création du compte administrateur, avec le code affiché dans les journaux du conteneur. |
 | POST | `/api/auth/login` | `login` | public (no session) |  |
+| POST | `/api/auth/login/2fa` | `login_two_factor` | public (ticket) | 2e étape si la 2FA est activée : `{ticket, code}` (code TOTP ou code de secours). Ticket en mémoire, 5 min, 5 essais. |
+| POST | `/api/auth/2fa/setup` | `two_factor_setup` | signed in | Nouveau secret en attente + URI otpauth + QR code SVG (segno). |
+| POST | `/api/auth/2fa/enable` | `two_factor_enable` | signed in | Premier code juste : active la 2FA, renvoie 10 codes de secours (une seule fois), ferme les autres sessions. |
+| POST | `/api/auth/2fa/disable` | `two_factor_disable` | signed in | Code TOTP ou de secours exigé. |
+| POST | `/api/auth/2fa/recovery-codes` | `two_factor_new_codes` | signed in | Nouveaux codes de secours (code exigé). |
 | POST | `/api/auth/logout` | `logout` | public (no session) |  |
 | POST | `/api/auth/password` | `change_password` | signed in (`current_user`, allowed with a temporary password) | Nouveau mot de passe. L'actuel est demandé, sauf juste après une connexion avec un mot de passe provisoire. |
 | DELETE | `/api/auth/password` | `remove_password` | signed in (`current_user`, allowed with a temporary password) | Supprime le mot de passe. Version personnelle : l'accès redevient libre. Version serveur : seulement pour un compte qui peut encore se connecter avec Plex. |
@@ -64,6 +74,7 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 
 | Method | Path | Handler | Access | Notes |
 |---|---|---|---|---|
+| GET | `/api/library/seen` | `seen` | session | Réglage `hide_seen` : films vus + séries vues et à jour (dernier épisode diffusé atteint, sinon rien de sorti depuis le dernier visionnage, sinon série terminée). Cache par empreinte de l'état. |
 | GET | `/api/library/keys` | `keys` | session | Vue compacte de tout l'état personnel (pour les boutons et badges des cartes). |
 | GET | `/api/library/state/{media_type}/{tmdb_id}` | `state` | session |  |
 | GET | `/api/library/watchlist` | `watchlist` | session |  |

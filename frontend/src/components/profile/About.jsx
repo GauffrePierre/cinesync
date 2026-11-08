@@ -18,7 +18,7 @@ export function Support() {
       <div className="min-w-0 flex-1">
         <p className="font-medium">{t('Un café pour moi, des croquettes pour Claude')}</p>
         <p className="mt-1 text-sm text-text2">
-          {t('CinéSync est gratuit, libre et sans publicité. Si l’appli te plaît, tu peux offrir un café au développeur… et des croquettes à Claude, son chat.')}
+          {t('SynCiné est gratuit, libre et sans publicité. Si l’appli te plaît, tu peux offrir un café au développeur… et des croquettes à Claude, son chat.')}
         </p>
       </div>
       {PROJECT.supportUrl ? (
@@ -28,7 +28,7 @@ export function Support() {
           rel="noreferrer"
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110"
         >
-          <Heart className="h-4 w-4" /> {t('Soutenir CinéSync')}
+          <Heart className="h-4 w-4" /> {t('Soutenir SynCiné')}
         </a>
       ) : (
         <span className="shrink-0 rounded-xl border border-dashed border-amber-500/40 px-4 py-2.5 text-center text-xs text-text2">{t('Lien de soutien bientôt disponible')}</span>
@@ -53,7 +53,7 @@ export function About() {
   return (
     <dl className="divide-y divide-line rounded-2xl border border-line bg-bg2 px-5">
       <Row label={t('Version')}>
-        CinéSync {health?.version || '—'}
+        SynCiné {health?.version || '—'}
         {health?.mode && ` · ${health.mode === 'personal' ? t('version personnelle') : t('version serveur')}`}
       </Row>
       <Row label={t('Contributeurs')}>
@@ -92,10 +92,10 @@ export function About() {
         <p className="mt-1.5">
           {t('Disponibilités streaming : JustWatch. Séances de cinéma : AlloCiné, Filmstarts, SensaCine, Beyazperde (Webedia). Suivi : Trakt, Letterboxd, Plex.')}
         </p>
-        <p className="mt-1.5 text-text3">{t('CinéSync n’est affilié à aucun de ces services.')}</p>
+        <p className="mt-1.5 text-text3">{t('SynCiné n’est affilié à aucun de ces services.')}</p>
       </Row>
       <Row label={t('Vie privée')}>
-        {t('Tout reste sur ton serveur : CinéSync ne collecte rien et n’envoie tes données qu’aux services que tu as connectés.')}
+        {t('Tout reste sur ton serveur : SynCiné ne collecte rien et n’envoie tes données qu’aux services que tu as connectés.')}
       </Row>
     </dl>
   )

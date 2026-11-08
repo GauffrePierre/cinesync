@@ -146,7 +146,7 @@ def test_ratings_priority_and_push(db):
     assert not [c for c in server.calls if c[0] == "rate"]  # A est déjà noté côté Plex
 
 
-# --- Actions faites dans CinéSync ------------------------------------------------------
+# --- Actions faites dans SynCiné ------------------------------------------------------
 
 
 def test_action_saved_locally_even_if_a_service_fails(db):
@@ -254,3 +254,15 @@ def test_dislike_hides_title_from_suggestions_and_trakt(db):
     assert ("hide", ("movie", 9)) in trakt.calls
     ctx.trakt = None  # excluded_keys interroge Trakt seulement s'il est connecté
     assert ("movie", 9) in asyncio.run(excluded_keys(ctx))
+
+
+def test_account_writes_outside_the_library_are_not_repeated(db):
+    """Un film vu (ou noté) sur Trakt mais absent de la bibliothèque est marqué sur le compte plex.tv ;
+    la relecture ne voit que la bibliothèque du serveur : il ne doit pas être renvoyé à chaque synchronisation."""
+    server = FakePlexServer([lib_item("movie", 13, "r13")])
+    trakt = FakeTrakt(watched=[("movie", 14)], ratings={("movie", 14): 8})
+    plex = FakePlexAccount()
+    for _ in range(3):
+        pull(FakeCtx(db, trakt=trakt, plex_account=plex, plex=server))
+    assert [c for c in plex.calls if c[0] == "watched"] == [("watched", ("movie", 14))]
+    assert len([c for c in plex.calls if c[0] == "rate"]) == 1

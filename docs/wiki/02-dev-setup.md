@@ -1,6 +1,6 @@
 # Development setup
 
-To work on CinéSync you run two processes: the FastAPI backend with uvicorn on port 8000, and the Vite dev server for the frontend, which proxies `/api` to the backend. This page covers both, the environment variables, the test command and how to build the Docker image. You need **Python 3.12** and **Node 22** (the versions used by the `Dockerfile` and CI).
+To work on SynCiné you run two processes: the FastAPI backend with uvicorn on port 8000, and the Vite dev server for the frontend, which proxies `/api` to the backend. This page covers both, the environment variables, the test command and how to build the Docker image. You need **Python 3.12** and **Node 22** (the versions used by the `Dockerfile` and CI).
 
 ## Backend
 
@@ -20,7 +20,7 @@ uvicorn app.main:app --reload --port 8000
 In the default `server` edition, the first screen asks you to create the admin account with a setup code printed in the logs:
 
 ```
-Installation de CinéSync : code pour créer le compte administrateur -> ABCD-1234-EF56
+Installation de SynCiné : code pour créer le compte administrateur -> ABCD-1234-EF56
 ```
 
 For quick local hacking you can skip accounts entirely with the personal edition:

@@ -2,7 +2,7 @@
   <img src="frontend/public/icons/icon-192.png" width="88" alt="" />
 </p>
 
-<h1 align="center">CinéSync</h1>
+<h1 align="center">SynCiné</h1>
 
 <p align="center">
   <b>Ton compagnon de cinéphile, auto-hébergé.</b><br />
@@ -14,22 +14,22 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/desktop-discover.webp" alt="Page Découvrir de CinéSync" width="900" />
+  <img src="docs/screenshots/desktop-discover.webp" alt="Page Découvrir de SynCiné" width="900" />
 </p>
 
 ---
 
 Découvre, suis et retrouve tous tes films et séries, **quelle que soit ta plateforme de streaming**, et ne rate plus rien de ce qui passe **dans les cinémas de ta ville**.
 
-CinéSync réunit et synchronise **Trakt**, **TMDB** et les disponibilités streaming de **JustWatch** dans une seule interface, avec des **recommandations faites pour toi**. En option : ton journal **Letterboxd**, ta bibliothèque **Plex** et les demandes d'ajout via **Seerr**.
+SynCiné réunit et synchronise **Trakt**, **TMDB** et les disponibilités streaming de **JustWatch** dans une seule interface, avec des **recommandations faites pour toi**. En option : ton journal **Letterboxd**, ta bibliothèque **Plex** et les demandes d'ajout via **Seerr**.
 
-Deux versions : **personnelle**, pour toi seul, ou **serveur**, avec un administrateur et des **comptes pour la famille**. Une fois en ligne, CinéSync s'installe comme une **application** sur téléphone, tablette et ordinateur (PWA), en français ou en anglais.
+Deux versions : **personnelle**, pour toi seul, ou **serveur**, avec un administrateur et des **comptes pour la famille**. Une fois en ligne, SynCiné s'installe comme une **application** sur téléphone, tablette et ordinateur (PWA), en français ou en anglais.
 
-## Soutenir CinéSync
+## Soutenir SynCiné
 
-CinéSync est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux offrir **un café au développeur… et des croquettes à Claude, son chat** 🐱☕
+SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux offrir **un café au développeur… et des croquettes à Claude, son chat** 🐱☕
 
-<a href="https://ko-fi.com/pierre_et_chat"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Soutenir CinéSync sur Ko-fi" height="36" /></a>
+<a href="https://ko-fi.com/pierre_et_chat"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Soutenir SynCiné sur Ko-fi" height="36" /></a>
 
 ## Sommaire
 
@@ -84,7 +84,7 @@ CinéSync est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux o
 **Au cinéma**
 - Les séances de **tes salles habituelles** (France, Allemagne, Espagne, Turquie, Mexique), avec un filtre « films uniquement » (sans opéras ni concerts).
 - Les sorties en salles et en streaming de ton pays, en grille ou en calendrier.
-- Un film encore au cinéma ? CinéSync te le signale et peut demander son ajout pour le jour de sa sortie numérique.
+- Un film encore au cinéma ? SynCiné te le signale et peut demander son ajout pour le jour de sa sortie numérique.
 
 **Actu Ciné**
 - Les dernières critiques, actus et vidéos de tes sources préférées dans un seul fil : Écran Large, AlloCiné, Le Monde, Télérama, IndieWire, Variety, Letterboxd Journal…
@@ -124,11 +124,11 @@ CinéSync est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux o
 | [Plex](https://www.plex.tv) | Ta bibliothèque, lecture, historique, comptes de la famille | Option |
 | [Seerr](https://github.com/seerr-team/seerr) | Demandes d'ajout à ta bibliothèque | Option |
 
-CinéSync ne télécharge rien. Il peut seulement transmettre une demande à Seerr, qui la traite ensuite selon tes réglages.
+SynCiné ne télécharge rien. Il peut seulement transmettre une demande à Seerr, qui la traite ensuite selon tes réglages.
 
 ## Installation
 
-CinéSync tient dans **un seul conteneur Docker** (interface et serveur) et stocke tout dans une base SQLite.
+SynCiné tient dans **un seul conteneur Docker** (interface et serveur) et stocke tout dans une base SQLite.
 
 ### Choisir une version
 
@@ -145,8 +145,8 @@ CinéSync tient dans **un seul conteneur Docker** (interface et serveur) et stoc
 Prérequis : Docker avec le plugin Compose.
 
 ```bash
-git clone https://github.com/GauffrePierre/cinesync.git
-cd cinesync
+git clone https://github.com/GauffrePierre/syncine.git
+cd syncine
 cp .env.example .env     # puis adapte : version, dossier des données, port, PUBLIC_URL
 docker compose up -d --build
 ```
@@ -162,7 +162,7 @@ docker logs cinesync 2>&1 | grep "code pour créer"
 <details>
 <summary>Utiliser l'image publiée au lieu de compiler</summary>
 
-À chaque version, une image est publiée sur GitHub (PC et ARM) : `ghcr.io/gauffrepierre/cinesync:latest`. Dans `docker-compose.yml`, retire la ligne `build: .` puis :
+À chaque version, une image est publiée sur GitHub (PC et ARM) : `ghcr.io/gauffrepierre/syncine:latest`. Dans `docker-compose.yml`, retire la ligne `build: .` puis :
 
 ```bash
 docker compose pull && docker compose up -d
@@ -172,7 +172,7 @@ docker compose pull && docker compose up -d
 
 ### Sur Unraid
 
-**Avec le modèle Unraid** : copie [`unraid/cinesync.xml`](unraid/cinesync.xml) dans `/boot/config/plugins/dockerMan/templates-user/` sur ta clé Unraid. Va ensuite dans **Docker → Add Container** et choisis **CinéSync** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/cinesync`, et le conteneur tourne sous `nobody:users`.
+**Avec le modèle Unraid** : copie [`unraid/cinesync.xml`](unraid/cinesync.xml) dans `/boot/config/plugins/dockerMan/templates-user/` sur ta clé Unraid. Va ensuite dans **Docker → Add Container** et choisis **SynCiné** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/cinesync`, et le conteneur tourne sous `nobody:users`.
 
 <details>
 <summary>Avec Docker Compose sur Unraid (sans plugin)</summary>
@@ -184,7 +184,7 @@ mkdir -p /mnt/user/appdata/cinesync/bin && cd /mnt/user/appdata/cinesync
 V=v5.7.0; B=https://github.com/docker/compose/releases/download/$V
 cd bin && curl -fLO $B/docker-compose-linux-x86_64 && curl -fLO $B/docker-compose-linux-x86_64.sha256 \
   && sha256sum -c docker-compose-linux-x86_64.sha256 && mv docker-compose-linux-x86_64 docker-compose && chmod +x docker-compose
-cd .. && git clone https://github.com/GauffrePierre/cinesync.git app && cd app
+cd .. && git clone https://github.com/GauffrePierre/syncine.git app && cd app
 cp .env.example .env     # DATA_PATH=/mnt/user/appdata/cinesync/data, CINESYNC_PORT libre, PUBLIC_URL
 ../bin/docker-compose -p cinesync up -d --build
 ```
@@ -199,7 +199,7 @@ Si le port 3000 est déjà pris (Nginx Proxy Manager…), change `CINESYNC_PORT`
 
 En résumé, tout se règle dans **Profil**, dans cet ordre :
 
-1. **TMDB** : crée une clé gratuite sur [themoviedb.org](https://www.themoviedb.org/settings/api) (Paramètres → API). Sans elle, CinéSync affiche des données de démonstration.
+1. **TMDB** : crée une clé gratuite sur [themoviedb.org](https://www.themoviedb.org/settings/api) (Paramètres → API). Sans elle, SynCiné affiche des données de démonstration.
 2. **Région et plateformes** : choisis ton pays et coche tes abonnements. Ce choix sert aux badges, aux filtres, au bouton « Regarder sur… » et aux notifications.
 3. **Cinémas** : cherche tes salles habituelles.
 4. **Trakt** :
@@ -209,7 +209,7 @@ En résumé, tout se règle dans **Profil**, dans cet ordre :
 5. **En option** :
    - **JustWatch** : une case à cocher, pour les liens directs et les nouveautés.
    - **Letterboxd** : ton nom d'utilisateur.
-   - **Plex** : **Se connecter avec Plex**, puis le code à saisir sur plex.tv/link. CinéSync trouve ensuite tout seul la meilleure connexion à ton serveur.
+   - **Plex** : **Se connecter avec Plex**, puis le code à saisir sur plex.tv/link. SynCiné trouve ensuite tout seul la meilleure connexion à ton serveur.
    - **Seerr** : son adresse et sa clé API.
 
 La **synchronisation automatique** (watchlist identique partout, vus et notes recopiés là où ils manquent) se règle dans Profil → Synchronisation. Un aperçu montre ce qui va changer avant de l'activer.
@@ -220,7 +220,7 @@ La **synchronisation automatique** (watchlist identique partout, vus et notes re
 Dans **Profil → Réglages admin** ou **Espace admin** :
 
 - **Comptes locaux** : tu choisis un identifiant et un mot de passe provisoire, que la personne change à sa première connexion.
-- **Comptes Plex** : CinéSync liste les personnes avec qui ton serveur Plex est partagé. Une fois autorisées, elles se connectent avec « Se connecter avec Plex ». CinéSync vérifie que c'est bien ce compte, et chacun retrouve ses propres vus et sa progression.
+- **Comptes Plex** : SynCiné liste les personnes avec qui ton serveur Plex est partagé. Une fois autorisées, elles se connectent avec « Se connecter avec Plex ». SynCiné vérifie que c'est bien ce compte, et chacun retrouve ses propres vus et sa progression.
 - **Demandes directes à Seerr** : à activer compte par compte. Sinon, les demandes arrivent dans l'onglet Demandes de l'administrateur, qui est prévenu par une notification.
 
 Les clés TMDB, le serveur Plex, Seerr et JustWatch sont réglés une fois par l'administrateur et partagés par tous. Trakt, Letterboxd, les plateformes et les cinémas sont propres à chaque compte.
@@ -229,7 +229,7 @@ Les clés TMDB, le serveur Plex, Seerr et JustWatch sont réglés une fois par l
 
 ## Accès HTTPS et application mobile
 
-Pour installer CinéSync comme une application (PWA), le navigateur exige le **HTTPS**. Deux solutions :
+Pour installer SynCiné comme une application (PWA), le navigateur exige le **HTTPS**. Deux solutions :
 
 <details>
 <summary><b>Tailscale</b> : accès privé, sans ouvrir de port</summary>
@@ -240,7 +240,7 @@ Avec Tailscale installé sur le serveur :
 tailscale serve --bg --https=8443 http://127.0.0.1:3000
 ```
 
-CinéSync est alors sur `https://<machine>.<tailnet>.ts.net:8443`, avec un certificat valide, et seulement depuis ton tailnet. Dans `.env` :
+SynCiné est alors sur `https://<machine>.<tailnet>.ts.net:8443`, avec un certificat valide, et seulement depuis ton tailnet. Dans `.env` :
 
 ```ini
 PUBLIC_URL=https://<machine>.<tailnet>.ts.net:8443
@@ -270,7 +270,7 @@ CINESYNC_BIND=127.0.0.1
 HSTS_SECONDS=31536000      # le navigateur n'utilisera plus que le HTTPS pour ce domaine
 ```
 
-Si le proxy tourne dans un autre conteneur (Nginx Proxy Manager…), `127.0.0.1` n'est pas joignable depuis ce conteneur. Ajoute un fichier `docker-compose.override.yml`, propre à ton serveur, pour ouvrir CinéSync au seul réseau interne de Docker :
+Si le proxy tourne dans un autre conteneur (Nginx Proxy Manager…), `127.0.0.1` n'est pas joignable depuis ce conteneur. Ajoute un fichier `docker-compose.override.yml`, propre à ton serveur, pour ouvrir SynCiné au seul réseau interne de Docker :
 
 ```yaml
 services:
@@ -284,23 +284,28 @@ Le proxy redirige alors vers `http://172.17.0.1:3000`. Son adresse doit faire pa
 </details>
 
 **Installer l'application :**
-- **iPhone / iPad** : ouvre CinéSync dans Safari, puis **Partager → Sur l'écran d'accueil**.
+- **iPhone / iPad** : ouvre SynCiné dans Safari, puis **Partager → Sur l'écran d'accueil**.
 - **Android** : Chrome propose directement l'installation.
 - **Ordinateur** : utilise l'icône d'installation dans la barre d'adresse.
 
 ## Mise à jour et sauvegarde
 
 ```bash
-cd cinesync && git pull && docker compose up -d --build
+cd syncine && git pull && docker compose up -d --build
 ```
 
-La base de données (`cinesync.db` dans le dossier des données) est migrée automatiquement au démarrage. Pour la sauvegarder sans arrêter CinéSync :
+La base de données (`cinesync.db` dans le dossier des données) est migrée automatiquement au démarrage.
+
+**Sauvegardes** : SynCiné sauvegarde sa base chaque jour dans `backups/` (dossier des données) et garde les 7 dernières. Dans **Espace admin → Sauvegardes**, tu peux changer ce nombre, désactiver la sauvegarde automatique, sauvegarder tout de suite ou télécharger une copie. Une sauvegarde contient les jetons de tes services connectés : garde les copies en lieu sûr, idéalement aussi hors du serveur.
+
+**Restaurer** une sauvegarde :
 
 ```bash
-sqlite3 /chemin/des/donnees/cinesync.db ".backup cinesync-$(date +%F).db"
+docker compose stop
+gunzip -c data/backups/syncine-AAAAMMJJ-HHMMSS.db.gz > data/cinesync.db
+rm -f data/cinesync.db-wal data/cinesync.db-shm
+docker compose start
 ```
-
-Elle contient les jetons de tes services connectés : garde ses sauvegardes en lieu sûr.
 
 ## Réglages
 
@@ -325,6 +330,7 @@ Dans le fichier `.env` (voir [`.env.example`](.env.example)). Les clés des serv
 
 - **Version serveur** :
   - connexion obligatoire, avec des mots de passe hachés (scrypt) et une session dans un cookie HttpOnly ;
+  - double authentification facultative (codes à 6 chiffres d'une application comme Aegis ou Google Authenticator, codes de secours) ;
   - essais de connexion limités, requêtes venant d'autres sites refusées ;
   - chaque compte ne voit que ses propres données.
 - Les clés et jetons des services ne sont jamais renvoyés au navigateur. L'administrateur en voit seulement un aperçu masqué.
@@ -383,6 +389,6 @@ Les contributions sont les bienvenues : signale un bug ou propose une idée dans
 
 <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" height="14" alt="TMDB" /> &nbsp;Ce produit utilise l'API TMDB, mais n'est ni approuvé ni certifié par TMDB.
 
-Les disponibilités streaming proviennent de [JustWatch](https://www.justwatch.com). Les séances de cinéma proviennent des sites du groupe Webedia (AlloCiné, Filmstarts, SensaCine, Beyazperde). CinéSync n'est affilié à aucun de ces services, ni à Trakt, Letterboxd, Plex ou Seerr.
+Les disponibilités streaming proviennent de [JustWatch](https://www.justwatch.com). Les séances de cinéma proviennent des sites du groupe Webedia (AlloCiné, Filmstarts, SensaCine, Beyazperde). SynCiné n'est affilié à aucun de ces services, ni à Trakt, Letterboxd, Plex ou Seerr.
 
-CinéSync est un logiciel libre, distribué sous licence [GNU AGPL-3.0](LICENSE) : tu peux l'utiliser, l'étudier, le modifier et le partager. Toute version modifiée, y compris proposée comme service en ligne, doit rester libre sous la même licence.
+SynCiné est un logiciel libre, distribué sous licence [GNU AGPL-3.0](LICENSE) : tu peux l'utiliser, l'étudier, le modifier et le partager. Toute version modifiée, y compris proposée comme service en ligne, doit rester libre sous la même licence.

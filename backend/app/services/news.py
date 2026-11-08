@@ -101,7 +101,7 @@ def _date(e) -> str | None:
 
 
 # --- Relais d'images ------------------------------------------------------------------------
-# Les images des articles passent par CinéSync : téléchargées une fois (2 à la fois par site, pour respecter
+# Les images des articles passent par SynCiné : téléchargées une fois (2 à la fois par site, pour respecter
 # leurs limites), réduites en WebP et gardées en cache sur le disque. Les sites ne voient pas l'adresse des
 # membres, et les téléphones chargent ~30 Ko au lieu de ~300. Seules les adresses signées par le serveur
 # (donc venues d'un flux) sont relayées.
@@ -109,6 +109,9 @@ def _date(e) -> str | None:
 IMG_WIDTH = 640
 IMG_CACHE_MAX = 300 * 1024 * 1024
 _host_locks: dict[str, asyncio.Semaphore] = defaultdict(lambda: asyncio.Semaphore(2))
+_decode_lock = asyncio.Semaphore(2)  # décodage d'images : 2 à la fois au plus, quel que soit le site
+MAX_PIXELS = 16_000_000
+IMAGE_FORMATS = ["JPEG", "PNG", "WEBP", "GIF"]
 
 
 def _sign(url: str) -> str:
@@ -122,7 +125,7 @@ def proxied(url: str | None) -> str | None:
 
 
 def valid_signature(url: str, sig: str) -> bool:
-    return hmac.compare_digest(_sign(url), sig or "")
+    return hmac.compare_digest(_sign(url).encode(), (sig or "").encode())
 
 
 def _cache_dir():
@@ -143,8 +146,10 @@ def _prune_cache(d) -> None:
 def _thumbnail(data: bytes) -> bytes:
     from PIL import Image
 
-    Image.MAX_IMAGE_PIXELS = 40_000_000  # refuse les images démesurées
-    with Image.open(io.BytesIO(data)) as im:
+    Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+    with Image.open(io.BytesIO(data), formats=IMAGE_FORMATS) as im:  # formats courants seulement
+        if im.width * im.height > MAX_PIXELS:  # refus net (Pillow ne fait qu'avertir jusqu'au double)
+            raise ValueError("image démesurée")
         im.draft("RGB", (IMG_WIDTH * 2, IMG_WIDTH * 2))
         im = im.convert("RGB")
         im.thumbnail((IMG_WIDTH, IMG_WIDTH))
@@ -160,6 +165,8 @@ async def image(url: str):
     if path.exists():
         return path
     host = urlsplit(url).hostname or ""
+    if len(_host_locks) > 1000:  # mémoire bornée
+        _host_locks.clear()
     async with _host_locks[host]:
         if path.exists():
             return path
@@ -167,7 +174,8 @@ async def image(url: str):
         if ctype and not ctype.startswith("image/"):
             raise ServiceError("news", "Ce n'est pas une image", 502)
         try:
-            data = await asyncio.to_thread(_thumbnail, body)
+            async with _decode_lock:
+                data = await asyncio.to_thread(_thumbnail, body)
         except Exception as e:  # noqa: BLE001 — image illisible ou trop grande
             raise ServiceError("news", "Image illisible", 502) from e
         tmp = path.with_suffix(".tmp")
@@ -190,7 +198,7 @@ def _items(feed, source: dict) -> list[dict]:
             "title": _text(e.get("title"), 200),
             "url": link,
             "summary": _text(e.get("summary") or (e.get("media_description") if video else ""), 280),
-            # Vignettes YouTube : servies directement par YouTube ; images d'articles : relayées par CinéSync
+            # Vignettes YouTube : servies directement par YouTube ; images d'articles : relayées par SynCiné
             "image": f"https://i.ytimg.com/vi/{video}/hqdefault.jpg" if video else proxied(_image(e)),
             "published": _date(e),
             "kind": "video" if video or source["kind"] == "youtube" else "article",

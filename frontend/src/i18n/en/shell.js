@@ -55,7 +55,7 @@ export default {
   '{label} — OK sur {ok}, échec {errors}': '{label} — OK on {ok}, failed on {errors}',
   '{label} — échec {errors}': '{label} — failed on {errors}',
   '{label} · {services}': '{label} · {services}',
-  '{label} (dans CinéSync)': '{label} (in CinéSync)',
+  '{label} (dans SynCiné)': '{label} (in SynCiné)',
 
   // --- Services (libellés rendus ailleurs) ---
   'En attente': 'Pending',
@@ -64,7 +64,7 @@ export default {
   Disponible: 'Available',
 
   // --- Erreurs réseau (services/api) ---
-  'Serveur CinéSync injoignable': 'CinéSync server unreachable',
+  'Serveur SynCiné injoignable': 'SynCiné server unreachable',
   'Données invalides': 'Invalid data',
   'Erreur {status}': 'Error {status}',
 
@@ -110,7 +110,7 @@ export default {
   'Notification introuvable': 'Notification not found',
   "Demande enregistrée — l'administrateur la traitera": 'Request saved — the administrator will handle it',
   'Demande envoyée à Seerr': 'Request sent to Seerr',
-  'Enregistré dans CinéSync — connecte Trakt ou Plex pour synchroniser': 'Saved in CinéSync — connect Trakt or Plex to sync',
+  'Enregistré dans SynCiné — connecte Trakt ou Plex pour synchroniser': 'Saved in SynCiné — connect Trakt or Plex to sync',
   'Choisis tes plateformes dans le Profil': 'Choose your platforms in your Profile',
   'TMDB doit être configuré': 'TMDB must be configured',
   'Notifications de disponibilité désactivées': 'Availability notifications are disabled',

@@ -1,4 +1,4 @@
-# CinéSync : image unique (interface compilée + serveur FastAPI)
+# SynCiné : image unique (interface compilée + serveur FastAPI)
 
 # 1. Interface (React + Vite)
 FROM node:22-alpine AS frontend
@@ -11,11 +11,11 @@ RUN npm run build
 # 2. Serveur (FastAPI) qui sert aussi l'interface
 FROM python:3.12-slim
 ARG VERSION=dev
-LABEL org.opencontainers.image.title="CinéSync" \
+LABEL org.opencontainers.image.title="SynCiné" \
       org.opencontainers.image.description="Streaming, cinémas, watchlists et recommandations, réunis dans une PWA auto-hébergée" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
-      org.opencontainers.image.source="https://github.com/GauffrePierre/cinesync"
+      org.opencontainers.image.source="https://github.com/GauffrePierre/syncine"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

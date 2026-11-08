@@ -33,7 +33,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="CinéSync",
+    title="SynCiné",
     version=__version__,
     lifespan=lifespan,
     docs_url="/api/docs" if config.api_docs else None,
@@ -59,7 +59,7 @@ async def service_error_handler(_: Request, exc: ServiceError):
 
 UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 
-# Sources autorisées : uniquement CinéSync, sauf les images (affiches, logos : https) et les bandes-annonces
+# Sources autorisées : uniquement SynCiné, sauf les images (affiches, logos : https) et les bandes-annonces
 # YouTube (sans cookies). Le service worker télécharge lui-même les affiches TMDB (connect-src).
 CSP = "; ".join([
     "default-src 'self'",
@@ -129,10 +129,13 @@ def _origin(url: str) -> str:
 
 @app.middleware("http")
 async def same_origin_only(request: Request, call_next):
-    """Protection CSRF : une requête qui modifie des données doit venir de CinéSync lui-même — même
+    """Protection CSRF : une requête qui modifie des données doit venir de SynCiné lui-même — même
     protocole, même nom et même port (les autres applis d'un serveur partagent souvent le nom de machine).
     En plus du cookie SameSite=Lax. Les navigateurs envoient toujours Origin sur ces requêtes."""
     if request.method in UNSAFE and request.url.path.startswith("/api/"):
+        # Navigateurs récents : requête venue d'un autre site, même sans en-tête Origin
+        if request.headers.get("sec-fetch-site") == "cross-site":
+            return JSONResponse(status_code=403, content={"detail": "Origine de la requête refusée"})
         origin = request.headers.get("origin")
         if origin:
             host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
@@ -166,7 +169,10 @@ if (STATIC / "index.html").is_file():
     def frontend(path: str):
         if path.startswith("api/"):
             return JSONResponse(status_code=404, content={"detail": "Introuvable"})
-        target = (STATIC / path).resolve() if path else STATIC / "index.html"
+        try:
+            target = (STATIC / path).resolve() if path else STATIC / "index.html"
+        except (ValueError, OSError):  # caractère nul, nom trop long…
+            target = STATIC / "index.html"
         # Fichier existant, à l'intérieur du dossier de l'interface uniquement
         if not target.is_file() or not target.is_relative_to(STATIC):
             target = STATIC / "index.html"  # route de l'application (SPA)

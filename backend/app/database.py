@@ -89,7 +89,7 @@ def _add_missing_columns() -> None:
     """Migration légère : ajoute les colonnes apparues dans les modèles depuis la création de la base.
 
     create_all() ne modifie jamais une table existante ; sans ceci, une mise à jour
-    de CinéSync casserait une base déjà en place.
+    de SynCiné casserait une base déjà en place.
     """
     insp = inspect(engine)
     with engine.begin() as conn:
@@ -175,7 +175,7 @@ def init_db() -> None:
         db.commit()
         if setup_required(db):
             setup_code = "-".join(secrets.token_hex(2).upper() for _ in range(3))
-            log.warning("Installation de CinéSync : code pour créer le compte administrateur -> %s", setup_code)
+            log.warning("Installation de SynCiné : code pour créer le compte administrateur -> %s", setup_code)
 
 
 def setup_required(db: Session) -> bool:

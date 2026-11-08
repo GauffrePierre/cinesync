@@ -51,7 +51,7 @@ async def showtimes(date: str | None = None, ctx: Ctx = Depends(get_ctx)):
             entry = films.setdefault(m["allocine_id"], {"allocine": m, "cinemas": []})
             entry["cinemas"].append({**cinema, "showtimes": m["showtimes"]})
 
-    # Correspondance avec TMDB (affiche, note, fiche CinéSync)
+    # Correspondance avec TMDB (affiche, note, fiche SynCiné)
     async def match(entry):
         m = entry["allocine"]
         item = None

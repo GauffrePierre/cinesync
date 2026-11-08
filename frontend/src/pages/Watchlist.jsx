@@ -128,7 +128,7 @@ export default function Watchlist() {
         <div>
           <h1 className="text-2xl font-semibold md:text-3xl">Watchlist</h1>
           <p className="mt-1 text-sm text-text2">
-            {first ? (first.total > 1 ? t('{n} titres', { n: first.total }) : t('{n} titre', { n: first.total })) : t('Chargement…')} · {t('Trakt, Plex et CinéSync réunis')}
+            {first ? (first.total > 1 ? t('{n} titres', { n: first.total }) : t('{n} titre', { n: first.total })) : t('Chargement…')} · {t('Trakt, Plex et SynCiné réunis')}
             {lastPull?.at && <span className="text-text3"> · {t('synchronisé {when}', { when: relativeTime(lastPull.at) })}</span>}
           </p>
         </div>

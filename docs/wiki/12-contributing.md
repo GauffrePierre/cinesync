@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome, from a typo fix to a new integration. This page explains how to propose a change: open or pick an issue, work on a branch, follow the existing code style, keep the tests green, write a clear commit message and open a pull request on `GauffrePierre/cinesync`. Security problems follow a separate, private path. CinéSync is free software under the GNU AGPL-3.0.
+Contributions are welcome, from a typo fix to a new integration. This page explains how to propose a change: open or pick an issue, work on a branch, follow the existing code style, keep the tests green, write a clear commit message and open a pull request on `GauffrePierre/syncine`. Security problems follow a separate, private path. SynCiné is free software under the GNU AGPL-3.0.
 
 ## Before you start
 
@@ -86,16 +86,16 @@ Please do **not** open a public issue. Use GitHub's private vulnerability report
 
 ## License
 
-CinéSync is released under the **GNU Affero General Public License v3.0** ([LICENSE](../../LICENSE), `AGPL-3.0-only` in `frontend/package.json` and the Docker image label). By contributing, you agree that your contribution is licensed under the same terms. In short: anyone may use, study, modify and share CinéSync, and any modified version, including one offered as a network service, must remain free under the same license.
+SynCiné is released under the **GNU Affero General Public License v3.0** ([LICENSE](../../LICENSE), `AGPL-3.0-only` in `frontend/package.json` and the Docker image label). By contributing, you agree that your contribution is licensed under the same terms. In short: anyone may use, study, modify and share SynCiné, and any modified version, including one offered as a network service, must remain free under the same license.
 
-Respect the terms of the services CinéSync uses. In particular, keep the TMDB attribution ([Integrations](08-integrations.md#tmdb--tmdb_clientpy)).
+Respect the terms of the services SynCiné uses. In particular, keep the TMDB attribution ([Integrations](08-integrations.md#tmdb--tmdb_clientpy)).
 
 ## Credits
 
-- **Pierre Gauffre**: creator of CinéSync, and development.
+- **Pierre Gauffre**: creator of SynCiné, and development.
 - **Claude** ([Anthropic](https://www.anthropic.com)): development. Claude wrote much of the code and documentation under Pierre's direction; its contributions appear as co-author on the commits.
 
-Thanks to everyone who reports bugs, suggests ideas and sends pull requests. If you enjoy CinéSync, the README has a link to support the project.
+Thanks to everyone who reports bugs, suggests ideas and sends pull requests. If you enjoy SynCiné, the README has a link to support the project.
 
 ## See also
 

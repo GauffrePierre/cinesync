@@ -1,6 +1,6 @@
-# CinéSync developer wiki
+# SynCiné developer wiki
 
-Welcome! This wiki is for developers who want to understand, run and improve CinéSync. CinéSync is a self-hosted PWA for film lovers: it brings together TMDB, Trakt, JustWatch, Plex, Letterboxd, Seerr and local cinema showtimes, keeps your watchlist in sync across services and suggests what to watch. It is a FastAPI + SQLite backend and a React 18 + Vite + Tailwind v4 frontend, shipped as a single Docker image.
+Welcome! This wiki is for developers who want to understand, run and improve SynCiné. SynCiné is a self-hosted PWA for film lovers: it brings together TMDB, Trakt, JustWatch, Plex, Letterboxd, Seerr and local cinema showtimes, keeps your watchlist in sync across services and suggests what to watch. It is a FastAPI + SQLite backend and a React 18 + Vite + Tailwind v4 frontend, shipped as a single Docker image.
 
 For the product overview, installation and user settings, start with the main [README](../../README.en.md). This wiki covers how the code works.
 

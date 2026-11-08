@@ -2,10 +2,10 @@
 export default {
   // Page Profil
   'Profil et paramètres': 'Profile & settings',
-  'Connecte tes services : tout le reste de CinéSync en dépend.': 'Connect your services: everything else in CinéSync depends on them.',
+  'Connecte tes services : tout le reste de SynCiné en dépend.': 'Connect your services: everything else in SynCiné depends on them.',
   'Commence par TMDB': 'Start with TMDB',
-  'Sans clé TMDB, CinéSync affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.':
-    'Without a TMDB key, CinéSync shows demo data. The key is free: create an account on themoviedb.org, then Settings → API.',
+  'Sans clé TMDB, SynCiné affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.':
+    'Without a TMDB key, SynCiné shows demo data. The key is free: create an account on themoviedb.org, then Settings → API.',
   'Trakt connecté !': 'Trakt connected!',
   'Connexion Trakt échouée : {reason}': 'Trakt connection failed: {reason}',
   'jeton de sécurité invalide, réessaie': 'invalid security token, try again',
@@ -48,12 +48,12 @@ export default {
   "Nom d'utilisateur": 'Username',
   'ton-pseudo': 'your-username',
   'Liens directs vers chaque plateforme et nouveautés de la semaine': 'Direct links to each platform and new arrivals of the week',
-  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, CinéSync revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).":
-    "Uses JustWatch's unofficial internal API: it may stop working without notice. If so, CinéSync automatically falls back to TMDB data (which also comes from JustWatch, but without direct links).",
+  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, SynCiné revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).":
+    "Uses JustWatch's unofficial internal API: it may stop working without notice. If so, SynCiné automatically falls back to TMDB data (which also comes from JustWatch, but without direct links).",
   'Activer JustWatch': 'Enable JustWatch',
   Synchronisation: 'Sync',
-  'Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans CinéSync.':
-    'Watchlist, watched titles, ratings and favourites, gathered from Trakt, Plex and Letterboxd, and saved in CinéSync.',
+  'Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.':
+    'Watchlist, watched titles, ratings and favourites, gathered from Trakt, Plex and Letterboxd, and saved in SynCiné.',
   "Demandes d'ajout": 'Requests',
   'Titres demandés pour ta bibliothèque Plex. Avec Seerr connecté, ils y sont envoyés directement.':
     'Titles requested for your Plex library. With Seerr connected, they are sent there directly.',
@@ -168,7 +168,7 @@ export default {
   'Choisis le serveur à utiliser': 'Choose the server to use',
   'partagé avec toi': 'shared with you',
   'Joignable via {kind}': 'Reachable via {kind}',
-  'Injoignable depuis CinéSync': 'Unreachable from CinéSync',
+  'Injoignable depuis SynCiné': 'Unreachable from SynCiné',
   Fermer: 'Close',
   'Compte Plex connecté': 'Plex account connected',
   '· serveur {name}': '· server {name}',
@@ -250,10 +250,10 @@ export default {
   'Chercher un titre…': 'Search a title…',
   'Aucun titre ne correspond.': 'No matching title.',
   // Soutenir / À propos
-  'Soutenir CinéSync': 'Support CinéSync',
+  'Soutenir SynCiné': 'Support SynCiné',
   'Un café pour moi, des croquettes pour Claude': 'A coffee for me, kibble for Claude',
-  'CinéSync est gratuit, libre et sans publicité. Si l’appli te plaît, tu peux offrir un café au développeur… et des croquettes à Claude, son chat.':
-    'CinéSync is free, open source and ad-free. If you enjoy it, you can buy the developer a coffee… and some kibble for Claude, his cat.',
+  'SynCiné est gratuit, libre et sans publicité. Si l’appli te plaît, tu peux offrir un café au développeur… et des croquettes à Claude, son chat.':
+    'SynCiné is free, open source and ad-free. If you enjoy it, you can buy the developer a coffee… and some kibble for Claude, his cat.',
   'Lien de soutien bientôt disponible': 'Support link coming soon',
   'À propos': 'About',
   Version: 'Version',
@@ -272,10 +272,10 @@ export default {
   'Ce produit utilise l’API TMDB, mais n’est ni approuvé ni certifié par TMDB.': 'This product uses the TMDB API but is not endorsed or certified by TMDB.',
   'Disponibilités streaming : JustWatch. Séances de cinéma : AlloCiné, Filmstarts, SensaCine, Beyazperde (Webedia). Suivi : Trakt, Letterboxd, Plex.':
     'Streaming availability: JustWatch. Cinema showtimes: AlloCiné, Filmstarts, SensaCine, Beyazperde (Webedia). Tracking: Trakt, Letterboxd, Plex.',
-  'CinéSync n’est affilié à aucun de ces services.': 'CinéSync is not affiliated with any of these services.',
+  'SynCiné n’est affilié à aucun de ces services.': 'SynCiné is not affiliated with any of these services.',
   'Vie privée': 'Privacy',
-  'Tout reste sur ton serveur : CinéSync ne collecte rien et n’envoie tes données qu’aux services que tu as connectés.':
-    'Everything stays on your server: CinéSync collects nothing and only sends your data to the services you connected.',
+  'Tout reste sur ton serveur : SynCiné ne collecte rien et n’envoie tes données qu’aux services que tu as connectés.':
+    'Everything stays on your server: SynCiné collects nothing and only sends your data to the services you connected.',
   'Fournis par le serveur': 'Provided by the server',
   'Réglés par l’administrateur pour tout le monde : déjà actifs pour toi, rien à configurer.': 'Set up by the administrator for everyone: already active for you, nothing to configure.',
   'Fiches, tendances, sorties et disponibilités streaming': 'Title pages, trending, releases and streaming availability',
@@ -284,4 +284,30 @@ export default {
   'Tes demandes d’ajout passent par l’administrateur': 'Your requests go through the administrator',
   Actif: 'Active',
   'Non activé': 'Not enabled',
+  'Codes copiés': 'Codes copied',
+  'Copie impossible : note-les à la main': 'Copy failed: write them down by hand',
+  'Garde ces codes de secours en lieu sûr (gestionnaire de mots de passe, papier) : chacun permet une connexion si tu perds ton téléphone. Ils ne seront plus affichés.': "Keep these recovery codes somewhere safe (password manager, paper): each one lets you sign in if you lose your phone. They won't be shown again.",
+  'Télécharger': 'Download',
+  "C'est noté": 'Got it',
+  'Code à 6 chiffres ou code de secours': '6-digit code or recovery code',
+  'Double authentification activée': 'Two-factor authentication enabled',
+  'Double authentification désactivée': 'Two-factor authentication disabled',
+  'Activée : un code de ton application est demandé à chaque connexion.': 'On: a code from your app is asked at every sign-in.',
+  'Un code de ton téléphone en plus du mot de passe (ou de Plex).': 'A code from your phone on top of your password (or Plex).',
+  'Codes de secours': 'Recovery codes',
+  'Activer': 'Enable',
+  'Activer la double authentification': 'Enable two-factor authentication',
+  '1. Scanne ce QR code avec ton application d’authentification (Aegis, Google Authenticator, Bitwarden, 1Password…).': '1. Scan this QR code with your authenticator app (Aegis, Google Authenticator, Bitwarden, 1Password…).',
+  'QR code à scanner': 'QR code to scan',
+  'Impossible de scanner ? Saisis la clé à la main': "Can't scan? Enter the key by hand",
+  "Ouvrir dans l'application de ce téléphone": 'Open in the app on this phone',
+  '2. Saisis le code à 6 chiffres affiché par l’application :': '2. Enter the 6-digit code shown by the app:',
+  'Nouveaux codes de secours': 'New recovery codes',
+  'Les anciens codes de secours ne fonctionneront plus.': 'The old recovery codes will stop working.',
+  'Désactiver la double authentification ?': 'Turn off two-factor authentication?',
+  'Ton compte ne sera plus protégé que par ton mot de passe (ou Plex).': 'Your account will only be protected by your password (or Plex).',
+  Découverte: 'Discovery',
+  'Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.': 'What SynCiné suggests in Discover and in the recommendations on title pages.',
+  'Ne plus proposer les titres déjà vus': 'Stop suggesting titles I have already seen',
+  'Films vus, et séries vues sans nouvel épisode depuis ton dernier visionnage. Une série qui a de nouveaux épisodes reste proposée.': 'Watched films, and watched series with no new episode since you last watched. A series with new episodes is still suggested.',
 }

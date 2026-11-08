@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from app.models import SwipeHistory
 from app.schemas.settings import SECRET_FIELDS, SettingsOut, SettingsUpdate, TestResult
 from app.services.cache import cache
-from app.services.context import GLOBAL_FIELDS, Ctx, get_ctx
+from app.services.context import GLOBAL_FIELDS, SHARED_ID, Ctx, get_ctx
 from app.services import health, history
 from app.services.errors import ServiceError
 
@@ -28,7 +28,7 @@ FALLBACK_COUNTRIES = [
 
 @router.get("/settings", response_model=SettingsOut)
 def get_settings(ctx: Ctx = Depends(get_ctx)):
-    return SettingsOut.from_model(ctx.settings, admin=ctx.is_admin)
+    return SettingsOut.from_model(ctx.settings, admin=ctx.is_admin, has_plex=ctx.is_admin or ctx.plex is not None)
 
 
 # Réglages du serveur modifiables par l'admin seulement (plex_token : jeton saisi à la main pour le serveur)
@@ -67,7 +67,7 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
     # Revérifie aussitôt les services en arrière-plan (sidebar et alertes à jour)
     _background.add(task := asyncio.create_task(health.check_all([ctx.user.id])))
     task.add_done_callback(_background.discard)
-    return SettingsOut.from_model(s, admin=ctx.is_admin)
+    return SettingsOut.from_model(s, admin=ctx.is_admin, has_plex=ctx.is_admin or ctx.plex is not None)
 
 
 @router.get("/settings/status")
@@ -95,7 +95,8 @@ async def test_connection(service: str, ctx: Ctx = Depends(get_ctx)):
     if service not in health.SERVICES:
         raise HTTPException(404, f"Service inconnu : {service}")
     result = await health.test_service(ctx, service)
-    if service in health.used_services(ctx.settings):
+    # Service du serveur testé par un membre (avec son propre accès) : pas d'effet sur l'état commun
+    if service in health.used_services(ctx.settings) and (service not in health.GLOBAL_SERVICES or ctx.user.id == SHARED_ID):
         health.record(ctx.db, service, result, ctx.user.id)
     if not ctx.is_admin and service in health.GLOBAL_SERVICES:
         result = {**result, "details": None}  # détails du serveur (comptes, versions) : admin seulement
@@ -140,9 +141,10 @@ async def stats_activity(
 
     from app.models import WatchEvent
 
+    out = history.stats(ctx.db, period, max(0, offset), tz_offset_min=tz)
     if not ctx.db.execute(select(f.count()).select_from(WatchEvent)).scalar():
-        await history.import_all(ctx)  # premier affichage : import de l'historique
-    return history.stats(ctx.db, period, max(0, offset), tz_offset_min=tz)
+        out["needs_import"] = True  # premier affichage : l'interface lance l'import (POST /stats/import)
+    return out
 
 
 @router.get("/stats/events")

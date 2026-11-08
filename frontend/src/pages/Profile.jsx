@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Server, ShieldCheck, Sun, Tv, Users } from 'lucide-react'
+import { AlertTriangle, ChevronDown, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Server, ShieldCheck, Sun, Tv, Users } from 'lucide-react'
 import ConnectionCard from '../components/profile/ConnectionCard'
 import TraktConnect from '../components/profile/TraktConnect'
 import PlexConnect from '../components/profile/PlexConnect'
@@ -10,9 +10,12 @@ import CinemaPicker from '../components/profile/CinemaPicker'
 import RequestsPanel from '../components/profile/RequestsPanel'
 import PlexDashboard from '../components/admin/PlexDashboard'
 import UsersPanel from '../components/admin/UsersPanel'
+import BackupsPanel from '../components/admin/BackupsPanel'
 import HiddenTitles from '../components/profile/HiddenTitles'
+import TwoFactor from '../components/profile/TwoFactor'
 import { About, Support } from '../components/profile/About'
 import NotificationSettings from '../components/profile/NotificationSettings'
+import DiscoverySettings from '../components/profile/DiscoverySettings'
 import PlatformPicker from '../components/profile/PlatformPicker'
 import Tabs from '../components/ui/Tabs'
 import Button from '../components/ui/Button'
@@ -114,7 +117,7 @@ function AccountSection({ user }) {
       reset(me)
       setRemoveOpen(false)
       setCurrent('')
-      toast(personal ? t('Protection retirée : CinéSync est de nouveau en accès libre') : t('Mot de passe supprimé : tu te connectes avec Plex'), 'success')
+      toast(personal ? t('Protection retirée : SynCiné est de nouveau en accès libre') : t('Mot de passe supprimé : tu te connectes avec Plex'), 'success')
     },
     onError: (e) => toast(e.message, 'error'),
   })
@@ -157,7 +160,7 @@ function AccountSection({ user }) {
         {personal && !user.has_password && (
           <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-text2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-            {t('Accès libre : toute personne qui ouvre CinéSync y accède sans se connecter. Protège-le par un identifiant et un mot de passe, surtout s’il est accessible hors de chez toi.')}
+            {t('Accès libre : toute personne qui ouvre SynCiné y accède sans se connecter. Protège-le par un identifiant et un mot de passe, surtout s’il est accessible hors de chez toi.')}
           </p>
         )}
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -177,13 +180,14 @@ function AccountSection({ user }) {
             </Button>
           </div>
         </div>
+        {(!personal || user.has_password) && <TwoFactor user={user} />}
       </div>
 
       <Modal open={pwOpen} onClose={() => setPwOpen(false)} title={user.has_password ? t('Changer de mot de passe') : pwLabel}>
         {!user.has_password && (
           <p className="mb-4 text-sm text-text2">
             {personal
-              ? t('CinéSync demandera cet identifiant et ce mot de passe sur chaque appareil. Cet appareil-ci reste connecté.')
+              ? t('SynCiné demandera cet identifiant et ce mot de passe sur chaque appareil. Cet appareil-ci reste connecté.')
               : user.plex
                 ? t('En plus de Plex, tu pourras te connecter avec cet identifiant et ce mot de passe.')
                 : t('Choisis ton identifiant et ton mot de passe de connexion.')}
@@ -221,7 +225,7 @@ function AccountSection({ user }) {
 
       <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} title={personal ? t('Retirer la protection ?') : t('Supprimer ton mot de passe ?')}>
         <p className="mb-4 text-sm text-text2">
-          {personal ? t('CinéSync redeviendra accessible sans connexion, à toute personne qui l’ouvre.') : t('Tu te connecteras uniquement avec ton compte Plex.')}
+          {personal ? t('SynCiné redeviendra accessible sans connexion, à toute personne qui l’ouvre.') : t('Tu te connecteras uniquement avec ton compte Plex.')}
         </p>
         <form
           className="space-y-4"
@@ -264,8 +268,9 @@ function AdminSection() {
     { key: 'plex', icon: Server, label: 'Serveur Plex', hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: PlexDashboard },
     { key: 'users', icon: Users, label: 'Comptes de la famille', hint: 'Comptes locaux et comptes Plex autorisés', Panel: UsersPanel },
     { key: 'requests', icon: Inbox, label: 'Demandes des utilisateurs', hint: 'Envoyer à Seerr, marquer disponible, refuser', Panel: () => <RequestsPanel scope="all" /> },
+    { key: 'backups', icon: DatabaseBackup, label: 'Sauvegardes', hint: 'Sauvegarde automatique de la base, téléchargement', Panel: BackupsPanel },
   ]
-  const panels = personal ? all.filter((p) => p.key === 'plex') : all
+  const panels = personal ? all.filter((p) => p.key === 'plex' || p.key === 'backups') : all
   return (
     <Section
       title={t('Réglages admin')}
@@ -435,7 +440,7 @@ export default function Profile() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-1 text-2xl font-semibold md:text-3xl">{t('Profil et paramètres')}</h1>
-      <p className="mb-8 text-sm text-text2">{t('Connecte tes services : tout le reste de CinéSync en dépend.')}</p>
+      <p className="mb-8 text-sm text-text2">{t('Connecte tes services : tout le reste de SynCiné en dépend.')}</p>
 
       <div className="mb-10">
         <Support />
@@ -450,7 +455,7 @@ export default function Profile() {
           <div>
             <p className="font-medium">{t('Commence par TMDB')}</p>
             <p className="mt-0.5 text-text2">
-              {t('Sans clé TMDB, CinéSync affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.')}
+              {t('Sans clé TMDB, SynCiné affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.')}
             </p>
           </div>
         </div>
@@ -594,7 +599,7 @@ export default function Profile() {
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
               <span>
                 {t(
-                  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, CinéSync revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).",
+                  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, SynCiné revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).",
                 )}
               </span>
             </div>
@@ -612,7 +617,7 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title={t('Synchronisation')} description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans CinéSync.')}>
+      <Section title={t('Synchronisation')} description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.')}>
         <SyncPanel />
       </Section>
 
@@ -680,6 +685,10 @@ export default function Profile() {
 
       <Section title={t('Cinémas')} description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
         <CinemaPicker settings={settings} />
+      </Section>
+
+      <Section title={t('Découverte')} description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
+        <DiscoverySettings settings={settings} />
       </Section>
 
       <Section title={t('Apparence')}>

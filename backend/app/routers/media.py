@@ -182,7 +182,10 @@ async def full_detail(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx
         return await ctx.plex_account.scores(media_type, tmdb_id) if ctx.plex_account else None
 
     async def seerr():
-        return await ctx.seerr.media_status(media_type, tmdb_id) if ctx.seerr else None
+        if not ctx.seerr:
+            return None
+        status = await ctx.seerr.media_status(media_type, tmdb_id)
+        return status if ctx.is_admin else {k: v for k, v in status.items() if k != "url"}  # adresse : admin seulement
 
     async def collection():
         c = detail.get("collection")
@@ -235,7 +238,7 @@ async def full_detail(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx
             "connected": ctx.trakt is not None,
             **(t_public or {"rating": None, "votes": None, "url": None}),
         },
-        # État personnel fusionné : Trakt + Plex + Letterboxd + CinéSync
+        # État personnel fusionné : Trakt + Plex + Letterboxd + SynCiné
         "state": state_of(ctx.db, media_type, tmdb_id),
         "sync_targets": [n for n, on in (("trakt", ctx.trakt), ("plex", ctx.plex_account)) if on],
         "seerr": {"configured": ctx.seerr is not None, **(seerr_status or {})},

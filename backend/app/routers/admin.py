@@ -1,4 +1,5 @@
-"""Espace administrateur : comptes de la famille, comptes Plex autorisés, tableau de bord du serveur Plex."""
+"""Espace administrateur : comptes de la famille, comptes Plex autorisés, tableau de bord du serveur Plex,
+sauvegardes de la base."""
 
 import asyncio
 from collections import Counter
@@ -6,12 +7,13 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 
 from app.database import UserScoped
 from app.models import AuthSession, MediaRequest, MediaState, Notification, SwipeHistory, User, UserSettings, WatchEvent
-from app.services import auth, plex_auth
+from app.services import auth, backup, plex_auth
 from app.services.auth import require_admin, require_server_mode
 from app.services.context import SHARED_ID, Ctx, get_ctx, settings_for
 from app.services.errors import NotConfigured, ServiceError
@@ -37,6 +39,7 @@ class UserUpdate(BaseModel):
     active: bool | None = None
     can_request_direct: bool | None = None
     password: str | None = Field(None, max_length=256)  # nouveau mot de passe provisoire
+    reset_two_factor: bool | None = None  # téléphone perdu : désactive la 2FA du compte
 
 
 class PlexAllow(BaseModel):
@@ -95,7 +98,10 @@ def update_user(user_id: int, body: UserUpdate, request: Request, ctx: Ctx = Dep
     u = _user(ctx, user_id)
     if u.id == ctx.user.id and (body.role == "member" or body.active is False):
         raise HTTPException(409, "Tu ne peux pas retirer tes propres droits d'administrateur")
-    if u.id == SHARED_ID and body.role == "member":
+    if u.id == ctx.user.id and (body.password or body.reset_two_factor):
+        # Son propre compte : passer par le Profil (mot de passe actuel ou code exigés)
+        raise HTTPException(409, "Pour ton propre compte, utilise Profil → Mon compte")
+    if u.id == SHARED_ID and (body.role == "member" or body.active is False):
         raise HTTPException(409, "Le compte administrateur principal porte les réglages du serveur")
     if u.is_admin and (body.role == "member" or body.active is False) and _other_admins(ctx, u.id) == 0:
         raise HTTPException(409, "Il faut garder au moins un administrateur")
@@ -111,6 +117,11 @@ def update_user(user_id: int, body: UserUpdate, request: Request, ctx: Ctx = Dep
         auth.validate_password(body.password)
         u.password_hash = auth.hash_password(body.password)
         u.must_change_password = u.id != ctx.user.id
+    if body.reset_two_factor:
+        u.totp_secret = u.totp_pending = ""
+        u.recovery_codes = "[]"
+        u.totp_last_counter = u.totp_failures = 0
+        u.totp_locked_until = None
     ctx.db.commit()
     if body.active is False or body.password:
         auth.close_all_sessions(ctx.db, u.id, keep_request=request if u.id == ctx.user.id else None)
@@ -151,7 +162,7 @@ def _plex_admin_ready(ctx: Ctx) -> tuple[str, str, str]:
 
 @router.get("/plex/accounts", dependencies=[Depends(require_server_mode)])
 async def plex_accounts(ctx: Ctx = Depends(get_ctx)):
-    """Comptes Plex ayant accès au serveur, et ceux déjà autorisés à se connecter à CinéSync."""
+    """Comptes Plex ayant accès au serveur, et ceux déjà autorisés à se connecter à SynCiné."""
     cid, token, machine = _plex_admin_ready(ctx)
     owner, shared_with = await asyncio.gather(plex_auth.account_info(cid, token), plex_auth.server_users(cid, token, machine))
     linked = {u.plex_user_id: u for u in ctx.db.query(User).filter(User.plex_user_id.isnot(None))}
@@ -164,7 +175,7 @@ async def plex_accounts(ctx: Ctx = Depends(get_ctx)):
 
 @router.post("/plex/accounts", dependencies=[Depends(require_server_mode)])
 async def allow_plex_account(body: PlexAllow, ctx: Ctx = Depends(get_ctx)):
-    """Autorise un compte Plex du serveur à se connecter (crée son compte CinéSync)."""
+    """Autorise un compte Plex du serveur à se connecter (crée son compte SynCiné)."""
     cid, token, machine = _plex_admin_ready(ctx)
     owner, shared_with = await asyncio.gather(plex_auth.account_info(cid, token), plex_auth.server_users(cid, token, machine))
     if body.plex_user_id == owner["id"]:
@@ -355,3 +366,65 @@ def plex_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
         "by_day": [{"date": (since + timedelta(days=i + 1)).date().isoformat(), "plays": by_day.get((since + timedelta(days=i + 1)).date().isoformat(), 0)} for i in range(days)],
         "top": [{"title": t, "plays": c} for t, c in titles.most_common(10)],
     }
+
+
+# --- Sauvegardes de la base ----------------------------------------------------------------
+
+
+class BackupSettings(BaseModel):
+    enabled: bool | None = None
+    keep: int | None = Field(None, ge=1, le=backup.MAX_KEEP)
+
+
+def _backups(ctx: Ctx) -> dict:
+    shared = settings_for(ctx.db, SHARED_ID).shared
+    return {
+        "enabled": shared.backup_enabled,
+        "keep": shared.backup_keep,
+        "items": backup.list_backups(),
+        "last_error": backup.last_error,
+    }
+
+
+@router.get("/backups")
+def list_backups(ctx: Ctx = Depends(get_ctx)):
+    return _backups(ctx)
+
+
+@router.put("/backups/settings")
+def backup_settings(body: BackupSettings, ctx: Ctx = Depends(get_ctx)):
+    shared = settings_for(ctx.db, SHARED_ID).shared
+    if body.enabled is not None:
+        shared.backup_enabled = body.enabled
+    if body.keep is not None:
+        shared.backup_keep = body.keep
+    ctx.db.commit()
+    backup.rotate(shared.backup_keep)
+    return _backups(ctx)
+
+
+@router.post("/backups")
+async def backup_now(ctx: Ctx = Depends(get_ctx)):
+    """Sauvegarde immédiate (puis rotation selon le nombre à garder)."""
+    try:
+        await asyncio.to_thread(backup.create)
+    except OSError as e:
+        raise HTTPException(500, f"Sauvegarde impossible : {e.strerror or e}") from e
+    backup.rotate(settings_for(ctx.db, SHARED_ID).shared.backup_keep)
+    return _backups(ctx)
+
+
+@router.get("/backups/{name}")
+def download_backup(name: str):
+    """Téléchargement d'une sauvegarde (elle contient les jetons des services : à garder en lieu sûr)."""
+    path = backup.path_of(name)
+    if path is None:
+        raise HTTPException(404, "Sauvegarde introuvable")
+    return FileResponse(path, media_type="application/gzip", filename=name, headers={"Cache-Control": "no-store"})
+
+
+@router.delete("/backups/{name}")
+def delete_backup(name: str, ctx: Ctx = Depends(get_ctx)):
+    if not backup.delete(name):
+        raise HTTPException(404, "Sauvegarde introuvable")
+    return _backups(ctx)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, KeyRound, MoreHorizontal, Plus, RefreshCw, Shield, Trash2, UserCheck, UserX } from 'lucide-react'
+import { Check, KeyRound, MoreHorizontal, Plus, RefreshCw, Shield, ShieldOff, Trash2, UserCheck, UserX } from 'lucide-react'
 import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 import Skeleton from '../ui/Skeleton'
@@ -165,7 +165,7 @@ function DeleteModal({ user, onClose }) {
   return (
     <Modal open={!!user} onClose={onClose} title={t('Supprimer le compte de {name} ?', { name: user?.name || '' })}>
       <p className="text-sm text-text2">
-        {t('Sa watchlist, ses notes, son historique CinéSync, ses notifications et ses demandes seront supprimés. Ses comptes Trakt, Plex et Letterboxd ne sont pas touchés.')}
+        {t('Sa watchlist, ses notes, son historique SynCiné, ses notifications et ses demandes seront supprimés. Ses comptes Trakt, Plex et Letterboxd ne sont pas touchés.')}
       </p>
       <div className="mt-5 flex justify-end gap-2">
         <Button onClick={onClose}>{t('Annuler')}</Button>
@@ -197,6 +197,7 @@ function UserRow({ user, me, onReset, onDelete }) {
           {self && <span className="text-xs font-normal text-text3">({t('toi')})</span>}
           {user.is_admin && <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent2">{t('Admin')}</span>}
           {user.plex && <span className="rounded-md bg-plex/15 px-1.5 py-0.5 text-[10px] font-medium text-plex">Plex</span>}
+          {user.two_factor && <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">2FA</span>}
           {!user.active && <span className="rounded-md bg-bg3 px-1.5 py-0.5 text-[10px] font-medium text-text2">{t('Désactivé')}</span>}
         </p>
         <p className="truncate text-xs text-text3">
@@ -227,6 +228,18 @@ function UserRow({ user, me, onReset, onDelete }) {
                 <button className={item} onClick={() => onReset(user)}>
                   <KeyRound className="h-4 w-4" /> {user.has_password ? t('Nouveau mot de passe provisoire') : t('Donner un mot de passe')}
                 </button>
+                {user.two_factor && (
+                  <button
+                    className={item}
+                    onClick={() => {
+                      if (window.confirm(t('Désactiver la double authentification de {name} (téléphone perdu) ?', { name: user.name }))) {
+                        update.mutate({ reset_two_factor: true }, { onSuccess: () => toast(t('Double authentification désactivée'), 'success') })
+                      }
+                    }}
+                  >
+                    <ShieldOff className="h-4 w-4" /> {t('Réinitialiser la double authentification')}
+                  </button>
+                )}
                 <button className={item} onClick={() => update.mutate({ active: !user.active })}>
                   {user.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                   {user.active ? t('Désactiver') : t('Réactiver')}
@@ -314,7 +327,7 @@ function PlexAccounts() {
           <Check2 label={t('Demandes envoyées directement à Seerr')} checked={form.can_request_direct} onChange={(v) => setForm((f) => ({ ...f, can_request_direct: v }))} />
           <Check2 label={t('Permettre aussi la connexion par identifiant et mot de passe')} checked={form.withPassword} onChange={(v) => setForm((f) => ({ ...f, withPassword: v }))} />
           {form.withPassword && <PasswordInput label={t('Mot de passe provisoire')} value={form.password} onChange={(v) => setForm((f) => ({ ...f, password: v }))} />}
-          <p className="text-xs text-text3">{t("Cette personne se connectera avec « Se connecter avec Plex ». CinéSync vérifie que c'est bien ce compte Plex.")}</p>
+          <p className="text-xs text-text3">{t("Cette personne se connectera avec « Se connecter avec Plex ». SynCiné vérifie que c'est bien ce compte Plex.")}</p>
           <Button type="submit" variant="primary" className="w-full justify-center" loading={allow.isPending} icon={Check}>
             {t('Autoriser')}
           </Button>
@@ -336,7 +349,7 @@ export default function UsersPanel() {
     <div className="space-y-4">
       <section className="rounded-2xl border border-line bg-bg2 p-4 md:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-semibold">{t('Comptes CinéSync')}</h2>
+          <h2 className="font-semibold">{t('Comptes SynCiné')}</h2>
           <Button size="sm" variant="primary" icon={Plus} onClick={() => setAdding(true)}>
             {t('Ajouter')}
           </Button>
@@ -355,7 +368,7 @@ export default function UsersPanel() {
 
       <section className="rounded-2xl border border-line bg-bg2 p-4 md:p-5">
         <h2 className="font-semibold">{t('Comptes Plex du serveur')}</h2>
-        <p className="mb-4 mt-1 text-xs text-text2">{t('Les personnes avec qui ton serveur est partagé. Autorise celles qui peuvent se connecter à CinéSync avec leur compte Plex.')}</p>
+        <p className="mb-4 mt-1 text-xs text-text2">{t('Les personnes avec qui ton serveur est partagé. Autorise celles qui peuvent se connecter à SynCiné avec leur compte Plex.')}</p>
         <PlexAccounts />
       </section>
 

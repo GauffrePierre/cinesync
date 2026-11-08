@@ -41,7 +41,7 @@ class PlexAccount:
             "Accept": "application/json",
             "X-Plex-Token": self.token,
             "X-Plex-Client-Identifier": self.client_id,
-            "X-Plex-Product": "CineSync",
+            "X-Plex-Product": "SynCine",
         }
 
     async def _req(self, method: str, url: str, **params) -> dict:

@@ -1,7 +1,7 @@
 // Espace administrateur (pages/Admin.jsx, components/admin/*, raccourcis du Profil)
 export default {
   'Espace admin': 'Admin area',
-  'Ton serveur Plex, les comptes de la famille et leurs demandes.': 'Your Plex server, family accounts and their requests.',
+  'Ton serveur Plex, les comptes de la famille, leurs demandes et les sauvegardes.': 'Your Plex server, family accounts, their requests and backups.',
   Utilisateurs: 'Users',
   Demandes: 'Requests',
   '{n} demandes en attente': '{n} pending requests',
@@ -47,8 +47,8 @@ export default {
   'Ses appareils connectés seront déconnectés.': 'Their signed-in devices will be signed out.',
   'Compte supprimé': 'Account deleted',
   'Supprimer le compte de {name} ?': 'Delete {name}’s account?',
-  'Sa watchlist, ses notes, son historique CinéSync, ses notifications et ses demandes seront supprimés. Ses comptes Trakt, Plex et Letterboxd ne sont pas touchés.':
-    'Their watchlist, ratings, CinéSync history, notifications and requests will be deleted. Their Trakt, Plex and Letterboxd accounts are not affected.',
+  'Sa watchlist, ses notes, son historique SynCiné, ses notifications et ses demandes seront supprimés. Ses comptes Trakt, Plex et Letterboxd ne sont pas touchés.':
+    'Their watchlist, ratings, SynCiné history, notifications and requests will be deleted. Their Trakt, Plex and Letterboxd accounts are not affected.',
   toi: 'you',
   Admin: 'Admin',
   Désactivé: 'Disabled',
@@ -68,15 +68,15 @@ export default {
   Autorisé: 'Allowed',
   Autoriser: 'Allow',
   'Autoriser {name}': 'Allow {name}',
-  "Cette personne se connectera avec « Se connecter avec Plex ». CinéSync vérifie que c'est bien ce compte Plex.":
-    'This person will use “Sign in with Plex”. CinéSync checks that it really is this Plex account.',
-  'Comptes CinéSync': 'CinéSync accounts',
+  "Cette personne se connectera avec « Se connecter avec Plex ». SynCiné vérifie que c'est bien ce compte Plex.":
+    'This person will use “Sign in with Plex”. SynCiné checks that it really is this Plex account.',
+  'Comptes SynCiné': 'SynCiné accounts',
   Ajouter: 'Add',
   'Comptes locaux : tu choisis un identifiant et un mot de passe provisoire, que la personne change à sa première connexion.':
     'Local accounts: you choose a username and a temporary password, which the person changes when they first sign in.',
   'Comptes Plex du serveur': 'Plex accounts on the server',
-  'Les personnes avec qui ton serveur est partagé. Autorise celles qui peuvent se connecter à CinéSync avec leur compte Plex.':
-    'People your server is shared with. Allow the ones who may sign in to CinéSync with their Plex account.',
+  'Les personnes avec qui ton serveur est partagé. Autorise celles qui peuvent se connecter à SynCiné avec leur compte Plex.':
+    'People your server is shared with. Allow the ones who may sign in to SynCiné with their Plex account.',
 
   // Demandes
   'Tes demandes sont envoyées directement à Seerr.': 'Your requests go straight to Seerr.',
@@ -115,4 +115,20 @@ export default {
   'Donner un mot de passe': 'Give a password',
   '{name} pourra aussi se connecter avec son identifiant « {username} » et ce mot de passe, en plus de Plex.': '{name} will also be able to sign in with the username “{username}” and this password, besides Plex.',
   'Permettre aussi la connexion par identifiant et mot de passe': 'Also allow signing in with a username and password',
+  'Désactiver la double authentification de {name} (téléphone perdu) ?': 'Turn off two-factor authentication for {name} (lost phone)?',
+  'Réinitialiser la double authentification': 'Reset two-factor authentication',
+  'Sauvegardes': 'Backups',
+  'Sauvegarde automatique de la base, téléchargement': 'Automatic database backup, download',
+  'Sauvegarde créée': 'Backup created',
+  'Sauvegarde automatique chaque jour': 'Automatic daily backup',
+  'Comptes, réglages, connexions aux services et historique, dans le dossier data/backups du serveur.': "Accounts, settings, service connections and history, in the server's data/backups folder.",
+  'Sauvegardes à garder': 'Backups to keep',
+  'Sauvegarder maintenant': 'Back up now',
+  'La dernière sauvegarde automatique a échoué : {error}': 'The last automatic backup failed: {error}',
+  'Aucune sauvegarde pour le moment.': 'No backups yet.',
+  'Supprimer la sauvegarde {name} ?': 'Delete backup {name}?',
+  'Une sauvegarde contient les jetons des services et les mots de passe chiffrés : garde les copies téléchargées en lieu sûr. Pour restaurer, suis le guide de restauration (wiki, « Comptes et sécurité »).': "A backup contains the services' tokens and hashed passwords: keep downloaded copies somewhere safe. To restore, follow the restore guide (wiki, “Accounts and security”).",
+  'Sauvegarde introuvable': 'Backup not found',
+  'Pour ton propre compte, utilise Profil → Mon compte': 'For your own account, use Profile → My account',
+  'Seul le compte administrateur principal peut relier le serveur Plex': 'Only the main administrator account can link the Plex server',
 }

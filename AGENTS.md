@@ -1,4 +1,4 @@
-# AGENTS.md — CinéSync for AI coding agents
+# AGENTS.md — SynCiné for AI coding agents
 
 Dense, rule-first context for AI assistants (Claude Code, Copilot, Cursor, Codex…). Humans: see `docs/wiki/`.
 Detailed AI notes: `docs/ai/` → `map.md` (file map), `api.md` (all endpoints), `invariants.md` (must-not-break), `recipes.md` (how-to).

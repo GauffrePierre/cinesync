@@ -28,6 +28,7 @@ class SettingsOut(BaseModel):
     cinemas: list[dict]
     cinema_films_only: bool
     auto_sync: bool
+    hide_seen: bool
     notify_availability: bool
     notify_new_episodes: bool
     notify_services: bool
@@ -39,12 +40,13 @@ class SettingsOut(BaseModel):
     secrets: dict[str, str | None]
 
     @classmethod
-    def from_model(cls, s: UserSettings, admin: bool = True) -> "SettingsOut":
+    def from_model(cls, s: UserSettings, admin: bool = True, has_plex: bool = True) -> "SettingsOut":
         return cls(
             language=s.language,
             plex_url=s.plex_url if admin else "",
-            plex_server_name=s.plex_server_name,
-            plex_machine_id=s.plex_machine_id,
+            # Serveur Plex de l'admin : invisible pour un membre sans Plex
+            plex_server_name=s.plex_server_name if has_plex else "",
+            plex_machine_id=s.plex_machine_id if has_plex else "",
             plex_account_connected=bool(s.plex_account_token),
             trakt_client_id=s.trakt_client_id,
             trakt_username=s.trakt_username,
@@ -55,6 +57,7 @@ class SettingsOut(BaseModel):
             cinemas=s.cinema_list,
             cinema_films_only=s.cinema_films_only,
             auto_sync=s.auto_sync,
+            hide_seen=s.hide_seen,
             notify_availability=s.notify_availability,
             notify_new_episodes=s.notify_new_episodes,
             notify_services=s.notify_services,
@@ -83,6 +86,7 @@ class SettingsUpdate(BaseModel):
     cinemas: list[dict] | None = None
     cinema_films_only: bool | None = None
     auto_sync: bool | None = None
+    hide_seen: bool | None = None
     notify_availability: bool | None = None
     notify_new_episodes: bool | None = None
     notify_services: bool | None = None

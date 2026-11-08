@@ -142,6 +142,9 @@ class Ctx:
 
     @cached_property
     def seerr(self) -> SeerrClient | None:
+        # Seerr renseigne sur la bibliothèque Plex : rien pour un membre sans Plex
+        if not (self.is_admin or self.plex is not None):
+            return None
         if self.settings.seerr_url and self.settings.seerr_api_key:
             return SeerrClient(self.settings.seerr_url, self.settings.seerr_api_key)
         return None

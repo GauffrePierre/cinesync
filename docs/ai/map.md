@@ -22,6 +22,8 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `services/`
   - `context.py` → `Ctx` (db, `EffectiveSettings`, user) with cached clients `tmdb`, `plex` (read; own token, or the server's for admins only — `None` for members without Plex), `plex_own` (member's own token: watched/progress/writes), `plex_admin`, `plex_account`, `trakt`, `trakt_app`, `seerr`, `letterboxd`, `justwatch`; `GLOBAL_FIELDS`, `SHARED_ID=1`, `settings_for`, `ctx_for` (scheduler), `get_ctx`, `public_base_url`.
   - `auth.py` → scrypt hashing, `RateLimiter` (keys `pair:`, `ip:`, `user:`, `all:`), sessions (`open_session`, `close_session`, `close_all_sessions`, `session_user`), deps `current_user`, `require_ready`, `require_admin`, `require_server_mode`, `personal_mode`.
+  - `backup.py` → SQLite online backup → gzip in `data/backups` (600), `rotate`, `run_automatic` (scheduler `db_backup`, hourly check, 23 h), `path_of` (name whitelist).
+  - `totp.py` → 2FA: RFC 6238 codes (`code_at`, `verify` with replay counter), `provisioning_uri`, `qr_svg` (segno), recovery codes (sha256, single use).
   - `library_sync.py` → `pull` (collect + merge + optional two-way), `act` (apply one action everywhere), `_two_way` (safeguards), `preview`, `state_of`, `get_row`; per-user `_last_pull`, `_pull_locks`, `_failed_once`.
   - `history.py` → imports (Plex server-wide with account→user mapping, Trakt, Letterboxd), `assign_plex_events`, `stats`, `events_between`.
   - `health.py` → service tests, state per (user|global, service), down notifications (`GLOBAL_SERVICES` → admins).
@@ -41,6 +43,6 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `hooks/` → `useMedia.js` (all queries/mutations; optimistic `library-keys`), `useAuth.js` (`useMe`, `useCurrentUser`, `useIsAdmin`, `usePersonal`, `useResetSession`), `useTheme.js`, `useSyncOnOpen.js`, `useDebounce.js`, `useSwipeGesture.js`.
 - `services/` → thin API wrappers: `api.js` (fetch, errors translated, 401 event), `auth.js`, `admin.js`, `user.js`, `library.js`, `media/tmdb.js`, `trakt.js`, `plex.js`, `requests.js`, `news.js`, `notifications.js`, `search.js`, `swipe.js`.
 - `i18n/` → `index.js` (`translate`, `t`, `useT`, `currentLocale`, `fmtNumber`, `UI_LANGUAGES`), `en/*.js` dictionaries merged in `en/index.js`.
-- `lib/` → `format.js` (dates, relative time [UTC-safe], labels), `platforms.js`, `appLinks.js` (Android intents, iOS app links / watch.plex.tv), `project.js` (repo, license, Ko-fi URL).
+- `lib/` → `format.js` (dates, relative time [UTC-safe], labels), `platforms.js`, `appLinks.js` (Android intents, iOS app links; Plex = watch.plex.tv links only, real `href` taps), `project.js` (repo, license, Ko-fi URL).
 - `store/` → `uiStore.js` (filters, toasts, search), `settingsStore.js` (theme, UI language; persisted).
 - `public/` → `manifest.json`, icons, `plex-done.html`, `theme-init.js` (pre-render theme, no inline script).

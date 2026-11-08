@@ -87,7 +87,7 @@ async def swipe(body: SwipeIn, ctx: Ctx = Depends(get_ctx)):
                 services[name] = v
     failed = {n: v for n, v in services.items() if v != "ok"}
     if not services:
-        return SwipeOut(ok=True, trakt_synced=False, message="Enregistré dans CinéSync — connecte Trakt ou Plex pour synchroniser")
+        return SwipeOut(ok=True, trakt_synced=False, message="Enregistré dans SynCiné — connecte Trakt ou Plex pour synchroniser")
     if failed:
         detail = " ; ".join(f"{n.capitalize()} : {v}" for n, v in failed.items())
         return SwipeOut(ok=True, trakt_synced=False, message=f"Enregistré, mais certains services ont échoué ({detail})")

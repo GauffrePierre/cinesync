@@ -15,12 +15,23 @@ from app.services.cache import cache  # noqa: E402
 from app.services.errors import ServiceError  # noqa: E402
 
 
+def assert_test_database() -> None:
+    """Garde-fou : les fixtures vident la base. Jamais ailleurs que dans le dossier temporaire des tests
+    (un fichier de test lancé hors de backend/tests ne charge pas ce conftest et viserait la vraie base)."""
+    from app.config import config
+
+    if "cinesync-test-" not in str(config.data_dir):
+        raise RuntimeError(f"Base de test attendue, refus de vider {config.data_dir}")
+
+
 @pytest.fixture
 def db():
+    assert_test_database()
     Base.metadata.drop_all(engine)
     init_db()
     cache.clear()
     library_sync._failed_once.clear()  # dict par compte
+    library_sync._pushed_to_account.clear()
     library_sync._last_pull.clear()
     with SessionLocal() as session:
         bind_user(session, 1)  # comme une requête du compte administrateur

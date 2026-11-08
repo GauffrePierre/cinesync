@@ -1,6 +1,6 @@
 # Architecture
 
-CinéSync runs as **one process in one container**. A FastAPI application (served by uvicorn on port 8000) exposes the JSON API under `/api` and also serves the compiled React app. All state lives in a single SQLite file, periodic work runs in an in-process APScheduler, and calls to external services go through a shared HTTP client with an in-memory TTL cache. The browser side is a PWA with a Workbox service worker.
+SynCiné runs as **one process in one container**. A FastAPI application (served by uvicorn on port 8000) exposes the JSON API under `/api` and also serves the compiled React app. All state lives in a single SQLite file, periodic work runs in an in-process APScheduler, and calls to external services go through a shared HTTP client with an in-memory TTL cache. The browser side is a PWA with a Workbox service worker.
 
 ## Components at a glance
 
@@ -90,7 +90,7 @@ Personal jobs go through `for_each_user(job)`: for every active account (admins 
 
 `services/cache.py` defines `TTLCache` (max 5,000 entries) and a module-level `cache`. Keys are tuples whose **first element is the service name** (`"tmdb"`, `"trakt"`, `"plex"`…), so `cache.clear("trakt")` drops one service and `cache.clear()` drops everything. Clients pick a TTL per call (from 2 minutes for Seerr status to 7 days for TMDB genre lists). Per-account data is namespaced: Trakt keys include the account id, Plex keys include a hash of the token.
 
-> Several pieces of state are in memory only: the cache, the login rate limiter, pending Plex PINs, service health and the last sync result. CinéSync is designed to run as **a single uvicorn worker**; do not scale it to several processes.
+> Several pieces of state are in memory only: the cache, the login rate limiter, pending Plex PINs, service health and the last sync result. SynCiné is designed to run as **a single uvicorn worker**; do not scale it to several processes.
 
 ## Request context: `Ctx`
 

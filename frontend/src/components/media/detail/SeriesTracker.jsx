@@ -77,7 +77,7 @@ function SeasonStatus({ season }) {
   return <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>{label}</span>
 }
 
-function SeasonCard({ tmdbId, season, active }) {
+function SeasonCard({ tmdbId, season, active, watchUrl }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const mark = useMark(tmdbId)
@@ -186,7 +186,7 @@ function SeasonCard({ tmdbId, season, active }) {
               {e.in_plex ? (
                 <WatchLink
                   href={e.plex_url}
-                  appRef={{ mediaType: 'tv', id: tmdbId, season: season.season_number, episode: e.number }}
+                  appRef={{ mediaType: 'tv', id: tmdbId, watchUrl }}
                   className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-plex/15 px-2 py-1 text-[11px] font-medium text-plex hover:bg-plex/25"
                   title={t('Lire cet épisode sur Plex')}
                 >
@@ -265,7 +265,7 @@ export default function SeriesTracker({ data, active = [] }) {
             </p>
           </div>
           {next.plex_url && (
-            <WatchLink href={next.plex_url} appRef={{ mediaType: 'tv', id: data.id, season: next.season, episode: next.episode }}>
+            <WatchLink href={next.plex_url} appRef={{ mediaType: 'tv', id: data.id, watchUrl: data.plex?.watch_url }}>
               <Button size="sm" variant="primary" icon={Play} className="!bg-plex !text-black">
                 {next.progress ? t('Reprendre sur Plex') : t('Lire sur Plex')}
               </Button>
@@ -288,7 +288,7 @@ export default function SeriesTracker({ data, active = [] }) {
       ) : (
         <div className="grid gap-2">
           {ep?.seasons.map((s) => (
-            <SeasonCard key={s.season_number} tmdbId={data.id} season={s} active={active} />
+            <SeasonCard key={s.season_number} tmdbId={data.id} season={s} active={active} watchUrl={data.plex?.watch_url} />
           ))}
         </div>
       )}

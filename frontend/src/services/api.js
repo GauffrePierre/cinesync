@@ -1,4 +1,4 @@
-// Wrapper fetch : toutes les requêtes passent par /api (servi par CinéSync lui-même en prod, relayé par Vite en dev)
+// Wrapper fetch : toutes les requêtes passent par /api (servi par SynCiné lui-même en prod, relayé par Vite en dev)
 import { t } from '../i18n'
 
 export class ApiError extends Error {
@@ -18,7 +18,7 @@ async function request(method, path, body) {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch {
-    throw new ApiError(t('Serveur CinéSync injoignable'), 0)
+    throw new ApiError(t('Serveur SynCiné injoignable'), 0)
   }
   let data = null
   try {

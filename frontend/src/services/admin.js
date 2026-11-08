@@ -11,4 +11,10 @@ export const admin = {
   dashboard: () => api.get('/admin/plex/dashboard'),
   scan: (sectionId) => api.post(`/admin/plex/scan${sectionId ? `?section_id=${encodeURIComponent(sectionId)}` : ''}`),
   stats: (days = 30) => api.get(`/admin/plex/stats?days=${days}`),
+  // Sauvegardes de la base
+  backups: () => api.get('/admin/backups'),
+  backupNow: () => api.post('/admin/backups'),
+  backupSettings: (body) => api.put('/admin/backups/settings', body),
+  deleteBackup: (name) => api.del(`/admin/backups/${encodeURIComponent(name)}`),
+  backupUrl: (name) => `/api/admin/backups/${encodeURIComponent(name)}`,
 }

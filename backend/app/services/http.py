@@ -1,6 +1,6 @@
 import httpx
 
-USER_AGENT = "cinesync (self-hosted)"
+USER_AGENT = "syncine (self-hosted)"
 
 _client: httpx.AsyncClient | None = None
 

@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -25,7 +25,7 @@ class UserSettings(Base):
     # Plex : URL + token du serveur choisi (saisis à la main, ou obtenus via le compte plex.tv)
     plex_url: Mapped[str] = mapped_column(String, default="")
     plex_token: Mapped[str] = mapped_column(String, default="")
-    plex_client_id: Mapped[str] = mapped_column(String, default="")  # identifiant de CinéSync auprès de plex.tv
+    plex_client_id: Mapped[str] = mapped_column(String, default="")  # identifiant de SynCiné auprès de plex.tv
     plex_account_token: Mapped[str] = mapped_column(String, default="")  # jeton du compte plex.tv
     plex_server_name: Mapped[str] = mapped_column(String, default="")
     plex_machine_id: Mapped[str] = mapped_column(String, default="")
@@ -62,6 +62,11 @@ class UserSettings(Base):
 
     # Synchronisation automatique des watchlists / vus / notes entre services
     auto_sync: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Sauvegardes automatiques de la base (réglage du serveur : ligne 1 seulement)
+    backup_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    backup_keep: Mapped[int] = mapped_column(Integer, default=7)
+    # Découverte : ne plus proposer les films vus ni les séries vues sans nouvel épisode depuis
+    hide_seen: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Préférences
     country_code: Mapped[str] = mapped_column(String, default="CH")

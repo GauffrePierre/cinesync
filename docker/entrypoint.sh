@@ -1,5 +1,5 @@
 #!/bin/sh
-# Démarre CinéSync sans les droits root : le dossier de données appartient à PUID:PGID
+# Démarre SynCiné sans les droits root : le dossier de données appartient à PUID:PGID
 # (99:100 = nobody:users, l'usage sur Unraid), puis le serveur tourne sous cet utilisateur.
 # La base contient les jetons des services : elle n'est lisible que par ce propriétaire.
 set -e

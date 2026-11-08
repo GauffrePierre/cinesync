@@ -27,8 +27,9 @@ import {
   useMediaDetail,
   useRate,
   useSettings,
+  useSeenFilter,
 } from '../hooks/useMedia'
-import { formatDate, formatMoney, formatRuntime } from '../lib/format'
+import { formatDate, formatMoney, formatRuntime, safeUrl } from '../lib/format'
 import { fmtNumber, useT } from '../i18n'
 import WatchlistButton from '../components/ui/WatchlistButton'
 import { SourceChips } from './Watchlist'
@@ -63,7 +64,7 @@ function RequestButton({ d }) {
   const req = d.request
   if (seerrState || req) {
     const label = t(seerrState ? seerrState.label : (REQUEST_STATUS[req.status] || REQUEST_STATUS.pending).label)
-    const href = seerrState?.url || req?.seerr_url
+    const href = safeUrl(seerrState?.url || req?.seerr_url)
     const chip = (
       <span className="ml-1 inline-flex items-center gap-1 rounded-lg bg-seerr/15 px-2 py-1 text-[11px] font-medium text-seerr">
         <Clock className="h-3 w-3" /> {label}
@@ -127,6 +128,7 @@ export default function MediaDetail({ mediaType }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: d, isLoading, error } = useMediaDetail(mediaType, id)
+  const hideSeen = useSeenFilter()
   const { data: settings } = useSettings()
   const [rateOpen, setRateOpen] = useState(false)
   // État personnel « en direct » (mis à jour immédiatement après une action)
@@ -154,7 +156,7 @@ export default function MediaDetail({ mediaType }) {
   const disliked = live.loaded ? live.disliked : st.disliked
   const ratingTen = live.loaded ? live.rating : st.rating
   const userStars = ratingTen ? Math.round(ratingTen / 2) : 0
-  const ratingSub = [watchedNow ? t('Vu') : t('Pas encore vu'), st.rating_source && { trakt: 'Trakt', plex: 'Plex', letterboxd: 'Letterboxd', local: 'CinéSync' }[st.rating_source]]
+  const ratingSub = [watchedNow ? t('Vu') : t('Pas encore vu'), st.rating_source && { trakt: 'Trakt', plex: 'Plex', letterboxd: 'Letterboxd', local: 'SynCiné' }[st.rating_source]]
     .filter(Boolean)
     .join(' · ')
   const isTv = mediaType === 'tv'
@@ -332,7 +334,7 @@ export default function MediaDetail({ mediaType }) {
                   </a>
                 )}
                 {trakt.url && (
-                  <a className="text-accent2 hover:underline" href={trakt.url} target="_blank" rel="noreferrer">
+                  <a className="text-accent2 hover:underline" href={safeUrl(trakt.url)} target="_blank" rel="noreferrer">
                     Trakt
                   </a>
                 )}
@@ -340,7 +342,7 @@ export default function MediaDetail({ mediaType }) {
                   TMDB
                 </a>
                 {d.homepage && (
-                  <a className="text-accent2 hover:underline" href={d.homepage} target="_blank" rel="noreferrer">
+                  <a className="text-accent2 hover:underline" href={safeUrl(d.homepage)} target="_blank" rel="noreferrer">
                     {t('Site officiel')}
                   </a>
                 )}
@@ -359,7 +361,7 @@ export default function MediaDetail({ mediaType }) {
         )}
       </section>
 
-      <MediaRow title={isTv ? t('Séries similaires') : t('Films similaires')} subtitle={t('Recommandations TMDB')} items={d.recommendations} />
+      <MediaRow title={isTv ? t('Séries similaires') : t('Films similaires')} subtitle={t('Recommandations TMDB')} items={hideSeen(d.recommendations)} />
 
       <Modal open={rateOpen} onClose={() => setRateOpen(false)} title={t('Noter « {title} »', { title: d.title })}>
         <div className="flex flex-col items-center gap-4 py-2">

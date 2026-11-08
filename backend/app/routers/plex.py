@@ -3,7 +3,7 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -106,7 +106,7 @@ def _apply_server(ctx: Ctx, server: dict) -> dict:
     """Enregistre le serveur choisi : URL de la meilleure connexion + jeton du serveur."""
     conn = server.get("connection")
     if not conn:
-        raise ServiceError("plex", f"Le serveur « {server['name']} » est injoignable depuis CinéSync", 502)
+        raise ServiceError("plex", f"Le serveur « {server['name']} » est injoignable depuis SynCiné", 502)
     s = ctx.settings.shared  # le serveur est celui de toute la famille
     s.plex_url = conn["uri"]
     s.plex_token = server["_raw"].get("accessToken") or s.plex_account_token
@@ -126,12 +126,25 @@ def _apply_server(ctx: Ctx, server: dict) -> dict:
 _server_pins: dict[int, tuple[int, float]] = {}  # pin -> (id du compte, expiration)
 
 
+def _main_admin_only(ctx: Ctx) -> None:
+    """Le compte plex.tv qui relie le serveur est aussi celui du compte principal (watchlist, notes) :
+    un autre admin le remplacerait et mélangerait ses données avec celles du compte principal."""
+    from app.services.context import SHARED_ID
+
+    if ctx.user.id != SHARED_ID:
+        raise HTTPException(403, "Seul le compte administrateur principal peut relier le serveur Plex")
+
+
 @router.post("/auth/pin", dependencies=[Depends(require_admin)])
-async def auth_pin(mode: Literal["link", "window"] = "link", forward_url: str | None = None, ctx: Ctx = Depends(get_ctx)):
+async def auth_pin(request: Request, mode: Literal["link", "window"] = "link", ctx: Ctx = Depends(get_ctx)):
     """Étape 1 : crée un code. "link" : à saisir sur plex.tv/link. "window" : fenêtre app.plex.tv."""
     import time
 
-    pin = await plex_auth.create_pin(_client_id(ctx), mode, forward_url)
+    from app.config import config
+
+    _main_admin_only(ctx)
+    base = (config.public_url or str(request.base_url)).rstrip("/")  # retour : toujours la page de SynCiné
+    pin = await plex_auth.create_pin(_client_id(ctx), mode, f"{base}/plex-done.html" if mode == "window" else None)
     now = time.monotonic()
     for k in [k for k, (_, exp) in _server_pins.items() if exp < now]:
         _server_pins.pop(k, None)
@@ -145,6 +158,7 @@ async def auth_check(pin_id: int, ctx: Ctx = Depends(get_ctx)):
     POST : la vérification d'origine (anti-CSRF) s'applique ; le code doit venir de ce même admin."""
     import time
 
+    _main_admin_only(ctx)
     owner = _server_pins.get(pin_id)
     if owner is None or owner[0] != ctx.user.id or owner[1] < time.monotonic():
         raise ServiceError("plex", "Code de connexion Plex expiré — recommence", 410)

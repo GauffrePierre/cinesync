@@ -15,9 +15,9 @@ def _load(v: str | None) -> list:
 
 
 class MediaState(UserScoped, Base):
-    """État personnel d'un titre, fusionné depuis tous les services (Trakt, Plex, Letterboxd, CinéSync).
+    """État personnel d'un titre, fusionné depuis tous les services (Trakt, Plex, Letterboxd, SynCiné).
 
-    C'est aussi la sauvegarde locale : tout ce qui est fait dans CinéSync y est enregistré,
+    C'est aussi la sauvegarde locale : tout ce qui est fait dans SynCiné y est enregistré,
     en plus d'être envoyé à chaque service qui sait le stocker.
     Les listes *_sources indiquent où l'information a été trouvée : "trakt", "plex", "letterboxd", "local".
     """

@@ -3,6 +3,7 @@
 - Collecte de l'état personnel depuis tous les services : toutes les 30 min.
 - Disponibilités de la watchlist (Trakt + Plex) sur tes plateformes : toutes les 24 h (notifications).
 - Santé des services : toutes les 15 min.
+- Sauvegarde de la base : une par jour (vérifiée toutes les heures), si l'admin l'a activée.
 
 Chaque tâche personnelle tourne pour chaque compte actif, dans une session liée à ce compte
 (ses lignes seulement — voir UserScoped). Un compte en échec n'empêche pas les suivants.
@@ -152,6 +153,19 @@ async def episodes_one(ctx: Ctx) -> dict:
     return {"checked": len(shows), "created": created}
 
 
+async def daily_backup() -> dict | None:
+    """Sauvegarde automatique de la base si la dernière date de plus de 23 h (réglages du serveur)."""
+    import asyncio
+
+    from app.services import backup
+    from app.services.context import SHARED_ID, settings_for
+
+    with SessionLocal() as db:
+        shared = settings_for(db, SHARED_ID).shared
+        enabled, keep = shared.backup_enabled, shared.backup_keep
+    return await asyncio.to_thread(backup.run_automatic, enabled, keep)
+
+
 def start_scheduler() -> None:
     from app.services.health import check_all
 
@@ -161,6 +175,7 @@ def start_scheduler() -> None:
         (pull_library, {"minutes": 30}, now + timedelta(seconds=45), "library_pull"),
         (check_watchlist_availability, {"hours": config.notification_interval_hours}, now + timedelta(minutes=5), "watchlist_availability"),
         (check_new_episodes, {"hours": 6}, now + timedelta(minutes=3), "new_episodes"),
+        (daily_backup, {"hours": 1}, now + timedelta(minutes=10), "db_backup"),
     ]
     for func, interval, first, job_id in jobs:
         scheduler.add_job(func, "interval", **interval, next_run_time=first, id=job_id, replace_existing=True, max_instances=1, coalesce=True)

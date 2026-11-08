@@ -17,6 +17,12 @@ Each item: rule → where enforced → test that guards it (`backend/tests/…`)
 
 ## Editions
 - `personal`: user 1 is the only user; no setup, no family accounts, no Plex sign-in; open access until a password is set, then normal sessions → `services/auth.py:session_user`, `require_server_mode` → `test_personal_mode_needs_no_login`, `test_personal_mode_can_be_protected_by_a_password`.
+- Rate-limit subjects are prefixed (`login:`, `2fa:`, `setup`); the signed `cinesync_device` cookie only exempts from `ip:`/`all:` caps → `services/auth.py:guard_attempts`, `known_device` → `test_known_device_still_signs_in_during_a_distributed_attack`, `test_invented_username_cannot_lock_another_counter`.
+- Members without Plex get no Seerr data; members never get Seerr URLs or the admin Plex server name/machine id → `context.Ctx.seerr`, `routers/requests._for`, `SettingsOut.from_model(has_plex)` → `test_member_sees_no_seerr_address_nor_admin_server`.
+- Only user 1 links the Plex server (its plex.tv token is also user 1's personal account) → `routers/plex._main_admin_only`.
+- Outbound user URLs: decompression done by `safe_fetch._Body` with a cap on the decoded size; image relay accepts JPEG/PNG/WebP/GIF ≤ 16 Mpx, 2 decodes at a time → `test_gzip_bomb_is_stopped_at_the_decompressed_size`, `test_oversized_or_exotic_images_are_refused`.
+- Test fixtures refuse to drop tables outside the temporary test DATA_DIR → `tests/conftest.py:assert_test_database`.
+- 2FA: with `totp_secret` set, password or Plex sign-in must open NO session (ticket only); codes single-use (`totp_last_counter`), recovery codes hashed and consumed; secret/codes never returned → `routers/auth.py` → `tests/test_two_factor.py`.
 - Removing a password is allowed in personal mode or for Plex-linked accounts only → `routers/auth.py:remove_password` → `test_plex_member_can_also_get_a_password`.
 
 ## Web security

@@ -1,6 +1,6 @@
 # Integrations
 
-CinéSync talks to about ten external services, each wrapped in a small client in `backend/app/services/`. Only TMDB is required; everything else is optional and the app degrades gracefully when a service is missing or down. This page lists what each client is for, how it authenticates, how it caches, and which sources are unofficial. Clients are created lazily by `Ctx` (see [Backend](03-backend.md)) from the stored settings.
+SynCiné talks to about ten external services, each wrapped in a small client in `backend/app/services/`. Only TMDB is required; everything else is optional and the app degrades gracefully when a service is missing or down. This page lists what each client is for, how it authenticates, how it caches, and which sources are unofficial. Clients are created lazily by `Ctx` (see [Backend](03-backend.md)) from the stored settings.
 
 ## Overview
 
@@ -19,7 +19,7 @@ CinéSync talks to about ten external services, each wrapped in a small client i
 
 ## Common rules
 
-- **One HTTP client.** All clients use `services/http.py: http()`, a shared `httpx.AsyncClient` (15 s timeout, 5 s connect, follows redirects, user agent `cinesync (self-hosted)`). Trakt sends its own `CineSync/<version>` user agent.
+- **One HTTP client.** All clients use `services/http.py: http()`, a shared `httpx.AsyncClient` (15 s timeout, 5 s connect, follows redirects, user agent `syncine (self-hosted)`). Trakt sends its own `SynCine/<version>` user agent.
 - **Errors.** Transport errors and HTTP errors become `ServiceError(service, French message, status)`. A missing configuration raises `NotConfigured(service)` (409). Callers that aggregate data catch `ServiceError` so one service never breaks a page.
 - **Caching.** Responses go into the shared `TTLCache` (`services/cache.py`) under keys starting with the service name. Writes clear that service's cache (`cache.clear("trakt")`, `cache.clear("plex")`, `cache.clear("seerr")`). Saving any server-wide setting clears the whole cache.
 - **Health.** `services/health.py: test_service()` runs a connection test per service (the Profile "Test" button and the 15-minute `services_health` job). A service that goes from OK to failing creates a `service` notification: to admins for server services (TMDB, Plex, Seerr, JustWatch), to the account for personal ones (Trakt, Letterboxd, cinemas).
@@ -57,12 +57,12 @@ CinéSync talks to about ten external services, each wrapped in a small client i
 
 - **Auth**: `X-Api-Key` header on `<seerr_url>/api/v1`.
 - `media_status()` (cached 2 min) and `request()` (TV requests default to all seasons). Status codes map to labels in `STATUS`.
-- CinéSync never downloads anything. Requests go through `routers/requests.py`: sent directly to Seerr for admins and members with `can_request_direct`, otherwise queued for the admin.
+- SynCiné never downloads anything. Requests go through `routers/requests.py`: sent directly to Seerr for admins and members with `can_request_direct`, otherwise queued for the admin.
 
 ## Letterboxd — `letterboxd_client.py`
 
 - Reads `https://letterboxd.com/<username>/rss/` with `feedparser`; no login. Cached 30 min.
-- Provides recent diary entries with TMDB ids, watched dates and ratings. Read-only: CinéSync never writes to Letterboxd, and the watchlist is not available over RSS.
+- Provides recent diary entries with TMDB ids, watched dates and ratings. Read-only: SynCiné never writes to Letterboxd, and the watchlist is not available over RSS.
 
 ## JustWatch — `justwatch_client.py` (unofficial)
 

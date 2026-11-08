@@ -1,6 +1,6 @@
 """Téléchargement d'une adresse fournie par un utilisateur (flux RSS personnalisé), sans risque de SSRF.
 
-Une adresse saisie dans CinéSync ne doit jamais permettre d'atteindre le réseau local du serveur
+Une adresse saisie dans SynCiné ne doit jamais permettre d'atteindre le réseau local du serveur
 (interface d'Unraid, routeur, autres conteneurs…) : seules les adresses publiques sont autorisées,
 à chaque redirection. Taille et durée limitées.
 """
@@ -8,6 +8,7 @@ Une adresse saisie dans CinéSync ne doit jamais permettre d'atteindre le résea
 import asyncio
 import ipaddress
 import socket
+import zlib
 from urllib.parse import urljoin, urlsplit
 
 import httpcore
@@ -20,10 +21,17 @@ MAX_BYTES = 3 * 1024 * 1024
 MAX_REDIRECTS = 4
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+_V4_COMPAT = ipaddress.ip_network("::/96")
+
+
 def _public(ip: str) -> bool:
     addr = ipaddress.ip_address(ip)
-    if addr.version == 6 and addr.ipv4_mapped:
-        addr = addr.ipv4_mapped
+    if addr.version == 6:
+        if addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+        elif addr in _NAT64 or addr in _V4_COMPAT:  # adresse IPv4 enveloppée (NAT64, ancienne forme ::a.b.c.d)
+            addr = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
     return addr.is_global and not addr.is_multicast
 
 
@@ -36,10 +44,11 @@ async def check_url(url: str) -> str:
         raise ServiceError("news", "Adresse invalide", 422)
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(u.hostname, u.port or (443 if u.scheme == "https" else 80), type=socket.SOCK_STREAM)
-    except socket.gaierror as e:
-        raise ServiceError("news", f"Site introuvable : {u.hostname}", 422) from e
+    except socket.gaierror:
+        infos = []
     if not infos or not all(_public(info[4][0]) for info in infos):
-        raise ServiceError("news", "Cette adresse pointe vers un réseau privé : refusée", 422)
+        # Même message pour un nom inconnu et un nom du réseau local : pas de sondage des noms internes
+        raise ServiceError("news", "Site introuvable ou non public : refusé", 422)
     return url.strip()
 
 
@@ -78,9 +87,44 @@ def _transport() -> httpx.AsyncHTTPTransport:
     return transport
 
 
+class _Body:
+    """Contenu brut décompressé ici, avec plafond sur la taille DÉCOMPRESSÉE (httpx décompresserait tout
+    d'un bloc : une petite réponse gzip, voire « gzip, gzip », pourrait remplir la mémoire)."""
+
+    def __init__(self, encoding: str):
+        enc = encoding.strip().lower()
+        if enc in ("", "identity"):
+            self._z = None
+        elif enc in ("gzip", "x-gzip", "deflate"):
+            self._z = zlib.decompressobj(47)  # gzip ou zlib, détecté automatiquement
+        else:
+            raise ServiceError("news", "Encodage de réponse non pris en charge", 502)
+        self.data = bytearray()
+
+    def add(self, chunk: bytes) -> None:
+        if self._z is None:
+            self.data += chunk
+        else:
+            self.data += self._z.decompress(chunk, MAX_BYTES + 1 - len(self.data))
+            if self._z.unconsumed_tail:
+                raise ServiceError("news", "Réponse trop volumineuse", 502)
+        if len(self.data) > MAX_BYTES:
+            raise ServiceError("news", "Réponse trop volumineuse", 502)
+
+
 async def fetch(url: str, timeout: float = 15.0) -> tuple[str, bytes, str]:
-    """GET d'une adresse publique, redirections vérifiées une à une. Renvoie (url finale, contenu, content-type)."""
-    async with httpx.AsyncClient(transport=_transport(), follow_redirects=False, timeout=timeout, headers={"User-Agent": USER_AGENT}) as client:
+    """GET d'une adresse publique, redirections vérifiées une à une. Renvoie (url finale, contenu, content-type).
+    Durée totale plafonnée (un site qui envoie un octet de temps en temps ne retient pas la requête)."""
+    try:
+        async with asyncio.timeout(timeout * 2):
+            return await _fetch(url, timeout)
+    except TimeoutError as e:
+        raise ServiceError("news", "Le site met trop de temps à répondre", 502) from e
+
+
+async def _fetch(url: str, timeout: float) -> tuple[str, bytes, str]:
+    headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "gzip"}
+    async with httpx.AsyncClient(transport=_transport(), follow_redirects=False, timeout=timeout, headers=headers) as client:
         for _ in range(MAX_REDIRECTS + 1):
             await check_url(url)
             try:
@@ -90,12 +134,10 @@ async def fetch(url: str, timeout: float = 15.0) -> tuple[str, bytes, str]:
                         continue
                     if r.status_code >= 400:
                         raise ServiceError("news", f"Le site a répondu {r.status_code}", 502)
-                    body = b""
-                    async for chunk in r.aiter_bytes():
-                        body += chunk
-                        if len(body) > MAX_BYTES:
-                            raise ServiceError("news", "Réponse trop volumineuse", 502)
-                    return str(r.url), body, r.headers.get("content-type", "")
+                    body = _Body(r.headers.get("content-encoding", ""))
+                    async for chunk in r.aiter_raw():
+                        body.add(chunk)
+                    return str(r.url), bytes(body.data), r.headers.get("content-type", "")
             except httpx.HTTPError as e:
                 raise ServiceError("news", f"Site injoignable : {e.__class__.__name__}", 502) from e
     raise ServiceError("news", "Trop de redirections", 502)

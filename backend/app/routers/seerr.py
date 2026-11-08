@@ -13,5 +13,8 @@ router = APIRouter(prefix="/seerr", tags=["seerr"])
 async def status(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx = Depends(get_ctx)):
     if not ctx.seerr:
         return {"configured": False}
-    return {"configured": True, **await ctx.seerr.media_status(media_type, tmdb_id)}
+    status = await ctx.seerr.media_status(media_type, tmdb_id)
+    if not ctx.is_admin:
+        status.pop("url", None)  # adresse de Seerr : admin seulement
+    return {"configured": True, **status}
 

@@ -6,6 +6,11 @@
 //   on propose « Ouvrir l'app » (Plex : page watch.plex.tv du titre ; Netflix : nflx://) ou le navigateur,
 //   avec un choix mémorisable. Les autres services restent des liens web, qu'iOS ouvre dans
 //   l'application quand il le décide (liens universels).
+// - Plex (iPhone et Android) : l'app n'ouvre la fiche d'un titre qu'avec son lien watch.plex.tv
+//   (liens déclarés par Plex dans watch.plex.tv/.well-known : /movie/… et /show/…). Les liens plex://
+//   ouvrent seulement l'accueil. On choisit ensuite son serveur dans l'app.
+// - Les liens vers l'app sont de vrais liens touchés (href), jamais une redirection en JavaScript :
+//   iOS et Android n'ouvrent une autre application que sur un geste de l'utilisateur.
 // - Ordinateur : lien web inchangé.
 
 // Applications Android connues (identifiant du paquet), par domaine du lien
@@ -23,7 +28,7 @@ const ANDROID_APPS = [
   ['rakuten.tv', 'tv.wuaki'],
   ['mubi.com', 'com.mubi'],
 ]
-const PLEX_ANDROID = 'com.plexapp.android'
+export const PLEX_ANDROID = 'com.plexapp.android'
 
 export function device() {
   if (typeof navigator === 'undefined') return 'desktop'
@@ -34,41 +39,39 @@ export function device() {
   return 'desktop'
 }
 
-// Lien web Plex (app.plex.tv/desktop/#!/server/<id>/details?key=/library/metadata/<n>) -> lien de l'application
-export function plexAppLink(webUrl) {
-  const m = /\/server\/([^/]+)\/details\?key=([^&]+)/.exec(webUrl || '')
-  if (!m) return null
-  return `plex://preplay/?metadataKey=${encodeURIComponent(decodeURIComponent(m[2]))}&server=${m[1]}`
-}
-
-function androidIntent(url) {
-  let u
+function parse(url) {
   try {
-    u = new URL(url)
+    return new URL(url)
   } catch {
     return null
   }
-  const plex = u.hostname === 'app.plex.tv' ? plexAppLink(url) : null
-  if (plex) {
-    const p = new URL(plex)
-    return `intent://${p.host}${p.pathname}${p.search}#Intent;scheme=plex;package=${PLEX_ANDROID};S.browser_fallback_url=${encodeURIComponent(url)};end`
-  }
+}
+
+const isPlexWeb = (u) => u?.hostname === 'app.plex.tv'
+
+// Lien https ouvert dans l'application Android `pkg` (adresse web de secours si elle n'est pas installée)
+export function androidIntentFor(appUrl, pkg, fallback = appUrl) {
+  const u = parse(appUrl)
+  if (!u) return null
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${pkg};S.browser_fallback_url=${encodeURIComponent(fallback)};end`
+}
+
+function androidIntent(url, ref) {
+  const u = parse(url)
+  if (!u) return null
+  if (isPlexWeb(u)) return ref?.watchUrl ? androidIntentFor(ref.watchUrl, PLEX_ANDROID, url) : null
   if (u.protocol !== 'https:' || u.hash) return null
   const app = ANDROID_APPS.find(([domain]) => u.hostname === domain || u.hostname.endsWith(`.${domain}`))
   if (!app) return null
-  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${app[1]};S.browser_fallback_url=${encodeURIComponent(url)};end`
+  return androidIntentFor(url, app[1])
 }
 
 // iOS : l'app Plex n'ouvre la bonne fiche qu'avec un lien watch.plex.tv (les liens plex:// mènent à
-// l'accueil) ; on choisit ensuite son serveur. Ce lien dépend du titre : il vient du serveur CinéSync.
+// l'accueil) ; on choisit ensuite son serveur. Ce lien dépend du titre : il vient du serveur SynCiné.
 function iosApp(url, ref) {
-  let u
-  try {
-    u = new URL(url)
-  } catch {
-    return null
-  }
-  if (u.hostname === 'app.plex.tv') return { app: 'Plex', scheme: ref?.watchUrl || null, ref }
+  const u = parse(url)
+  if (!u) return null
+  if (isPlexWeb(u)) return { app: 'Plex', scheme: ref?.watchUrl || null, ref }
   const netflix = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?title\/(\d+)/i.exec(u.pathname)
   if (u.hostname.endsWith('netflix.com') && netflix) return { app: 'Netflix', scheme: `nflx://www.netflix.com/title/${netflix[1]}` }
   return null
@@ -95,29 +98,33 @@ export function setAppPref(app, value) {
 }
 
 /**
- * Ouvre `url` dans l'application si possible. Renvoie true si l'ouverture est prise en charge
- * (l'appelant annule alors le comportement normal du lien), false pour laisser le lien web.
+ * Lien à mettre directement dans le href (ouverture de l'app au toucher), ou null.
+ * Android : intent de l'application. iOS : lien de l'app si « Toujours ouvrir l'app » a été choisi.
+ */
+export function directAppLink(url, ref) {
+  const d = device()
+  if (d === 'android') return androidIntent(url, ref)
+  if (d === 'ios') {
+    const target = iosApp(url, ref)
+    if (target?.scheme && getAppPref(target.app) === 'app') return target.scheme
+  }
+  return null
+}
+
+/**
+ * Au toucher d'un lien sans lien direct vers l'app : affiche le choix app / navigateur si l'app peut
+ * ouvrir ce titre (Plex : son lien watch.plex.tv est alors demandé au serveur SynCiné). Renvoie true
+ * si c'est pris en charge (l'appelant annule le lien web), false pour laisser le lien web.
  *
  * iOS demande lui-même « Ouvrir dans … ? » : aucun retour automatique vers le web (il couperait
- * cette question). On propose plutôt le choix app / navigateur (composant AppChooser).
+ * cette question).
  */
 export function openInApp(url, ref) {
   const d = device()
-  if (d === 'android') {
-    const intent = androidIntent(url)
-    if (!intent) return false
-    window.location.href = intent
-    return true
-  }
-  if (d === 'ios') {
-    const target = iosApp(url, ref)
-    if (!target) return false
-    if (target.scheme && getAppPref(target.app) === 'app') {
-      window.location.href = target.scheme
-    } else {
-      window.dispatchEvent(new CustomEvent('cinesync:open-app', { detail: { ...target, url } }))
-    }
-    return true
-  }
-  return false
+  let target = null
+  if (d === 'ios') target = iosApp(url, ref)
+  else if (d === 'android' && isPlexWeb(parse(url))) target = { app: 'Plex', scheme: null, ref }
+  if (!target) return false
+  window.dispatchEvent(new CustomEvent('cinesync:open-app', { detail: { ...target, url, android: d === 'android' } }))
+  return true
 }

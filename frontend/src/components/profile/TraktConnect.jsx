@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, Loader2, LogIn, LogOut } from 'lucide-react'
 import Button from '../ui/Button'
 import { trakt } from '../../services/trakt'
+import { safeUrl } from '../../lib/format'
 import { useTraktOauth } from '../../hooks/useMedia'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
@@ -111,7 +112,7 @@ export default function TraktConnect({ settings }) {
           <Copy className="h-4 w-4 text-text3" />
         </button>
         <a
-          href={device.verification_url}
+          href={safeUrl(device.verification_url)}
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-trakt px-4 py-2 text-sm font-medium text-white hover:brightness-110"

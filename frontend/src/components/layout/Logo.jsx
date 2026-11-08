@@ -15,7 +15,7 @@ export default function Logo({ className = '' }) {
         <rect width="32" height="32" rx="9" fill={`url(#${gid})`} />
         <path d="M12 10.5v11l9.5-5.5z" fill="#fff" />
       </svg>
-      <span className="text-lg font-semibold tracking-[-0.02em]">CinéSync</span>
+      <span className="text-lg font-semibold tracking-[-0.02em]">SynCiné</span>
     </span>
   )
 }

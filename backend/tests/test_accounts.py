@@ -16,6 +16,9 @@ ORIGIN = {"Origin": "http://testserver"}
 
 @pytest.fixture
 def fresh():
+    from tests.conftest import assert_test_database
+
+    assert_test_database()
     Base.metadata.drop_all(engine)
     init_db()
     cache.clear()
@@ -447,3 +450,43 @@ def test_member_without_plex_sees_nothing_of_the_admin_plex(fresh):
     assert alice.get("/api/requests").json()["allowed"] is True
     # L'admin garde l'accès au serveur avec son jeton
     assert admin.get("/api/settings/status").json()["plex"]["configured"] is True
+
+
+def test_member_sees_no_seerr_address_nor_admin_server(fresh):
+    admin = client()
+    setup_admin(admin)
+    alice = member(admin, "alice")
+    with SessionLocal() as db:
+        s = db.get(UserSettings, 1)
+        s.seerr_url, s.seerr_api_key = "http://10.0.0.5:5055", "cle-seerr"
+        s.plex_server_name, s.plex_machine_id = "Serveur de l'admin", "machine-123"
+        db.commit()
+    # Sans Plex : ni Seerr, ni nom ou identifiant du serveur Plex de l'admin
+    assert alice.get("/api/seerr/status/movie/603").json() == {"configured": False}
+    st = alice.get("/api/settings").json()
+    assert st["plex_server_name"] == "" and st["plex_machine_id"] == ""
+    assert "10.0.0.5" not in alice.get("/api/settings").text
+    # Ses demandes ne montrent jamais l'adresse de Seerr
+    with SessionLocal() as db:
+        alice_id = db.query(User).filter(User.username == "alice").one().id
+        db.add(MediaRequest(user_id=alice_id, tmdb_id=603, media_type="movie", title="Matrix", status="sent", seerr_url="http://10.0.0.5:5055/movie/603"))
+        db.commit()
+    link_plex(alice_id)
+    assert "10.0.0.5" not in alice.get("/api/requests").text
+    assert admin.get("/api/requests?scope=all").json()["results"][0]["seerr_url"].startswith("http://10.0.0.5")
+
+
+def test_state_changing_trakt_start_is_not_a_get(fresh):
+    admin = client()
+    setup_admin(admin)
+    assert admin.get("/api/trakt/oauth/start").status_code == 405
+
+
+def test_only_the_main_admin_links_the_plex_server(fresh):
+    admin = client()
+    setup_admin(admin)
+    bob_id = add_member(admin, "bob")["id"]
+    admin.patch(f"/api/admin/users/{bob_id}", json={"role": "admin"})
+    bob = login("bob", "provisoire1")
+    bob.post("/api/auth/password", json={"new_password": "bob-secret-12"})
+    assert bob.post("/api/plex/auth/pin").status_code == 403

@@ -86,7 +86,7 @@ async def _plex_get(ctx: Ctx, path: str, client=None, **params) -> dict:
 
 
 def plex_account_map(db) -> dict[int, int]:
-    """Compte de l'historique du serveur Plex (accountID) -> compte CinéSync."""
+    """Compte de l'historique du serveur Plex (accountID) -> compte SynCiné."""
     from app.models import User
 
     out = {OWNER_ACCOUNT: 1}  # par défaut, le propriétaire du serveur est l'administrateur principal
@@ -96,7 +96,7 @@ def plex_account_map(db) -> dict[int, int]:
 
 
 def assign_plex_events(db, server_account_id: int, user_id: int) -> None:
-    """Rattache à un compte CinéSync les visionnages Plex déjà importés de son compte Plex."""
+    """Rattache à un compte SynCiné les visionnages Plex déjà importés de son compte Plex."""
     from sqlalchemy import update
 
     db.execute(
@@ -110,7 +110,7 @@ def assign_plex_events(db, server_account_id: int, user_id: int) -> None:
 
 async def import_plex(ctx: Ctx) -> int:
     """Historique de tout le serveur (jeton de l'admin) ; chaque visionnage revient au compte qui a regardé
-    (0 = compte Plex sans compte CinéSync, rattaché plus tard si l'admin l'autorise)."""
+    (0 = compte Plex sans compte SynCiné, rattaché plus tard si l'admin l'autorise)."""
     p = ctx.plex_admin
     if not p:
         return 0

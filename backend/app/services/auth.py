@@ -89,7 +89,7 @@ class RateLimiter:
     - all : plafond global (attaque répartie).
     """
 
-    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300}
+    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300, "pin": 20}
     MAX_KEYS = 10_000
 
     def __init__(self, window: int):
@@ -134,12 +134,59 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
-def guard_attempts(request: Request, username: str = "") -> tuple[str, ...]:
+def guard_attempts(request: Request, subject: str = "", trusted: bool = False) -> tuple[str, ...]:
+    """Refuse (429) si trop d'échecs récents ; renvoie les clés à passer à fail() / reset().
+
+    subject : ce qui est visé, préfixé par son usage (« login:alice », « 2fa:3 », « setup »), pour qu'un
+    identifiant inventé ne puisse pas épuiser le compteur d'un autre usage.
+    trusted : appareil déjà connecté à ce compte (cookie signé, voir known_device) : les plafonds par
+    adresse et global ne le bloquent pas, sinon une attaque répartie empêcherait tout le monde de se connecter."""
     ip = client_ip(request)
-    keys = ("all:", f"ip:{ip}") + ((f"pair:{ip}|{username}", f"user:{username}") if username else ())
-    if login_limiter.blocked(*keys):
+    soft = ("all:", f"ip:{ip}")
+    hard = (f"pair:{ip}|{subject}", f"user:{subject}") if subject else ()
+    if login_limiter.blocked(*(hard if trusted else soft + hard)):
         raise HTTPException(429, "Trop d'essais, réessaie dans quelques minutes")
-    return keys
+    return soft + hard
+
+
+# --- Appareils connus ----------------------------------------------------------------
+# Après une connexion complète, l'appareil reçoit un cookie signé (id du compte) valable un an. Il ne donne
+# aucun accès : il évite seulement à cet appareil d'être bloqué par les plafonds par adresse et global.
+
+DEVICE_COOKIE = "cinesync_device"
+DEVICE_DAYS = 365
+
+
+def _device_sig(user_id: int, nonce: str) -> str:
+    from app.services.secret import server_secret
+
+    return hmac.new(server_secret(), f"device|{user_id}|{nonce}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def remember_device(request: Request, response: Response, user_id: int) -> None:
+    nonce = secrets.token_urlsafe(12)
+    response.set_cookie(
+        DEVICE_COOKIE, f"{user_id}.{nonce}.{_device_sig(user_id, nonce)}", max_age=DEVICE_DAYS * 86400,
+        httponly=True, samesite="lax", secure=_is_https(request), path="/api/auth",
+    )
+
+
+def known_device(request: Request) -> int | None:
+    """Id du compte déjà connecté depuis cet appareil (cookie signé valide), sinon None."""
+    try:
+        uid, nonce, sig = (request.cookies.get(DEVICE_COOKIE) or "").split(".")
+        if hmac.compare_digest(sig, _device_sig(int(uid), nonce)):
+            return int(uid)
+    except ValueError:
+        pass
+    return None
+
+
+def session_age(db: Session, request: Request) -> timedelta | None:
+    """Ancienneté de la session de cette requête (pour exiger une connexion récente avant un changement sensible)."""
+    token = request.cookies.get(COOKIE)
+    row = db.get(AuthSession, _digest(token)) if token else None
+    return datetime.utcnow() - row.created_at if row and row.created_at else None
 
 
 # --- Sessions ----------------------------------------------------------------------
@@ -175,6 +222,7 @@ def open_session(db: Session, user: User, request: Request, response: Response) 
     user.last_login_at = now
     db.commit()
     _set_cookie(request, response, token)
+    remember_device(request, response, user.id)
 
 
 def close_session(db: Session, request: Request, response: Response) -> None:

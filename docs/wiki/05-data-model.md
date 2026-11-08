@@ -89,7 +89,7 @@ Unique constraints worth knowing: `media_state (user_id, tmdb_id, media_type)`, 
 
 ## `media_state` in a nutshell
 
-A title is identified by `(tmdb_id, media_type)` with `media_type` in `movie` / `tv`. Where the information came from is stored as JSON lists of sources: `"trakt"`, `"plex"`, `"letterboxd"`, `"local"` (done in CinéSync). Helpers on the model: `sources(field)`, `add_source`, `remove_source`, and properties `in_watchlist`, `watched`. `state()` and `to_item()` build the JSON sent to the frontend. Ratings are stored **out of 10** (the UI uses 1 to 5 stars, multiplied by 2). See [Sync engine](07-sync-engine.md).
+A title is identified by `(tmdb_id, media_type)` with `media_type` in `movie` / `tv`. Where the information came from is stored as JSON lists of sources: `"trakt"`, `"plex"`, `"letterboxd"`, `"local"` (done in SynCiné). Helpers on the model: `sources(field)`, `add_source`, `remove_source`, and properties `in_watchlist`, `watched`. `state()` and `to_item()` build the JSON sent to the frontend. Ratings are stored **out of 10** (the UI uses 1 to 5 stars, multiplied by 2). See [Sync engine](07-sync-engine.md).
 
 ## Shared vs per-user settings
 
@@ -129,7 +129,7 @@ Rules of thumb:
 
 - In a router, always use `ctx.db`; never open your own `SessionLocal()` for personal data.
 - Use `all_users=True` only in admin or global code, and double-check what is returned to the client (see `routers/requests.py: visible`).
-- `watch_events.user_id = 0` holds Plex viewings of server accounts that are not (yet) linked to a CinéSync account. `services/history.py: assign_plex_events` hands them over when the admin allows that Plex account.
+- `watch_events.user_id = 0` holds Plex viewings of server accounts that are not (yet) linked to a SynCiné account. `services/history.py: assign_plex_events` hands them over when the admin allows that Plex account.
 
 ## Lightweight migrations
 

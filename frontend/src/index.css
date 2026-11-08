@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ---------------------------------------------------------------------------
-   Design system CinéSync — variables CSS, thème auto/clair/sombre
+   Design system SynCiné — variables CSS, thème auto/clair/sombre
    data-theme="light|dark" sur <html> force un thème ; absent = suit le système
    --------------------------------------------------------------------------- */
 
@@ -26,7 +26,7 @@
   --plex: #e5a00d;
   --prime: #00a8e0;
   --apple: #a2aaad;
-  --trakt: #ed1c24;
+  --trakt: #9f42c6; /* violet de Trakt : le rouge se confondait avec un service en panne */
   --letterboxd: #00e054;
   --seerr: #6366f1;
   --justwatch: #fbc500;

@@ -6,7 +6,7 @@ import PlatformFilter, { useMediaFilters } from '../components/media/PlatformFil
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
 import MockBanner from '../components/ui/MockBanner'
 import EmptyState from '../components/ui/EmptyState'
-import { useCharts, useNewOnPlatforms, useSettings, useStatus, useSuggestions, useTrending } from '../hooks/useMedia'
+import { useCharts, useNewOnPlatforms, useSeenFilter, useSettings, useStatus, useSuggestions, useTrending } from '../hooks/useMedia'
 import { useUiStore } from '../store/uiStore'
 import { useT } from '../i18n'
 
@@ -44,7 +44,9 @@ function SwipeTile() {
 export default function Discover() {
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
-  const filter = useMediaFilters()
+  const mediaFilters = useMediaFilters()
+  const hideSeen = useSeenFilter()
+  const filter = (items) => hideSeen(mediaFilters(items))
   const { data: settings } = useSettings()
   const { data: status } = useStatus()
   const t = useT()
@@ -82,10 +84,10 @@ export default function Discover() {
       />
 
       {mediaFilter !== 'tv' && (chartsMovies.isLoading || chartsMovies.data?.results?.length > 0) && (
-        <MediaRow title={t('Top 10 films du jour')} subtitle={t('Classement JustWatch · {country}', { country: settings?.country_code || '' })} items={chartsMovies.data?.results} loading={chartsMovies.isLoading} />
+        <MediaRow title={t('Top 10 films du jour')} subtitle={t('Classement JustWatch · {country}', { country: settings?.country_code || '' })} items={hideSeen(chartsMovies.data?.results)} loading={chartsMovies.isLoading} />
       )}
       {mediaFilter !== 'movie' && (chartsShows.isLoading || chartsShows.data?.results?.length > 0) && (
-        <MediaRow title={t('Top 10 séries du jour')} subtitle={t('Classement JustWatch · {country}', { country: settings?.country_code || '' })} items={chartsShows.data?.results} loading={chartsShows.isLoading} />
+        <MediaRow title={t('Top 10 séries du jour')} subtitle={t('Classement JustWatch · {country}', { country: settings?.country_code || '' })} items={hideSeen(chartsShows.data?.results)} loading={chartsShows.isLoading} />
       )}
 
       <SwipeTile />
