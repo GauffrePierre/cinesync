@@ -15,6 +15,7 @@ from app.config import config
 from app.database import bind_user, get_db
 from app.models import User, UserSettings
 from app.services.auth import require_ready
+from app.services.errors import NotConfigured
 from app.services.justwatch_client import JustWatchClient
 from app.services.letterboxd_client import LetterboxdClient
 from app.services.mock_data import MockPlex, MockTMDB, MockTrakt
@@ -96,8 +97,10 @@ class Ctx:
 
     @cached_property
     def plex(self) -> PlexClient | None:
-        """Serveur Plex partagé, en lecture : avec le jeton du compte s'il en a un, sinon celui de l'admin."""
-        token = self.settings.own.plex_token or self.settings.shared.plex_token
+        """Serveur Plex partagé, en lecture, avec le jeton propre au compte.
+        Un administrateur sans jeton propre utilise celui du serveur. Un membre sans compte Plex relié n'a
+        AUCUN accès Plex : ni bibliothèque, ni badges, ni nom du serveur (rien du Plex de l'admin)."""
+        token = self.settings.own.plex_token or (self.settings.shared.plex_token if self.user.is_admin else "")
         if self.settings.plex_url and token:
             return PlexClient(self.settings.plex_url, token)
         return None
@@ -158,6 +161,10 @@ class Ctx:
     # Versions « toujours disponibles » pour les pages dédiées (données factices sinon)
     @property
     def plex_or_mock(self) -> PlexClient | MockPlex:
+        """Bibliothèque Plex, ou démonstration pour l'admin tant que Plex n'est pas relié.
+        Un membre sans Plex n'a ni l'une ni l'autre."""
+        if self.plex is None and not self.user.is_admin:
+            raise NotConfigured("plex", "Ce compte n'est pas relié à Plex")
         return self.plex or MockPlex()
 
     @property

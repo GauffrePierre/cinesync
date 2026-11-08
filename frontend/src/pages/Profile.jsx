@@ -318,7 +318,8 @@ function ServerServices({ user, status }) {
         : t('Serveur {server}, partagé par l’administrateur', { server: status?.plex?.server || '—' }),
       note: !status?.plex?.own && t('Connecte-toi avec Plex pour synchroniser tes propres vus et ta progression.'),
     },
-    status?.seerr?.configured && {
+    // Demandes d'ajout au serveur Plex : seulement pour les comptes reliés à Plex
+    status?.seerr?.configured && status?.plex?.configured && {
       key: 'seerr',
       color: 'var(--seerr)',
       label: 'Seerr',
@@ -615,9 +616,11 @@ export default function Profile() {
         <SyncPanel />
       </Section>
 
-      <Section title={t('Mes demandes')} description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
-        <RequestsPanel />
-      </Section>
+      {(isAdmin || status?.plex?.configured) && (
+        <Section title={t('Mes demandes')} description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
+          <RequestsPanel />
+        </Section>
+      )}
 
       <Section title={t('Notifications')} description={t("Choisis ce qui s'affiche sous la cloche.")}>
         <NotificationSettings settings={settings} />

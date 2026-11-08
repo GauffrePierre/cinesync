@@ -106,11 +106,19 @@ def list_requests(status: str | None = None, scope: Literal["mine", "all"] = "mi
         "pending": sum(1 for r in rows if r.status == "pending"),
         "seerr": ctx.seerr is not None,
         "direct": can_send_direct(ctx),
+        "allowed": can_request(ctx),
     }
+
+
+def can_request(ctx: Ctx) -> bool:
+    """Une demande ajoute un titre au serveur Plex : réservée à l'admin et aux comptes reliés à Plex."""
+    return ctx.is_admin or ctx.plex is not None
 
 
 @router.post("")
 async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
+    if not can_request(ctx):
+        raise HTTPException(403, "Les demandes d'ajout sont réservées aux comptes reliés au serveur Plex")
     existing = find_open(ctx, body.media_type, body.tmdb_id)
     if existing:
         return {"request": visible(ctx, existing), "created": False}

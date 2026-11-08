@@ -97,6 +97,8 @@ sequenceDiagram
 | `SettingsOut.from_model(admin=…)` | `schemas/settings.py` | Members do not see `plex_url` or `seerr_url`, and see secrets only as "set / not set" |
 | `test_connection` | `routers/user.py` | Members get no `details` for server services |
 | `visible()` | `routers/requests.py` | Members see only the status of other people's requests, not their note or name |
+| `Ctx.plex` / `plex_or_mock` | `services/context.py` | A member without their own Plex token has no Plex access at all: no library (not even demo data), no badges or "Play on Plex" links, no server name in the status |
+| `can_request()` | `routers/requests.py` | Add requests (which add titles to the Plex server) are limited to admins and Plex-linked accounts |
 
 `update_user` and `delete_user` also protect the last admin and account 1, which holds the server settings.
 

@@ -46,6 +46,15 @@ def login(username, password) -> TestClient:
     return c
 
 
+def link_plex(user_id: int) -> None:
+    """Simule un compte relié au serveur Plex : adresse du serveur (réglage partagé) + jeton propre au compte."""
+    with SessionLocal() as db:
+        db.get(UserSettings, 1).plex_url = "http://plex.test:32400"
+        db.get(UserSettings, 1).plex_token = "jeton-du-serveur"
+        db.get(UserSettings, user_id).plex_token = f"jeton-du-compte-{user_id}"
+        db.commit()
+
+
 # --- Migration ---------------------------------------------------------------------------
 
 
@@ -210,6 +219,7 @@ def test_member_requests_go_to_the_admin_queue(fresh):
     admin = client()
     setup_admin(admin)
     member = add_member(admin)
+    link_plex(member["id"])
     alice = login("alice", "provisoire1")
     alice.post("/api/auth/password", json={"new_password": "nouveau-mdp-alice"})
     r = alice.post("/api/requests", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"}).json()
@@ -310,6 +320,10 @@ def test_other_members_request_details_stay_private(fresh):
     admin = client()
     setup_admin(admin)
     alice, bob = member(admin, "alice"), member(admin, "bob")
+    with SessionLocal() as db:
+        ids = [u.id for u in db.query(User).filter(User.username.in_(["alice", "bob"]))]
+    for uid in ids:
+        link_plex(uid)
     alice.post("/api/requests", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix", "note": "pour mon anniversaire"})
     r = bob.post("/api/requests", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"}).json()
     assert r["created"] is False and r["request"]["status"] == "pending"
@@ -404,3 +418,32 @@ def test_plex_member_can_also_get_a_password(fresh):
     # Avec Plex, il peut aussi retirer son mot de passe ; un compte local, non
     assert sam.request("DELETE", "/api/auth/password", json={"current_password": "secret-de-sam"}).status_code == 200
     assert admin.request("DELETE", "/api/auth/password", json={"current_password": "motdepasse-admin"}).status_code == 409
+
+
+
+def test_member_without_plex_sees_nothing_of_the_admin_plex(fresh):
+    admin = client()
+    setup_admin(admin)
+    alice = member(admin, "alice")
+    with SessionLocal() as db:
+        alice_id = db.query(User).filter(User.username == "alice").one().id
+        db.get(UserSettings, 1).plex_url = "http://plex.test:32400"
+        db.get(UserSettings, 1).plex_token = "jeton-du-serveur"
+        db.get(UserSettings, 1).plex_server_name = "Serveur de l'admin"
+        db.commit()
+    # Ni configuré, ni nom du serveur, ni bibliothèque (pas même de démonstration), ni service Plex dans la barre
+    st = alice.get("/api/settings/status").json()
+    assert st["plex"]["configured"] is False and st["plex"]["server"] is None and "plex" not in st["health"]
+    assert alice.get("/api/plex/library").status_code == 409
+    assert alice.get("/api/plex/sections").status_code == 409
+    assert alice.get("/api/plex/status/movie/603").json() == {"configured": False, "available": False}
+    # Pas de demandes d'ajout au serveur Plex
+    assert alice.get("/api/requests").json()["allowed"] is False
+    assert alice.post("/api/requests", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"}).status_code == 403
+    # Le même membre, une fois relié à Plex, retrouve tout
+    link_plex(alice_id)
+    st = alice.get("/api/settings/status").json()
+    assert st["plex"]["configured"] is True and st["plex"]["server"] == "Serveur de l'admin" and st["plex"]["own"] is True
+    assert alice.get("/api/requests").json()["allowed"] is True
+    # L'admin garde l'accès au serveur avec son jeton
+    assert admin.get("/api/settings/status").json()["plex"]["configured"] is True

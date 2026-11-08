@@ -42,6 +42,8 @@ Pour les personnes avec qui ton serveur Plex est déjà partagé :
 3. Envoie-lui l'adresse de CinéSync : elle se connectera avec **Se connecter avec Plex**. Chacun retrouve ses propres vus et sa progression Plex.
 
 ### Sans compte Plex
+Ces comptes ne voient rien de ton serveur Plex (bibliothèque, nom du serveur, titres vus) et ne peuvent pas faire de demandes d'ajout.
+
 1. Section **Comptes CinéSync → Ajouter**.
 2. Choisis un **identifiant** et un **mot de passe provisoire** (bouton **Générer**), coche les options si besoin.
 3. Transmets l'adresse, l'identifiant et le mot de passe : il sera changé à la première connexion.

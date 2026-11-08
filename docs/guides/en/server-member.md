@@ -16,7 +16,7 @@ If you were also given a temporary password, or want to sign in without Plex: **
 
 ## Without a Plex account
 
-The administrator gave you a **username** and a **temporary password**.
+The administrator gave you a **username** and a **temporary password**. You get all of CinéSync (discovery, cinemas, streaming, watchlist, Trakt, Letterboxd…) except what concerns the Plex server: its library and add requests.
 
 1. On the **Sign in** screen, enter them and choose **Sign in**.
 2. Choose your own password (at least 8 characters): you're asked on first sign-in.
@@ -32,8 +32,8 @@ In **Profile**:
 5. **Sync**: **Sync now** gathers your watchlist, watched titles and ratings.
 6. **Notifications**: choose what shows under the bell.
 
-### Request a film or series
-On the page of a title that isn't in the library: **Request it**. Depending on the administrator's settings, the request goes straight through, or they receive and handle it; you're notified either way. Track your requests in **Profile → My requests**.
+### Request a film or series (Plex accounts)
+Requests add a title to the Plex server, so they are offered to accounts linked to Plex. On the page of a title that isn't in the library: **Request it**. Depending on the administrator's settings, the request goes straight through, or they receive and handle it; you're notified either way. Track your requests in **Profile → My requests**.
 
 ### Install the app on your phone
 - **iPhone / iPad**: Safari → **Share → Add to Home Screen**. "Play on Plex" will offer to open the Plex app.

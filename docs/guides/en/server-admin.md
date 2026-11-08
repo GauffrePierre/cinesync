@@ -42,6 +42,8 @@ For people your Plex server is already shared with:
 3. Send them CinéSync's address: they sign in with **Sign in with Plex**. Everyone gets their own watched titles and Plex progress.
 
 ### Without a Plex account
+These accounts see nothing of your Plex server (library, server name, watched titles) and can't make add requests.
+
 1. **CinéSync accounts → Add**.
 2. Choose a **username** and a **temporary password** (**Generate** button), tick the options you need.
 3. Pass on the address, username and password: they change the password when they first sign in.

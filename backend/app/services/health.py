@@ -38,8 +38,9 @@ def _key(service: str, user_id: int) -> tuple[int, str]:
 
 
 def _plex_token(s) -> str:
+    """Jeton Plex utilisable par ce compte : le sien, ou celui du serveur pour le compte principal."""
     own, shared = getattr(s, "own", s), getattr(s, "shared", s)
-    return own.plex_token or shared.plex_token
+    return own.plex_token or (shared.plex_token if own is shared else "")
 
 
 def used_services(s) -> list[str]:

@@ -16,7 +16,7 @@ Si on t'a aussi donné un mot de passe provisoire, ou si tu veux pouvoir te conn
 
 ## Sans compte Plex
 
-L'administrateur t'a donné un **identifiant** et un **mot de passe provisoire**.
+L'administrateur t'a donné un **identifiant** et un **mot de passe provisoire**. Tu as accès à tout CinéSync (découverte, cinémas, streaming, watchlist, Trakt, Letterboxd…), sauf à ce qui concerne le serveur Plex : sa bibliothèque et les demandes d'ajout.
 
 1. Sur l'écran **Connexion**, saisis-les et choisis **Se connecter**.
 2. Choisis ton propre mot de passe (8 caractères minimum) : c'est demandé à la première connexion.
@@ -32,8 +32,8 @@ Dans **Profil** :
 5. **Synchronisation** : **Synchroniser maintenant** rassemble ta watchlist, tes vus et tes notes.
 6. **Notifications** : choisis ce que tu veux voir sous la cloche.
 
-### Demander un film ou une série
-Sur la fiche d'un titre absent de la bibliothèque : **Demander l'ajout**. Selon ce qu'a réglé l'administrateur, la demande part directement, ou il la reçoit et la traite ; tu es prévenu dans les notifications. Suis tes demandes dans **Profil → Mes demandes**.
+### Demander un film ou une série (comptes Plex)
+Les demandes servent à ajouter un titre au serveur Plex : elles sont proposées aux comptes reliés à Plex. Sur la fiche d'un titre absent de la bibliothèque : **Demander l'ajout**. Selon ce qu'a réglé l'administrateur, la demande part directement, ou il la reçoit et la traite ; tu es prévenu dans les notifications. Suis tes demandes dans **Profil → Mes demandes**.
 
 ### Installer l'appli sur ton téléphone
 - **iPhone / iPad** : Safari → **Partager → Sur l'écran d'accueil**. « Lire sur Plex » te proposera d'ouvrir l'app Plex.

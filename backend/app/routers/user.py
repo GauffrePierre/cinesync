@@ -75,7 +75,9 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
     s = ctx.settings
     return {
         "tmdb": {"configured": bool(s.tmdb_api_key), "mock": not s.tmdb_api_key},
-        "plex": {"configured": ctx.plex is not None, "server": s.plex_server_name or None, "account": bool(s.plex_account_token), "own": ctx.plex_own is not None},
+        # Rien du Plex du serveur pour un membre qui n'y est pas relié (ni le nom du serveur)
+        "plex": {"configured": ctx.plex is not None, "server": (s.plex_server_name or None) if ctx.plex else None,
+                 "account": bool(s.plex_account_token), "own": ctx.plex_own is not None},
         "trakt": {"configured": bool(s.trakt_client_id), "connected": bool(s.trakt_access_token), "username": s.trakt_username or None},
         "seerr": {"configured": bool(s.seerr_url and s.seerr_api_key)},
         "letterboxd": {"configured": bool(s.letterboxd_username), "username": s.letterboxd_username or None},

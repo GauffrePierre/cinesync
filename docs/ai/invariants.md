@@ -12,6 +12,7 @@ Each item: rule → where enforced → test that guards it (`backend/tests/…`)
 - A temporary password blocks everything except `/auth/*` until changed → `require_ready` → `test_temporary_password_must_be_changed_first`.
 - Plex sign-in only for Plex accounts linked to an active user that still has access to the admin's server; PIN bound to the browser (nonce cookie) → `routers/auth.py`.
 - The server Plex connection accepts only a PIN created by the same admin, via POST → `routers/plex.py:_server_pins` → `test_server_plex_pin_must_be_created_by_this_admin`.
+- A member without their own Plex token gets **no** Plex access: `ctx.plex` is `None` (no admin-token fallback), `plex_or_mock` raises instead of serving demo data, the status hides the server name, and requests are refused (`can_request`) → `services/context.py`, `routers/requests.py` → `test_member_without_plex_sees_nothing_of_the_admin_plex`.
 - Members can't bypass the request queue (no direct Seerr endpoint; `can_send_direct`) → `test_members_cannot_bypass_the_request_queue`.
 
 ## Editions

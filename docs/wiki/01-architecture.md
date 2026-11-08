@@ -100,7 +100,7 @@ Personal jobs go through `for_each_user(job)`: for every active account (admins 
 |---|---|
 | `ctx.tmdb` | `TMDBClient`, or `MockTMDB` when no key is set (demo data) |
 | `ctx.trakt` / `ctx.trakt_app` | Connected Trakt client / client that only needs the app id |
-| `ctx.plex` / `ctx.plex_own` / `ctx.plex_admin` | Plex server client with the best token / the account's own token / the admin's token |
+| `ctx.plex` / `ctx.plex_own` / `ctx.plex_admin` | Plex server client for reads (the account's own token; admins fall back to the server token; `None` for members without Plex, who see nothing of the server) / the account's own token / the admin's token |
 | `ctx.plex_account` | plex.tv account client (watchlist, ratings) |
 | `ctx.seerr`, `ctx.letterboxd`, `ctx.justwatch` | Optional clients, `None` when not configured |
 
