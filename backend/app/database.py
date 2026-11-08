@@ -10,7 +10,14 @@ from app.config import config
 
 config.data_dir.mkdir(parents=True, exist_ok=True)
 
-engine = create_engine(config.database_url, connect_args={"check_same_thread": False})
+# SQLite (WAL) supporte bien les lectures concurrentes : réserve large, attente courte plutôt que 30 s de blocage
+engine = create_engine(
+    config.database_url,
+    connect_args={"check_same_thread": False, "timeout": 15},
+    pool_size=20,
+    max_overflow=40,
+    pool_timeout=10,
+)
 
 
 @event.listens_for(engine, "connect")

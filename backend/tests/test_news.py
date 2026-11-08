@@ -90,3 +90,32 @@ def test_dns_rebinding_is_blocked_at_connection_time(monkeypatch):
     with pytest.raises(ServiceError):
         asyncio.run(safe_fetch.fetch("http://rebind.example/feed"))
     assert calls["n"] >= 2  # la vérification est bien refaite à la connexion
+
+
+def test_waiting_requests_do_not_hold_database_connections(fresh, monkeypatch, tmp_path):  # noqa: F811
+    """Une requête qui attend un service extérieur ne doit pas garder de connexion à la base (sinon un
+    afflux d'images à relayer bloque toute l'appli)."""
+    from app.database import engine
+
+    admin = client()
+    setup_admin(admin)
+    seen = []
+    img = tmp_path / "x.webp"
+    img.write_bytes(b"RIFF0000WEBP")
+
+    async def slow_image(url):
+        seen.append(engine.pool.checkedout())
+        return img
+
+    monkeypatch.setattr(news, "image", slow_image)
+    url = "https://cine.example/x.jpg"
+    assert admin.get("/api/news/image", params={"u": url, "s": news._sign(url)}).status_code == 200
+    assert seen == [0]
+
+
+def test_api_keys_never_logged():
+    import logging
+
+    import app.main  # noqa: F401
+
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING

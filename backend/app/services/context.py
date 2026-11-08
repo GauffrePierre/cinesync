@@ -172,7 +172,9 @@ def ctx_for(db: Session, user: User) -> Ctx:
 
 
 def get_ctx(db: Session = Depends(get_db), user: User = Depends(require_ready)) -> Ctx:
-    return Ctx(db=db, settings=settings_for(db, user.id), user=user)
+    ctx = Ctx(db=db, settings=settings_for(db, user.id), user=user)
+    db.commit()  # rend la connexion au pool ; elle est reprise au besoin, le temps d'une requête SQL
+    return ctx
 
 
 def public_base_url(request: Request) -> str:

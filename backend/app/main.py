@@ -18,6 +18,9 @@ from app.services.errors import ServiceError
 from app.services.http import close_http
 
 logging.basicConfig(level=config.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# Les bibliothèques réseau écrivent chaque URL appelée en INFO, clés d'API comprises (TMDB…) : jamais dans les journaux
+for noisy in ("httpx", "httpcore"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 @asynccontextmanager

@@ -276,4 +276,12 @@ export default {
   'Vie privée': 'Privacy',
   'Tout reste sur ton serveur : CinéSync ne collecte rien et n’envoie tes données qu’aux services que tu as connectés.':
     'Everything stays on your server: CinéSync collects nothing and only sends your data to the services you connected.',
+  'Fournis par le serveur': 'Provided by the server',
+  'Réglés par l’administrateur pour tout le monde : déjà actifs pour toi, rien à configurer.': 'Set up by the administrator for everyone: already active for you, nothing to configure.',
+  'Fiches, tendances, sorties et disponibilités streaming': 'Title pages, trending, releases and streaming availability',
+  'Liens directs vers chaque plateforme et nouveautés': 'Direct links to each service and new arrivals',
+  'Tes demandes d’ajout partent directement à Seerr': 'Your requests go straight to Seerr',
+  'Tes demandes d’ajout passent par l’administrateur': 'Your requests go through the administrator',
+  Actif: 'Active',
+  'Non activé': 'Not enabled',
 }

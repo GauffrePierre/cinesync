@@ -234,6 +234,9 @@ def current_user(request: Request, response: Response, db: Session = Depends(get
         raise HTTPException(401, "Connexion requise")
     bind_user(db, user.id)
     request.state.user = user
+    # Fin de la transaction : la connexion à la base retourne au pool pendant que la requête attend
+    # des services extérieurs (TMDB, images…). Les objets restent utilisables (expire_on_commit=False).
+    db.commit()
     return user
 
 
