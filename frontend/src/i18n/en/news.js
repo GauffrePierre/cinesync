@@ -1,0 +1,43 @@
+// Actu Ciné (pages/News.jsx)
+export default {
+  'Actu Ciné': 'Film News',
+  Actu: 'News',
+  Articles: 'Articles',
+  Vidéos: 'Videos',
+  Sources: 'Sources',
+  Toutes: 'All',
+  'Les dernières critiques, actus et vidéos de tes sources préférées.': 'The latest reviews, news and videos from your favourite sources.',
+  'Indisponible pour le moment : {names}': 'Unavailable right now: {names}',
+  'Actu Ciné indisponible': 'Film News unavailable',
+  'Rien à lire pour le moment': 'Nothing to read yet',
+  'Ajoute des sources pour remplir ton fil.': 'Add sources to fill your feed.',
+  'Chaque article s’ouvre sur le site de sa source.': 'Each article opens on its source’s website.',
+  'Sources de l’Actu Ciné': 'Film News sources',
+  'Sites en français': 'French-language sites',
+  'Sites en anglais': 'English-language sites',
+  'Mes sources': 'My sources',
+  Retirer: 'Remove',
+  'Site, flux RSS ou chaîne YouTube': 'Website, RSS feed or YouTube channel',
+  'Exemples : critikat.com, youtube.com/@chaine. CinéSync trouve le flux tout seul.': 'Examples: critikat.com, youtube.com/@channel. CinéSync finds the feed by itself.',
+  'Les articles s’ouvrent sur le site d’origine : si tu as un compte ou un abonnement (Écran Large, Le Monde…), connecte-toi sur le site dans ton navigateur pour tout lire.':
+    'Articles open on the original website: if you have an account or a subscription (Écran Large, Le Monde…), sign in on that site in your browser to read everything.',
+  'Clé API YouTube (admin, facultatif)': 'YouTube API key (admin, optional)',
+  'Clé enregistrée. Elle sert de secours quand YouTube ne fournit pas le flux d’une chaîne.': 'Key saved. It is used as a fallback when YouTube does not provide a channel’s feed.',
+  'Secours quand YouTube ne fournit pas le flux d’une chaîne. Clé gratuite : Google Cloud Console → YouTube Data API v3.':
+    'Fallback when YouTube does not provide a channel’s feed. Free key: Google Cloud Console → YouTube Data API v3.',
+  'Clé API YouTube enregistrée': 'YouTube API key saved',
+  '« {name} » ajouté': '“{name}” added',
+  // Messages du serveur
+  'Adresse invalide : elle doit commencer par https://': 'Invalid address: it must start with https://',
+  'Adresse invalide': 'Invalid address',
+  'Cette adresse pointe vers un réseau privé : refusée': 'This address points to a private network: refused',
+  'Réponse trop volumineuse': 'Response too large',
+  'Trop de redirections': 'Too many redirects',
+  'Aucun article dans ce flux': 'No articles in this feed',
+  "Aucun flux d'articles (RSS) trouvé à cette adresse": 'No article feed (RSS) found at this address',
+  'Le flux trouvé ne contient aucun article': 'The feed found contains no articles',
+  "Chaîne YouTube introuvable : utilise l'adresse youtube.com/channel/UC…": 'YouTube channel not found: use the youtube.com/channel/UC… address',
+  "YouTube ne fournit pas le flux de cette chaîne pour le moment ; l'admin peut ajouter une clé API YouTube (Actu Ciné → Sources)":
+    'YouTube does not provide this channel’s feed right now; the admin can add a YouTube API key (Film News → Sources)',
+  'Aucune vidéo trouvée sur cette chaîne': 'No videos found on this channel',
+}

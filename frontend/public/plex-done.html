@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CinéSync — Plex connecté</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+             font-family: Inter, system-ui, sans-serif; background: #0a0a0f; color: #f0f0f5; text-align: center; }
+      p { color: #9090a8; }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Plex connecté</h1>
+      <p>Tu peux fermer cette fenêtre et revenir à CinéSync.</p>
+    </div>
+    <script>
+      // Page de retour après la connexion Plex : se ferme toute seule quand c'est possible
+      setTimeout(function () { window.close() }, 800)
+    </script>
+  </body>
+</html>

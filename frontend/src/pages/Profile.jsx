@@ -1,0 +1,706 @@
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, ChevronDown, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Server, ShieldCheck, Sun, Tv, Users } from 'lucide-react'
+import ConnectionCard from '../components/profile/ConnectionCard'
+import TraktConnect from '../components/profile/TraktConnect'
+import PlexConnect from '../components/profile/PlexConnect'
+import SyncPanel from '../components/profile/SyncPanel'
+import CinemaPicker from '../components/profile/CinemaPicker'
+import RequestsPanel from '../components/profile/RequestsPanel'
+import PlexDashboard from '../components/admin/PlexDashboard'
+import UsersPanel from '../components/admin/UsersPanel'
+import HiddenTitles from '../components/profile/HiddenTitles'
+import { About, Support } from '../components/profile/About'
+import NotificationSettings from '../components/profile/NotificationSettings'
+import PlatformPicker from '../components/profile/PlatformPicker'
+import Tabs from '../components/ui/Tabs'
+import Button from '../components/ui/Button'
+import Skeleton from '../components/ui/Skeleton'
+import { useCountries, useSettings, useStats, useStatus, useUpdateSettings } from '../hooks/useMedia'
+import { useSettingsStore } from '../store/settingsStore'
+import { swipe } from '../services/swipe'
+import { auth } from '../services/auth'
+import { useCurrentUser, usePersonal, useResetSession } from '../hooks/useAuth'
+import Modal from '../components/ui/Modal'
+import { PasswordForm } from './Login'
+import { getAppPref, setAppPref } from '../lib/appLinks'
+import { toast } from '../store/uiStore'
+import { UI_LANGUAGES, fmtNumber, useT } from '../i18n'
+
+function Section({ title, description, children, right }) {
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {right}
+      </div>
+      {description && <p className="mb-4 mt-0.5 text-sm text-text2">{description}</p>}
+      {!description && <div className="mb-4" />}
+      {children}
+    </section>
+  )
+}
+
+const SERVICE_META = {
+  tmdb: { label: 'TMDB', color: '#01b4e4', hint: 'Indispensable : métadonnées et disponibilités' },
+  plex: { label: 'Plex', color: 'var(--plex)', hint: 'Ta bibliothèque, lecture, historique' },
+  trakt: { label: 'Trakt', color: 'var(--trakt)', hint: 'Watchlist, historique, notes' },
+  seerr: { label: 'Seerr', color: 'var(--seerr)', hint: "Demandes d'ajout à Plex" },
+  letterboxd: { label: 'Letterboxd', color: 'var(--letterboxd)', hint: 'Ton journal de films (RSS)' },
+  justwatch: { label: 'JustWatch', color: 'var(--justwatch)', hint: 'Liens directs, top du jour, nouveautés' },
+}
+
+const LANGUAGES = [
+  ['fr-FR', 'Français (France)'], ['fr-CA', 'Français (Canada)'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
+  ['de-DE', 'Deutsch'], ['es-ES', 'Español'], ['it-IT', 'Italiano'], ['pt-PT', 'Português'], ['pt-BR', 'Português (Brasil)'], ['nl-NL', 'Nederlands'],
+]
+
+function Stat({ icon: Icon, label, value, sub }) {
+  return (
+    <div className="rounded-2xl border border-line bg-bg2 p-4">
+      <Icon className="mb-3 h-5 w-5 text-accent2" />
+      <p className="text-2xl font-semibold">{value ?? '–'}</p>
+      <p className="text-xs text-text2">{label}</p>
+      {sub && <p className="mt-0.5 text-[11px] text-text3">{sub}</p>}
+    </div>
+  )
+}
+
+// iPhone / iPad : oublier « toujours ouvrir l'app Plex / Netflix »
+function AppPrefsReset() {
+  const t = useT()
+  const [apps, setApps] = useState(() => ['Plex', 'Netflix'].filter((a) => getAppPref(a)))
+  if (!apps.length) return null
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-text2">
+      {t('Ouverture directe dans l’app : {apps}', { apps: apps.join(', ') })}
+      <Button
+        size="sm"
+        icon={RotateCcw}
+        onClick={() => {
+          apps.forEach((a) => setAppPref(a, null))
+          setApps([])
+          toast(t('Le choix app / navigateur sera de nouveau proposé'), 'success')
+        }}
+      >
+        {t('Redemander')}
+      </Button>
+    </div>
+  )
+}
+
+// Compte connecté : nom affiché, mot de passe, déconnexion
+function AccountSection({ user }) {
+  const t = useT()
+  const personal = usePersonal()
+  const reset = useResetSession()
+  const [name, setName] = useState(user.display_name || '')
+  const [pwOpen, setPwOpen] = useState(false)
+  const [username, setUsername] = useState(user.username)
+  const [removeOpen, setRemoveOpen] = useState(false)
+  const [current, setCurrent] = useState('')
+  const saveName = useMutation({
+    mutationFn: () => auth.updateProfile(name),
+    onSuccess: (me) => {
+      reset(me)
+      toast(t('Nom enregistré'), 'success')
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  const removePw = useMutation({
+    mutationFn: () => auth.removePassword(current),
+    onSuccess: (me) => {
+      reset(me)
+      setRemoveOpen(false)
+      setCurrent('')
+      toast(personal ? t('Protection retirée : CinéSync est de nouveau en accès libre') : t('Mot de passe supprimé : tu te connectes avec Plex'), 'success')
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  const logout = async () => {
+    await auth.logout().catch(() => {})
+    reset(null)
+  }
+  const avatar = user.plex?.thumb
+  const canLogout = !personal || user.has_password
+  // Supprimer le mot de passe : version personnelle (accès libre), ou compte qui peut se connecter avec Plex
+  const canRemove = user.has_password && (personal || !!user.plex)
+  const pwLabel = user.has_password ? t('Mot de passe') : personal ? t('Protéger par un mot de passe') : t('Créer un mot de passe')
+  return (
+    <Section title={t('Mon compte')}>
+      <div className="rounded-2xl border border-line bg-bg2 p-4">
+        <div className="flex items-center gap-3">
+          {avatar ? (
+            <img src={avatar} alt="" className="h-11 w-11 rounded-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent/15 font-semibold text-accent2">{user.name[0]?.toUpperCase()}</span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{user.name}</p>
+            <p className="truncate text-xs text-text2">
+              {[
+                user.plex && t('Connexion avec Plex ({name})', { name: user.plex.username }),
+                (user.has_password || !user.plex) && t('Identifiant : {name}', { name: user.username }),
+                user.is_admin && !personal && t('Administrateur'),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+          {canLogout && (
+            <Button size="sm" variant="ghost" icon={LogOut} onClick={logout}>
+              <span className="hidden sm:inline">{t('Se déconnecter')}</span>
+            </Button>
+          )}
+        </div>
+        {personal && !user.has_password && (
+          <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-text2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            {t('Accès libre : toute personne qui ouvre CinéSync y accède sans se connecter. Protège-le par un identifiant et un mot de passe, surtout s’il est accessible hors de chez toi.')}
+          </p>
+        )}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('Nom affiché')}
+            aria-label={t('Nom affiché')}
+            className="h-10 w-full min-w-0 shrink-0 rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent sm:w-auto sm:flex-1"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => saveName.mutate()} loading={saveName.isPending} disabled={name === (user.display_name || '')}>
+              {t('Enregistrer')}
+            </Button>
+            <Button icon={KeyRound} variant={personal && !user.has_password ? 'primary' : 'secondary'} onClick={() => setPwOpen(true)}>
+              {pwLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Modal open={pwOpen} onClose={() => setPwOpen(false)} title={user.has_password ? t('Changer de mot de passe') : pwLabel}>
+        {!user.has_password && (
+          <p className="mb-4 text-sm text-text2">
+            {personal
+              ? t('CinéSync demandera cet identifiant et ce mot de passe sur chaque appareil. Cet appareil-ci reste connecté.')
+              : user.plex
+                ? t('En plus de Plex, tu pourras te connecter avec cet identifiant et ce mot de passe.')
+                : t('Choisis ton identifiant et ton mot de passe de connexion.')}
+          </p>
+        )}
+        <PasswordForm
+          needCurrent={user.has_password}
+          beforeSubmit={!user.has_password && username.trim().toLowerCase() !== user.username ? () => auth.updateProfile(name, username) : undefined}
+          onDone={(me) => {
+            reset(me)
+            setPwOpen(false)
+            toast(user.has_password ? t('Mot de passe enregistré — tes autres appareils ont été déconnectés') : t('Mot de passe enregistré'), 'success')
+          }}
+        >
+          {!user.has_password && (
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">{t('Identifiant')}</span>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
+                required
+                className="h-11 w-full rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent"
+              />
+            </label>
+          )}
+        </PasswordForm>
+        {canRemove && (
+          <button onClick={() => { setPwOpen(false); setRemoveOpen(true) }} className="mt-4 block w-full text-center text-xs text-text3 hover:text-red-400">
+            {personal ? t('Retirer la protection par mot de passe') : t('Supprimer mon mot de passe (connexion avec Plex uniquement)')}
+          </button>
+        )}
+      </Modal>
+
+      <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} title={personal ? t('Retirer la protection ?') : t('Supprimer ton mot de passe ?')}>
+        <p className="mb-4 text-sm text-text2">
+          {personal ? t('CinéSync redeviendra accessible sans connexion, à toute personne qui l’ouvre.') : t('Tu te connecteras uniquement avec ton compte Plex.')}
+        </p>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            removePw.mutate()
+          }}
+        >
+          <input
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder={t('Mot de passe actuel')}
+            aria-label={t('Mot de passe actuel')}
+            autoComplete="current-password"
+            required
+            className="h-11 w-full rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent"
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" onClick={() => setRemoveOpen(false)}>
+              {t('Annuler')}
+            </Button>
+            <Button type="submit" variant="danger" loading={removePw.isPending}>
+              {personal ? t('Retirer la protection') : t('Supprimer')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </Section>
+  )
+}
+
+// Réglages admin : chaque rubrique se déplie sur place (contenu chargé seulement à l'ouverture)
+function AdminSection() {
+  const t = useT()
+  const personal = usePersonal()
+  const description = personal ? null : t('Les connexions TMDB, serveur Plex, Seerr et JustWatch ci-dessous sont partagées par tous les comptes.')
+  const [open, setOpen] = useState(null)
+  const all = [
+    { key: 'plex', icon: Server, label: 'Serveur Plex', hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: PlexDashboard },
+    { key: 'users', icon: Users, label: 'Comptes de la famille', hint: 'Comptes locaux et comptes Plex autorisés', Panel: UsersPanel },
+    { key: 'requests', icon: Inbox, label: 'Demandes des utilisateurs', hint: 'Envoyer à Seerr, marquer disponible, refuser', Panel: () => <RequestsPanel scope="all" /> },
+  ]
+  const panels = personal ? all.filter((p) => p.key === 'plex') : all
+  return (
+    <Section
+      title={t('Réglages admin')}
+      description={description}
+    >
+      <div className="space-y-2">
+        {panels.map(({ key, icon: Icon, label, hint, Panel }) => {
+          const isOpen = open === key
+          return (
+            <div key={key} className="overflow-hidden rounded-2xl border border-line bg-bg2">
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : key)}
+                aria-expanded={isOpen}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg3"
+              >
+                <Icon className="h-5 w-5 shrink-0 text-accent2" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{t(label)}</span>
+                  <span className="block truncate text-xs text-text2">{t(hint)}</span>
+                </span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-text3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="border-t border-line bg-bg p-3 md:p-4">
+                  <Panel />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Section>
+  )
+}
+
+// Plex pour un membre : le serveur est celui de l'admin, le compte est celui utilisé à la connexion
+function MemberPlexCard({ user, status }) {
+  const t = useT()
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-line bg-bg2 p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-black" style={{ background: 'var(--plex)' }}>
+        P
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">Plex</p>
+        <p className="text-xs text-text2">
+          {user.plex
+            ? t('Compte {name} · serveur {server}', { name: user.plex.username, server: status?.plex?.server || '—' })
+            : t('Serveur {server}, partagé par l’administrateur', { server: status?.plex?.server || '—' })}
+        </p>
+        {!status?.plex?.own && <p className="mt-1 text-xs text-text3">{t('Connecte-toi avec Plex pour synchroniser tes propres vus et ta progression.')}</p>}
+      </div>
+    </div>
+  )
+}
+
+export default function Profile() {
+  const t = useT()
+  const { data: settings, isLoading } = useSettings()
+  const [added, setAdded] = useState([])
+  const [addOpen, setAddOpen] = useState(false)
+  const { data: status } = useStatus()
+  const { data: stats } = useStats()
+  const { data: countries } = useCountries()
+  const update = useUpdateSettings()
+  const setTheme = useSettingsStore((s) => s.setTheme)
+  const uiLanguage = useSettingsStore((s) => s.uiLanguage)
+  const setUiLanguage = useSettingsStore((s) => s.setUiLanguage)
+  const qc = useQueryClient()
+  const [params, setParams] = useSearchParams()
+  const user = useCurrentUser()
+  const isAdmin = !!user?.is_admin
+
+  // Retour du flux OAuth Trakt
+  useEffect(() => {
+    const result = params.get('trakt')
+    if (!result) return
+    if (result === 'connected') {
+      toast(t('Trakt connecté !'), 'success')
+      qc.invalidateQueries()
+    } else {
+      const reasons = { state: 'jeton de sécurité invalide, réessaie', token: 'échange du code refusé — vérifie client ID, secret et URL de retour' }
+      const reason = params.get('reason')
+      toast(t('Connexion Trakt échouée : {reason}', { reason: reasons[reason] ? t(reasons[reason]) : reason || t('erreur inconnue') }), 'error')
+    }
+    setParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const resetSkips = useMutation({
+    mutationFn: () => swipe.reset('skip'),
+    onSuccess: (r) =>
+      toast(
+        r.deleted > 1
+          ? t('{n} titres passés pourront être reproposés', { n: r.deleted })
+          : t('{n} titre passé pourra être reproposé', { n: r.deleted }),
+        'success',
+      ),
+  })
+
+  const changeTheme = (theme) => {
+    setTheme(theme)
+    update.mutate({ theme })
+  }
+
+  const changeUiLanguage = (code) => {
+    setUiLanguage(code)
+    update.mutate({ ui_language: code })
+  }
+
+  if (isLoading || !settings) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
+      </div>
+    )
+  }
+
+  const used = {
+    tmdb: true, // toujours affiché : indispensable
+    plex: !!(status?.plex?.configured || settings.plex_account_connected),
+    trakt: !!settings.trakt_client_id,
+    seerr: !!status?.seerr?.configured,
+    letterboxd: !!status?.letterboxd?.configured,
+    justwatch: !!settings.justwatch_enabled,
+  }
+  // Un membre ne règle que ses services personnels ; le reste appartient à l'administrateur
+  const MEMBER_SERVICES = ['trakt', 'letterboxd']
+  const shown = (k) => (isAdmin || MEMBER_SERVICES.includes(k)) && (used[k] || added.includes(k))
+  const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (isAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id))))
+  const tr = stats?.trakt
+  const p = stats?.plex
+  const noTmdb = !status?.tmdb?.configured
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <h1 className="mb-1 text-2xl font-semibold md:text-3xl">{t('Profil et paramètres')}</h1>
+      <p className="mb-8 text-sm text-text2">{t('Connecte tes services : tout le reste de CinéSync en dépend.')}</p>
+
+      <div className="mb-10">
+        <Support />
+      </div>
+
+      {user && <AccountSection user={user} />}
+      {isAdmin && <AdminSection />}
+
+      {noTmdb && isAdmin && (
+        <div className="mb-8 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+          <div>
+            <p className="font-medium">{t('Commence par TMDB')}</p>
+            <p className="mt-0.5 text-text2">
+              {t('Sans clé TMDB, CinéSync affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Section
+        title={t('Connexions')}
+        description={t("Les services que tu utilises. Ajoute-en d'autres avec le bouton +.")}
+        right={
+          hidden.length > 0 && (
+            <div className="relative">
+              <Button size="icon" variant="primary" onClick={() => setAddOpen((o) => !o)} aria-label={t('Ajouter un service')} title={t('Ajouter un service')}>
+                <Plus className="h-5 w-5" />
+              </Button>
+              {addOpen && (
+                <div className="absolute right-0 top-12 z-20 w-72 overflow-hidden rounded-2xl border border-line bg-bg2 shadow-2xl">
+                  {hidden.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        setAdded((a) => [...a, k])
+                        setAddOpen(false)
+                      }}
+                      className="flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left last:border-none hover:bg-bg3"
+                    >
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white" style={{ background: SERVICE_META[k].color }}>
+                        {SERVICE_META[k].label[0]}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-medium">{SERVICE_META[k].label}</span>
+                        <span className="block text-xs text-text2">{t(SERVICE_META[k].hint)}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        }
+      >
+        <div className="grid grid-cols-1 gap-4">
+          {!isAdmin && status?.plex?.configured && <MemberPlexCard user={user} status={status} />}
+          {shown('tmdb') && (
+          <ConnectionCard
+            service="tmdb"
+            title="TMDB"
+            color="#01b4e4"
+            description="Métadonnées, tendances, sorties et disponibilités streaming"
+            helpUrl="https://www.themoviedb.org/settings/api"
+            helpLabel="Obtenir une clé"
+            settings={settings}
+            connected={status?.tmdb?.configured}
+            fields={[{ name: 'tmdb_api_key', label: 'Clé API (v3) ou jeton de lecture (v4)', secret: true, placeholder: 'ex. 3f2a…' }]}
+          />
+          )}
+
+          {shown('plex') && (
+          <ConnectionCard
+            service="plex"
+            title="Plex"
+            color="var(--plex)"
+            description="Ta bibliothèque personnelle"
+            helpUrl="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
+            helpLabel="Trouver mon token"
+            settings={settings}
+            connected={status?.plex?.configured}
+            manualLabel="Saisie manuelle (URL du serveur + token)"
+            fields={[
+              { name: 'plex_url', label: 'URL du serveur', placeholder: 'http://ip-du-serveur:32400', hint: 'Adresse du serveur Plex vue depuis le backend (IP locale, pas localhost en Docker)' },
+              { name: 'plex_token', label: 'Token (X-Plex-Token)', secret: true, placeholder: 'xxxxxxxxxxxxxxxxxxxx' },
+            ]}
+          >
+            <PlexConnect settings={settings} />
+          </ConnectionCard>
+          )}
+
+          {shown('trakt') && (
+          <ConnectionCard
+            service="trakt"
+            title="Trakt"
+            color="var(--trakt)"
+            description="Watchlist, historique, notes et recommandations"
+            helpUrl="https://trakt.tv/oauth/applications/new"
+            helpLabel="Créer une application"
+            settings={settings}
+            connected={status?.trakt?.connected}
+            fields={!isAdmin ? [] : [
+              {
+                name: 'trakt_client_id',
+                label: 'Client ID',
+                placeholder: 'Client ID de ton application Trakt',
+                hint: 'Aucun client secret nécessaire. Dans l’appli Trakt, l’URL de retour peut rester urn:ietf:wg:oauth:2.0:oob.',
+              },
+            ]}
+          >
+            <TraktConnect settings={settings} />
+          </ConnectionCard>
+          )}
+
+          {shown('seerr') && (
+          <ConnectionCard
+            service="seerr"
+            title="Seerr"
+            color="var(--seerr)"
+            description="Envoyer une demande de film ou série (tu valides dans Seerr)"
+            settings={settings}
+            connected={status?.seerr?.configured}
+            optional
+            fields={[
+              { name: 'seerr_url', label: 'URL de Seerr', placeholder: 'http://ip-du-serveur:5055' },
+              { name: 'seerr_api_key', label: 'Clé API', secret: true, placeholder: 'Paramètres → Général → Clé API', hint: 'Dans Seerr : Paramètres → Général → Clé API' },
+            ]}
+          />
+          )}
+
+          {shown('letterboxd') && (
+          <ConnectionCard
+            service="letterboxd"
+            title="Letterboxd"
+            color="var(--letterboxd)"
+            description="Tes derniers films vus, via ton flux RSS public"
+            settings={settings}
+            connected={status?.letterboxd?.configured}
+            optional
+            fields={[{ name: 'letterboxd_username', label: "Nom d'utilisateur", placeholder: 'ton-pseudo' }]}
+          />
+          )}
+
+          {shown('justwatch') && (
+          <ConnectionCard
+            service="justwatch"
+            title="JustWatch"
+            color="var(--justwatch)"
+            description="Liens directs vers chaque plateforme et nouveautés de la semaine"
+            settings={settings}
+            connected={settings.justwatch_enabled}
+            optional
+            testable={settings.justwatch_enabled}
+          >
+            <div className="flex items-start gap-3 rounded-xl bg-bg3 p-3 text-xs text-text2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+              <span>
+                {t(
+                  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, CinéSync revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).",
+                )}
+              </span>
+            </div>
+            <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border border-line bg-bg px-3 py-3">
+              <span className="text-sm">{t('Activer JustWatch')}</span>
+              <input
+                type="checkbox"
+                checked={settings.justwatch_enabled}
+                onChange={(e) => update.mutate({ justwatch_enabled: e.target.checked })}
+                className="h-5 w-5 accent-[var(--accent)]"
+              />
+            </label>
+          </ConnectionCard>
+          )}
+        </div>
+      </Section>
+
+      <Section title={t('Synchronisation')} description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans CinéSync.')}>
+        <SyncPanel />
+      </Section>
+
+      <Section title={t('Mes demandes')} description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
+        <RequestsPanel />
+      </Section>
+
+      <Section title={t('Notifications')} description={t("Choisis ce qui s'affiche sous la cloche.")}>
+        <NotificationSettings settings={settings} />
+      </Section>
+
+      <Section title={t('Région & Langue')} description={t('Le pays détermine les disponibilités et sorties affichées ; la langue des contenus, celle des titres et résumés.')}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-text2">{t('Pays')}</span>
+            <select
+              value={settings.country_code}
+              onChange={(e) => update.mutate({ country_code: e.target.value })}
+              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+            >
+              {(countries || [{ code: settings.country_code, name: settings.country_code }]).map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-text2">{t('Langue des contenus')}</span>
+            <select
+              value={settings.language}
+              onChange={(e) => update.mutate({ language: e.target.value })}
+              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+            >
+              {LANGUAGES.map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-text3">{t('Titres, résumés et bandes-annonces.')}</span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-text2">{t("Langue de l'interface")}</span>
+            <select
+              value={uiLanguage}
+              onChange={(e) => changeUiLanguage(e.target.value)}
+              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+            >
+              {UI_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </Section>
+
+      <Section title={t('Plateformes')} description={t('Coche les plateformes auxquelles tu es abonné : badges, filtres, bouton « Regarder sur… » et notifications.')}>
+        <PlatformPicker settings={settings} />
+      </Section>
+
+      <Section title={t('Cinémas')} description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
+        <CinemaPicker settings={settings} />
+      </Section>
+
+      <Section title={t('Apparence')}>
+        <Tabs
+          value={settings.theme}
+          onChange={changeTheme}
+          options={[
+            { value: 'auto', label: 'Auto', icon: Monitor },
+            { value: 'light', label: 'Clair', icon: Sun },
+            { value: 'dark', label: 'Sombre', icon: Moon },
+          ]}
+        />
+        <AppPrefsReset />
+      </Section>
+
+      <Section title={t('Statistiques')} description={t('Aperçu — le détail par jour, semaine, mois et année est dans la page Statistiques.')}>
+        <Link to="/stats" className="mb-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:brightness-110">
+          {t('Voir toutes les statistiques')}
+        </Link>
+        <div className={`grid grid-cols-2 gap-3 ${status?.plex?.configured ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
+          <Stat icon={Film} label={t('Films vus')} value={tr?.movies_watched} />
+          <Stat icon={Tv} label={t('Séries suivies')} value={tr?.shows_watched} sub={tr ? t('{n} épisodes', { n: fmtNumber(tr.episodes_watched) }) : null} />
+          <Stat icon={Clock} label={t('Heures de visionnage')} value={tr?.hours != null ? fmtNumber(tr.hours) : undefined} />
+          {status?.plex?.configured && (
+            <Stat
+              icon={Layers}
+              label={t('Bibliothèque Plex')}
+              value={p ? p.movies + p.shows : null}
+              sub={p ? t('{movies} films · {shows} séries', { movies: p.movies, shows: p.shows }) : null}
+            />
+          )}
+        </div>
+      </Section>
+
+      <Section title={t('Titres masqués')} description={t("Marqués « pas intéressé » : ils n'apparaissent plus dans tes suggestions (ni dans tes recommandations Trakt).")}>
+        <HiddenTitles />
+      </Section>
+
+      <Section title={t('Mode swipe')} description={t('Les titres passés (✕) ne sont jamais reproposés. Tu peux remettre ce compteur à zéro.')}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-text2">
+            {t('{skip} passé(s) · {like} aimé(s) · {seen} déjà vu(s)', { skip: stats?.swipe?.skip || 0, like: stats?.swipe?.like || 0, seen: stats?.swipe?.seen || 0 })}
+          </span>
+          <Button size="sm" icon={RotateCcw} onClick={() => resetSkips.mutate()} loading={resetSkips.isPending}>
+            {t('Réinitialiser les titres passés')}
+          </Button>
+        </div>
+      </Section>
+
+      <Section title={t('À propos')}>
+        <About />
+      </Section>
+    </div>
+  )
+}

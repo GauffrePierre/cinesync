@@ -1,0 +1,17 @@
+# CinéSync — un seul conteneur (interface + serveur).
+# Réglages dans .env (voir .env.example). Construire et lancer : docker compose up -d --build
+services:
+  cinesync:
+    build: .
+    image: ghcr.io/gauffrepierre/cinesync:latest
+    container_name: cinesync
+    restart: unless-stopped
+    ports:
+      # CINESYNC_BIND=127.0.0.1 : accessible seulement via un proxy HTTPS installé sur le serveur
+      # (tailscale serve, Nginx Proxy Manager…) ; 0.0.0.0 : tout le réseau, en HTTP simple
+      - "${CINESYNC_BIND:-0.0.0.0}:${CINESYNC_PORT:-3000}:8000"
+    volumes:
+      - ${DATA_PATH:-./data}:/app/data   # base SQLite
+    env_file: .env
+    environment:
+      - TZ=${TZ:-Europe/Paris}

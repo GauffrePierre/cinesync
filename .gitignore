@@ -1,0 +1,16 @@
+.env
+data/
+backend/data/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+frontend/dist/
+frontend/dev-dist/
+.DS_Store
+
+# Outils de développement locaux (adresse du serveur, données de test) : jamais publiés
+dev-tools/
+
+# Réglages propres à un serveur (ports supplémentaires…)
+docker-compose.override.yml

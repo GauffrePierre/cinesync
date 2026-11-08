@@ -1,0 +1,34 @@
+# Mises à jour proposées automatiquement, une fois par semaine : une seule proposition par écosystème,
+# correctifs et versions mineures seulement (les versions majeures se font à la main, après vérification)
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"], update-types: ["minor", "patch"] }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: weekly }
+    groups:
+      python: { patterns: ["*"], update-types: ["minor", "patch"] }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    groups:
+      javascript: { patterns: ["*"], update-types: ["minor", "patch"] }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

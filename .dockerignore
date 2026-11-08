@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+data
+**/data
+**/node_modules
+**/dist
+**/dev-dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+backend/tests
+.vscode
+*.md
