@@ -13,14 +13,19 @@ import Stats from './pages/Stats'
 import Tonight from './pages/Tonight'
 import Admin from './pages/Admin'
 import News from './pages/News'
+import Onboarding from './pages/Onboarding'
 import { ForcePasswordChange, Login, Setup, Splash } from './pages/Login'
 import { useMe } from './hooks/useAuth'
+import { useSettings } from './hooks/useMedia'
 import { useTheme } from './hooks/useTheme'
 import { useSyncOnOpen } from './hooks/useSyncOnOpen'
 
 function AuthedApp() {
   useTheme()
   useSyncOnOpen() // synchro + actualisation à l'ouverture et au retour dans l'appli
+  const { data: settings } = useSettings()
+  // Nouveau compte ou nouvelle installation : assistant de premier démarrage d'abord
+  if (settings?.onboarding === 'pending') return <Onboarding />
   return (
     <Routes>
       <Route element={<AppLayout />}>
@@ -38,6 +43,7 @@ function AuthedApp() {
       </Route>
       {/* Le mode swipe est plein écran, hors layout */}
       <Route path="swipe" element={<Swipe />} />
+      <Route path="welcome" element={<Onboarding />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

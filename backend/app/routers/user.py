@@ -53,6 +53,8 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
             s.cinemas = json.dumps([{k: c.get(k) for k in ("id", "name", "city", "country")} for c in value if c.get("id")])
         elif field == "country_code":
             s.country_code = value.upper()
+        elif field == "nav_order":
+            s.nav_order = json.dumps(list(dict.fromkeys(value)))  # sans doublons
         elif isinstance(value, str):
             setattr(s, field, value.strip().rstrip("/") if field.endswith("_url") else value.strip())
         else:

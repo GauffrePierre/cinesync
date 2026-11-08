@@ -4,6 +4,7 @@ import { Bookmark, Check, Heart, RefreshCw, Star, Trash2 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import Poster from '../components/media/Poster'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
+import SeenFilter from '../components/ui/SeenFilter'
 import Modal from '../components/ui/Modal'
 import StarRating from '../components/ui/StarRating'
 import Button from '../components/ui/Button'
@@ -15,6 +16,7 @@ import { library, SOURCE_LABELS } from '../services/library'
 import { toast, useUiStore } from '../store/uiStore'
 import { detailPath, mediaLabel, relativeTime } from '../lib/format'
 import { sortProviders } from '../lib/platforms'
+import { SORT_OPTIONS } from '../lib/sorts'
 import { useT } from '../i18n'
 
 const SOURCE_STYLE = {
@@ -98,6 +100,7 @@ export default function Watchlist() {
   const qc = useQueryClient()
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
+  const seenFilter = useUiStore((s) => s.seenFilter)
   const [availability, setAvailability] = useState('all')
   const [sort, setSort] = useState('added')
   const [rating, setRating] = useState(null)
@@ -105,7 +108,7 @@ export default function Watchlist() {
   const rate = useRate()
   const t = useT()
   const active = settings?.active_platforms || []
-  const wl = useLibraryWatchlist({ mediaType: mediaFilter, availability, sort })
+  const wl = useLibraryWatchlist({ mediaType: mediaFilter, availability, sort, seen: seenFilter })
 
   const pages = wl.data?.pages || []
   const items = useMemo(() => pages.flatMap((p) => p.results), [pages])
@@ -138,7 +141,10 @@ export default function Watchlist() {
       </div>
 
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
-        <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+        <div className="flex items-center gap-2">
+          <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+          <SeenFilter />
+        </div>
         <Tabs
           value={availability}
           onChange={setAvailability}
@@ -154,10 +160,17 @@ export default function Watchlist() {
           className="h-10 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
           aria-label={t('Trier par')}
         >
-          <option value="added">{t('Tri : récemment ajoutés')}</option>
-          <option value="title">{t('Tri : titre')}</option>
+          {SORT_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {t('Tri : {label}', { label: t(s.label) })}
+            </option>
+          ))}
         </select>
       </div>
+
+      {first?.pending_scores > 0 && (
+        <p className="mb-4 text-xs text-text3">{t('Notes de la critique et du public en cours de récupération ({n} titres restants) : elles se complètent en arrière-plan.', { n: first.pending_scores })}</p>
+      )}
 
       {first?.pending_availability > 0 && availability !== 'all' && (
         <p className="mb-4 text-xs text-text3">{t('Vérification des disponibilités en cours ({n} titres restants) — le filtre se complète au fil du chargement.', { n: first.pending_availability })}</p>

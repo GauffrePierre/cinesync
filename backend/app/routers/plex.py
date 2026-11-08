@@ -6,22 +6,19 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import select
 
+from app.models import MediaState
 from app.services import plex_auth
 from app.services.cache import cache
 from app.services.auth import require_admin
 from app.services.context import Ctx, get_ctx
 from app.services.enrich import enrich
 from app.services.errors import NotConfigured, ServiceError
+from app.services.sorting import Sort, sort_items
 
 router = APIRouter(prefix="/plex", tags=["plex"])
 
-SORTS = {
-    "added": (lambda i: i.get("added_at") or "", True),
-    "title": (lambda i: (i.get("title") or "").lower(), False),
-    "rating": (lambda i: i.get("vote_average") or 0, True),
-    "year": (lambda i: i.get("year") or 0, True),
-}
 
 
 @router.get("/sections")
@@ -33,9 +30,10 @@ async def sections(ctx: Ctx = Depends(get_ctx)):
 @router.get("/library")
 async def library(
     media_type: Literal["all", "movie", "tv"] = "all",
-    sort: Literal["added", "title", "rating", "year"] = "added",
+    sort: Sort = "added",
     section_id: str | None = None,
     q: str | None = None,
+    seen: Literal["all", "seen", "unseen"] = "all",
     page: int = Query(1, ge=1),
     page_size: int = Query(60, ge=1, le=200),
     with_providers: bool = True,
@@ -50,8 +48,19 @@ async def library(
     if q:
         ql = q.lower()
         items = [i for i in items if ql in (i.get("title") or "").lower()]
-    key, reverse = SORTS[sort]
-    items = sorted(items, key=key, reverse=reverse)
+    states = {(r.media_type, r.tmdb_id): r for r in ctx.db.execute(select(MediaState)).scalars()}
+    if seen != "all":
+        # Vu : lu sur Plex (film, ou au moins un épisode) ou marqué vu dans SynCiné / Trakt / Letterboxd
+        marked = {k for k, r in states.items() if r.watched}
+        is_seen = lambda i: bool(i.get("view_count") or i.get("viewed_episodes") or (i["media_type"], i.get("id")) in marked)  # noqa: E731
+        items = [i for i in items if is_seen(i) == (seen == "seen")]
+    if sort in ("added", "personal"):
+        def with_sort_fields(i: dict) -> dict:
+            st = states.get((i["media_type"], i.get("id")))
+            return {**i, "added": i.get("added_at"), "personal_rating": i.get("user_rating") or (st.rating if st else None)}
+
+        items = [with_sort_fields(i) for i in items]
+    items = sort_items(items, sort)
     total = len(items)
     page_items = [dict(i) for i in items[(page - 1) * page_size : page * page_size]]
     if with_providers:

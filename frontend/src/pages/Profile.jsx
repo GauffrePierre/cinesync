@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Server, ShieldCheck, Sun, Tv, Users } from 'lucide-react'
+import { AlertTriangle, ChevronDown, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Search, Server, ShieldCheck, Sparkles, Sun, Tv, Users } from 'lucide-react'
 import ConnectionCard from '../components/profile/ConnectionCard'
 import TraktConnect from '../components/profile/TraktConnect'
 import PlexConnect from '../components/profile/PlexConnect'
@@ -15,6 +15,7 @@ import HiddenTitles from '../components/profile/HiddenTitles'
 import TwoFactor from '../components/profile/TwoFactor'
 import { About, Support } from '../components/profile/About'
 import NotificationSettings from '../components/profile/NotificationSettings'
+import MenuOrder from '../components/profile/MenuOrder'
 import DiscoverySettings from '../components/profile/DiscoverySettings'
 import PlatformPicker from '../components/profile/PlatformPicker'
 import Tabs from '../components/ui/Tabs'
@@ -28,12 +29,20 @@ import { useCurrentUser, usePersonal, useResetSession } from '../hooks/useAuth'
 import Modal from '../components/ui/Modal'
 import { PasswordForm } from './Login'
 import { getAppPref, setAppPref } from '../lib/appLinks'
+import { LANGUAGES } from '../lib/languages'
 import { toast } from '../store/uiStore'
 import { UI_LANGUAGES, fmtNumber, useT } from '../i18n'
 
-function Section({ title, description, children, right }) {
+// Recherche dans les réglages : une rubrique s'affiche si son titre, sa description ou ses mots-clés
+// (français et anglais) contiennent le texte cherché
+const SearchContext = createContext('')
+const fold = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+function Section({ title, description, keywords = '', children, right, className = '' }) {
+  const query = useContext(SearchContext)
+  if (query && !fold(`${title} ${description || ''} ${keywords}`).includes(query)) return null
   return (
-    <section className="mb-10">
+    <section className={`mb-10 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">{title}</h2>
         {right}
@@ -54,10 +63,6 @@ const SERVICE_META = {
   justwatch: { label: 'JustWatch', color: 'var(--justwatch)', hint: 'Liens directs, top du jour, nouveautés' },
 }
 
-const LANGUAGES = [
-  ['fr-FR', 'Français (France)'], ['fr-CA', 'Français (Canada)'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
-  ['de-DE', 'Deutsch'], ['es-ES', 'Español'], ['it-IT', 'Italiano'], ['pt-PT', 'Português'], ['pt-BR', 'Português (Brasil)'], ['nl-NL', 'Nederlands'],
-]
 
 function Stat({ icon: Icon, label, value, sub }) {
   return (
@@ -131,7 +136,7 @@ function AccountSection({ user }) {
   const canRemove = user.has_password && (personal || !!user.plex)
   const pwLabel = user.has_password ? t('Mot de passe') : personal ? t('Protéger par un mot de passe') : t('Créer un mot de passe')
   return (
-    <Section title={t('Mon compte')}>
+    <Section title={t('Mon compte')} keywords="compte account mot de passe password identifiant username nom name double authentification two-factor 2fa totp code déconnexion logout sign out">
       <div className="rounded-2xl border border-line bg-bg2 p-4">
         <div className="flex items-center gap-3">
           {avatar ? (
@@ -271,14 +276,18 @@ function AdminSection() {
     { key: 'backups', icon: DatabaseBackup, label: 'Sauvegardes', hint: 'Sauvegarde automatique de la base, téléchargement', Panel: BackupsPanel },
   ]
   const panels = personal ? all.filter((p) => p.key === 'plex' || p.key === 'backups') : all
+  // Recherche : la rubrique admin qui correspond s'ouvre d'elle-même
+  const query = useContext(SearchContext)
+  const auto = query ? panels.find((p) => fold(`${t(p.label)} ${t(p.hint)}`).includes(query))?.key : null
   return (
     <Section
       title={t('Réglages admin')}
       description={description}
+      keywords={`admin plex serveur server dashboard comptes accounts famille family utilisateurs users demandes requests sauvegardes backups ${panels.map((p) => t(p.label)).join(' ')}`}
     >
       <div className="space-y-2">
         {panels.map(({ key, icon: Icon, label, hint, Panel }) => {
-          const isOpen = open === key
+          const isOpen = open === key || (open === null && auto === key)
           return (
             <div key={key} className="overflow-hidden rounded-2xl border border-line bg-bg2">
               <button
@@ -373,6 +382,8 @@ export default function Profile() {
   const [params, setParams] = useSearchParams()
   const user = useCurrentUser()
   const isAdmin = !!user?.is_admin
+  const [search, setSearch] = useState('')
+  const query = fold(search.trim())
 
   // Retour du flux OAuth Trakt
   useEffect(() => {
@@ -440,11 +451,26 @@ export default function Profile() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-1 text-2xl font-semibold md:text-3xl">{t('Profil et paramètres')}</h1>
-      <p className="mb-8 text-sm text-text2">{t('Connecte tes services : tout le reste de SynCiné en dépend.')}</p>
+      <p className="mb-5 text-sm text-text2">{t('Connecte tes services : tout le reste de SynCiné en dépend.')}</p>
 
-      <div className="mb-10">
-        <Support />
+      <div className="relative mb-8">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text3" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('Rechercher un réglage…')}
+          aria-label={t('Rechercher un réglage')}
+          className="h-11 w-full rounded-xl border border-line bg-bg2 pl-9 pr-3 text-sm outline-none placeholder:text-text3 focus:border-accent"
+        />
       </div>
+
+      <SearchContext.Provider value={query}>
+      {!query && (
+        <div className="mb-10">
+          <Support />
+        </div>
+      )}
 
       {user && <AccountSection user={user} />}
       {isAdmin && <AdminSection />}
@@ -463,6 +489,7 @@ export default function Profile() {
 
       <Section
         title={t('Connexions')}
+        keywords="connexions connections services tmdb plex trakt seerr letterboxd justwatch clé key api token serveur server"
         description={t("Les services que tu utilises. Ajoute-en d'autres avec le bouton +.")}
         right={
           hidden.length > 0 && (
@@ -617,21 +644,21 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title={t('Synchronisation')} description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.')}>
+      <Section title={t('Synchronisation')} keywords="sync synchro trakt plex letterboxd watchlist vus watched notes ratings" description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.')}>
         <SyncPanel />
       </Section>
 
       {(isAdmin || status?.plex?.configured) && (
-        <Section title={t('Mes demandes')} description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
+        <Section title={t('Mes demandes')} keywords="demandes requests seerr plex ajout" description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
           <RequestsPanel />
         </Section>
       )}
 
-      <Section title={t('Notifications')} description={t("Choisis ce qui s'affiche sous la cloche.")}>
+      <Section title={t('Notifications')} keywords="notifications alertes alerts cloche bell push téléphone phone appareil device épisodes disponibilités pannes" description={t("Choisis ce qui s'affiche sous la cloche.")}>
         <NotificationSettings settings={settings} />
       </Section>
 
-      <Section title={t('Région & Langue')} description={t('Le pays détermine les disponibilités et sorties affichées ; la langue des contenus, celle des titres et résumés.')}>
+      <Section title={t('Région & Langue')} keywords="pays country langue language interface anglais english français region" description={t('Le pays détermine les disponibilités et sorties affichées ; la langue des contenus, celle des titres et résumés.')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-text2">{t('Pays')}</span>
@@ -679,19 +706,19 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title={t('Plateformes')} description={t('Coche les plateformes auxquelles tu es abonné : badges, filtres, bouton « Regarder sur… » et notifications.')}>
+      <Section title={t('Plateformes')} keywords="plateformes platforms abonnements subscriptions streaming netflix disney prime canal" description={t('Coche les plateformes auxquelles tu es abonné : badges, filtres, bouton « Regarder sur… » et notifications.')}>
         <PlatformPicker settings={settings} />
       </Section>
 
-      <Section title={t('Cinémas')} description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
+      <Section title={t('Cinémas')} keywords="cinémas cinemas salles séances showtimes allociné" description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
         <CinemaPicker settings={settings} />
       </Section>
 
-      <Section title={t('Découverte')} description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
+      <Section title={t('Découverte')} keywords="découverte discover suggestions recommandations vus seen sorties releases watchlist" description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
         <DiscoverySettings settings={settings} />
       </Section>
 
-      <Section title={t('Apparence')}>
+      <Section title={t('Apparence')} keywords="apparence appearance thème theme sombre dark clair light assistant démarrage setup app plex netflix">
         <Tabs
           value={settings.theme}
           onChange={changeTheme}
@@ -702,9 +729,12 @@ export default function Profile() {
           ]}
         />
         <AppPrefsReset />
+        <Link to="/welcome" className="mt-4 inline-flex items-center gap-1.5 text-sm text-accent2 hover:underline">
+          <Sparkles className="h-4 w-4" /> {t('Revoir l’assistant de démarrage')}
+        </Link>
       </Section>
 
-      <Section title={t('Statistiques')} description={t('Aperçu — le détail par jour, semaine, mois et année est dans la page Statistiques.')}>
+      <Section title={t('Statistiques')} keywords="statistiques stats heures hours films séries" description={t('Aperçu — le détail par jour, semaine, mois et année est dans la page Statistiques.')}>
         <Link to="/stats" className="mb-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:brightness-110">
           {t('Voir toutes les statistiques')}
         </Link>
@@ -723,11 +753,11 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title={t('Titres masqués')} description={t("Marqués « pas intéressé » : ils n'apparaissent plus dans tes suggestions (ni dans tes recommandations Trakt).")}>
+      <Section title={t('Titres masqués')} keywords="masqués hidden pas intéressé not interested" description={t("Marqués « pas intéressé » : ils n'apparaissent plus dans tes suggestions (ni dans tes recommandations Trakt).")}>
         <HiddenTitles />
       </Section>
 
-      <Section title={t('Mode swipe')} description={t('Les titres passés (✕) ne sont jamais reproposés. Tu peux remettre ce compteur à zéro.')}>
+      <Section title={t('Mode swipe')} keywords="swipe passés skipped réinitialiser reset" description={t('Les titres passés (✕) ne sont jamais reproposés. Tu peux remettre ce compteur à zéro.')}>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-text2">
             {t('{skip} passé(s) · {like} aimé(s) · {seen} déjà vu(s)', { skip: stats?.swipe?.skip || 0, like: stats?.swipe?.like || 0, seen: stats?.swipe?.seen || 0 })}
@@ -738,9 +768,21 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title={t('À propos')}>
+      <Section title={t('À propos')} keywords="à propos about version licence license crédits credits contributeurs ko-fi soutenir support">
         <About />
       </Section>
+
+      <Section
+        className="hidden md:block"
+        title={t('Menu (version ordinateur)')}
+        description={t('Range les onglets du menu de gauche dans l’ordre qui te convient.')}
+        keywords="menu onglets tabs ordre order barre latérale sidebar navigation"
+      >
+        <MenuOrder settings={settings} />
+      </Section>
+
+      {query && <p className="py-10 text-center text-sm text-text3 only:block">{t('Aucun autre réglage ne correspond à « {q} ».', { q: search })}</p>}
+      </SearchContext.Provider>
     </div>
   )
 }

@@ -98,7 +98,7 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 **Suivre**
 - **Watchlist, titres vus, notes et coups de cœur** réunis depuis Trakt, Plex et Letterboxd, et synchronisés dans les deux sens (avec aperçu et garde-fous).
 - Suivi des séries saison par saison, épisode par épisode.
-- **Notifications** : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus.
+- **Notifications**, sous la cloche et en push sur ton téléphone ou ton ordinateur : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus.
 - **Statistiques** détaillées de ton historique : heures, films, épisodes, genres, jours et heures de visionnage.
 
 **En famille (version serveur)**
@@ -330,6 +330,7 @@ Dans le fichier `.env` (voir [`.env.example`](.env.example)). Les clés des serv
 
 - **Version serveur** :
   - connexion obligatoire, avec des mots de passe hachés (scrypt) et une session dans un cookie HttpOnly ;
+  - notifications push chiffrées pour chaque appareil, sans service tiers ;
   - double authentification facultative (codes à 6 chiffres d'une application comme Aegis ou Google Authenticator, codes de secours) ;
   - essais de connexion limités, requêtes venant d'autres sites refusées ;
   - chaque compte ne voit que ses propres données.

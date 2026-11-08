@@ -9,6 +9,14 @@ import { relativeTime } from '../../lib/format'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
+// Texte dans la langue de l'interface : gabarit + paramètres (le détail d'une panne est lui aussi traduit)
+function notificationText(n, t) {
+  if (!n.msg_key) return t(n.message)
+  const params = { ...(n.msg_params || {}) }
+  if (params.detail) params.detail = t(params.detail)
+  return t(n.msg_key, params)
+}
+
 export default function NotificationPanel({ items, onClose }) {
   const t = useT()
   const qc = useQueryClient()
@@ -81,7 +89,7 @@ export default function NotificationPanel({ items, onClose }) {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm">{n.message}</p>
+                  <p className="text-sm">{notificationText(n, t)}</p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <span className="flex -space-x-1">
                       {n.platforms.map((p) => (

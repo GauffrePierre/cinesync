@@ -77,7 +77,7 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | GET | `/api/library/seen` | `seen` | session | Réglage `hide_seen` : films vus + séries vues et à jour (dernier épisode diffusé atteint, sinon rien de sorti depuis le dernier visionnage, sinon série terminée). Cache par empreinte de l'état. |
 | GET | `/api/library/keys` | `keys` | session | Vue compacte de tout l'état personnel (pour les boutons et badges des cartes). |
 | GET | `/api/library/state/{media_type}/{tmdb_id}` | `state` | session |  |
-| GET | `/api/library/watchlist` | `watchlist` | session |  |
+| GET | `/api/library/watchlist` | `watchlist` | session | `seen` = `all`, `seen` ou `unseen` (filtre Vus / Pas vus). `sort` : added, release, title, year, rating, critics, audience, personal (`services/sorting.py`) ; infos de tri stockées dans MediaState (`fill_info`, tâche `watchlist_releases`), `pending_scores`. |
 | POST | `/api/library/watchlist` | `add_watchlist` | session |  |
 | DELETE | `/api/library/watchlist/{media_type}/{tmdb_id}` | `remove_watchlist` | session |  |
 | POST | `/api/library/watched` | `mark_watched` | session |  |
@@ -97,6 +97,7 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | Method | Path | Handler | Access | Notes |
 |---|---|---|---|---|
 | GET | `/api/media/suggestions` | `get_suggestions` | session |  |
+| GET | `/api/media/watchlist-releases` | `watchlist_releases` | session | Réglage `recent_days` (0 = off) : watchlist non vue sortie récemment (film : salles ou VOD dans le pays ; série : dernier épisode). Aussi en tête du carrousel (`highlights`). |
 | GET | `/api/media/highlights` | `highlights` | session | Diapositives du carrousel de Découvrir : tendance, cinéma, streaming (Plex + plateformes), pour toi. |
 | GET | `/api/media/{media_type}/{tmdb_id}` | `full_detail` | session |  |
 
@@ -125,7 +126,7 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | Method | Path | Handler | Access | Notes |
 |---|---|---|---|---|
 | GET | `/api/plex/sections` | `sections` | session |  |
-| GET | `/api/plex/library` | `library` | session |  |
+| GET | `/api/plex/library` | `library` | session | `seen` = `all`, `seen` ou `unseen` (filtre Vus / Pas vus). Mêmes `sort` que la watchlist (notes critique / public de Plex). |
 | GET | `/api/plex/sections/{section_id}/items` | `section_items` | session |  |
 | GET | `/api/plex/search` | `search` | session |  |
 | GET | `/api/plex/status/{media_type}/{tmdb_id}` | `status` | session |  |
@@ -219,4 +220,13 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | GET | `/api/stats/events` | `stats_events` | session |  |
 | POST | `/api/stats/import` | `stats_import` | session |  |
 | GET | `/api/stats` | `stats` | session |  |
+
+## `push.py`
+
+| Method | Path | Handler | Access | Notes |
+|---|---|---|---|---|
+| GET | `/api/push/config` | `config` | session | Clé publique VAPID + nombre d'appareils abonnés du compte. |
+| POST | `/api/push/subscribe` | `subscribe` | session | `{endpoint, keys{p256dh, auth}}`. Services push en liste blanche (`push.PUSH_HOSTS`, https). Un endpoint n'appartient qu'à un compte (repris s'il était à un autre). 10 appareils max. |
+| POST | `/api/push/unsubscribe` | `unsubscribe` | session | `{endpoint}`. Appelé aussi à la déconnexion. |
+| POST | `/api/push/test` | `test` | session | Notification d'essai sur cet appareil. |
 

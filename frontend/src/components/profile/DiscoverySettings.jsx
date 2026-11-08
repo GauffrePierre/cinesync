@@ -1,4 +1,4 @@
-import { EyeOff } from 'lucide-react'
+import { EyeOff, Sparkles } from 'lucide-react'
 import { useUpdateSettings } from '../../hooks/useMedia'
 import { useT } from '../../i18n'
 
@@ -12,6 +12,8 @@ const OPTIONS = [
     fallback: false,
   },
 ]
+
+const RECENT = [0, 7, 14, 30, 60, 90]
 
 export default function DiscoverySettings({ settings }) {
   const t = useT()
@@ -33,6 +35,27 @@ export default function DiscoverySettings({ settings }) {
           />
         </label>
       ))}
+      <label className="flex items-center gap-3 rounded-xl border border-line bg-bg2 px-3 py-3">
+        <Sparkles className="h-5 w-5 shrink-0 text-accent2" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">{t('Mettre en avant les sorties de ma watchlist')}</span>
+          <span className="block text-xs text-text2">
+            {t('Films sortis au cinéma ou en streaming, nouvelles saisons et nouveaux épisodes : en tête de Découvrir pendant la période choisie.')}
+          </span>
+        </span>
+        <select
+          value={settings?.recent_days ?? 30}
+          onChange={(e) => update.mutate({ recent_days: Number(e.target.value) })}
+          aria-label={t('Période')}
+          className="h-9 shrink-0 rounded-lg border border-line bg-bg px-2 text-sm text-text outline-none focus:border-accent"
+        >
+          {RECENT.map((n) => (
+            <option key={n} value={n}>
+              {n ? t('{n} jours', { n }) : t('Désactivé')}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   )
 }

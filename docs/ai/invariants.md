@@ -22,6 +22,9 @@ Each item: rule → where enforced → test that guards it (`backend/tests/…`)
 - Only user 1 links the Plex server (its plex.tv token is also user 1's personal account) → `routers/plex._main_admin_only`.
 - Outbound user URLs: decompression done by `safe_fetch._Body` with a cap on the decoded size; image relay accepts JPEG/PNG/WebP/GIF ≤ 16 Mpx, 2 decodes at a time → `test_gzip_bomb_is_stopped_at_the_decompressed_size`, `test_oversized_or_exotic_images_are_refused`.
 - Test fixtures refuse to drop tables outside the temporary test DATA_DIR → `tests/conftest.py:assert_test_database`.
+- New notifications must use `messages.fields(template, **params)` (template listed in `TEMPLATES` and in `frontend/src/i18n/en`) → `test_templates_are_translated_in_the_interface_too`.
+- Push endpoints are user-supplied URLs: only known push services (https) are accepted, a device belongs to one account at a time, logout unsubscribes the device → `services/push.allowed_endpoint`, `routers/push.subscribe` → `tests/test_push.py`.
+- First-run assistant: `UserSettings.onboarding` = "pending" for new installs / new accounts (column default "done" keeps existing accounts out); `AuthedApp` renders `pages/Onboarding.jsx` while pending; `/welcome` reruns it → `test_new_accounts_get_the_first_run_assistant`.
 - 2FA: with `totp_secret` set, password or Plex sign-in must open NO session (ticket only); codes single-use (`totp_last_counter`), recovery codes hashed and consumed; secret/codes never returned → `routers/auth.py` → `tests/test_two_factor.py`.
 - Removing a password is allowed in personal mode or for Plex-linked accounts only → `routers/auth.py:remove_password` → `test_plex_member_can_also_get_a_password`.
 

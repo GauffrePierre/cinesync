@@ -1,10 +1,19 @@
-from typing import Literal
+import json
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.models import UserSettings
 
 SECRET_FIELDS = ("tmdb_api_key", "plex_token", "trakt_client_secret", "seerr_api_key", "youtube_api_key")
+
+
+def _nav_order(raw: str) -> list[str]:
+    try:
+        value = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    return [k for k in value if isinstance(k, str)] if isinstance(value, list) else []
 
 
 def mask(value: str) -> str | None:
@@ -29,6 +38,9 @@ class SettingsOut(BaseModel):
     cinema_films_only: bool
     auto_sync: bool
     hide_seen: bool
+    recent_days: int
+    onboarding: str
+    nav_order: list[str]
     notify_availability: bool
     notify_new_episodes: bool
     notify_services: bool
@@ -58,6 +70,9 @@ class SettingsOut(BaseModel):
             cinema_films_only=s.cinema_films_only,
             auto_sync=s.auto_sync,
             hide_seen=s.hide_seen,
+            recent_days=s.recent_days,
+            onboarding=s.onboarding or "done",
+            nav_order=_nav_order(s.nav_order),
             notify_availability=s.notify_availability,
             notify_new_episodes=s.notify_new_episodes,
             notify_services=s.notify_services,
@@ -87,6 +102,9 @@ class SettingsUpdate(BaseModel):
     cinema_films_only: bool | None = None
     auto_sync: bool | None = None
     hide_seen: bool | None = None
+    recent_days: int | None = Field(default=None, ge=0, le=365)
+    onboarding: Literal["pending", "done"] | None = None
+    nav_order: list[Annotated[str, StringConstraints(pattern=r"^[a-z]{2,20}$")]] | None = Field(default=None, max_length=30)
     notify_availability: bool | None = None
     notify_new_episodes: bool | None = None
     notify_services: bool | None = None

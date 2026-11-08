@@ -1,9 +1,8 @@
-import { Link, NavLink } from 'react-router'
-import { BarChart3, Layers, ShieldCheck } from 'lucide-react'
+import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import Logo from './Logo'
-import { useNavItems } from './nav'
-import { useStatus } from '../../hooks/useMedia'
+import { useIsActive, useSidebarItems } from './nav'
+import { useSettings, useStatus } from '../../hooks/useMedia'
 import { useIsAdmin } from '../../hooks/useAuth'
 import { requests } from '../../services/requests'
 import { api } from '../../services/api'
@@ -46,7 +45,10 @@ export default function Sidebar() {
   const t = useT()
   const { data: status } = useStatus()
   const used = Object.keys(status?.health || {}).filter((k) => SERVICES[k])
-  const navItems = useNavItems()
+  const items = useSidebarItems()
+  const isActive = useIsActive()
+  const { data: settings } = useSettings()
+  const custom = (settings?.nav_order || []).length > 0
   const { data: health } = useQuery({ queryKey: ['health'], queryFn: () => api.get('/health'), staleTime: Infinity })
   const isAdmin = useIsAdmin()
   const { data: queue } = useQuery({ queryKey: ['requests', 'all'], queryFn: () => requests.list('all'), enabled: isAdmin, staleTime: 60_000 })
@@ -59,53 +61,31 @@ export default function Sidebar() {
       </Link>
 
       <nav className="flex flex-col gap-0.5">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                isActive ? 'bg-accent/15 text-accent2' : 'text-text2 hover:bg-bg3 hover:text-text'
-              }`
-            }
-          >
-            <Icon className="h-[18px] w-[18px]" />
-            {t(label)}
-          </NavLink>
-        ))}
-        <NavLink
-          to="/swipe"
-          className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-text2 transition hover:bg-bg3 hover:text-text"
-        >
-          <Layers className="h-[18px] w-[18px]" />
-          {t('Mode swipe')}
-        </NavLink>
-        <NavLink
-          to="/stats"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${isActive ? 'bg-accent/15 text-accent2' : 'text-text2 hover:bg-bg3 hover:text-text'}`
-          }
-        >
-          <BarChart3 className="h-[18px] w-[18px]" />
-          {t('Statistiques')}
-        </NavLink>
-        {isAdmin && (
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${isActive ? 'bg-accent/15 text-accent2' : 'text-text2 hover:bg-bg3 hover:text-text'}`
-            }
-          >
-            <ShieldCheck className="h-[18px] w-[18px] shrink-0" />
-            <span className="whitespace-nowrap">{t('Espace admin')}</span>
-            {pending > 0 && (
-              <span className="ml-auto rounded-full bg-accent px-1.5 text-[10px] font-semibold text-white" title={t('{n} demandes en attente', { n: pending })}>
-                {pending}
-              </span>
-            )}
-          </NavLink>
-        )}
+        {items.map((item, n) => {
+          const Icon = item.icon
+          const active = isActive(item)
+          // Petit espace avant les outils, tant que l'ordre par défaut est gardé
+          const gap = !custom && item.key === 'swipe' && n > 0
+          const badge = item.key === (items.some((i) => i.key === 'requests') ? 'requests' : 'admin') && pending > 0
+          return (
+            <Link
+              key={item.key}
+              to={item.to}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${gap ? 'mt-2' : ''} ${
+                active ? 'bg-accent/15 text-accent2' : 'text-text2 hover:bg-bg3 hover:text-text'
+              }`}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon className="h-[18px] w-[18px] shrink-0" />
+              <span className="whitespace-nowrap">{t(item.label)}</span>
+              {badge && (
+                <span className="ml-auto rounded-full bg-accent px-1.5 text-[10px] font-semibold text-white" title={t('{n} demandes en attente', { n: pending })}>
+                  {pending}
+                </span>
+              )}
+            </Link>
+          )
+        })}
       </nav>
 
       <div className="mt-auto pt-6">

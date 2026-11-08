@@ -11,7 +11,8 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from app import __version__
 from app.config import config
 from app.database import init_db
-from app.routers import admin, auth, cinema, episodes, justwatch, letterboxd, library, media, news, notifications, plex, requests, search, seerr, swipe, tmdb, tonight, trakt, user
+import app.services.push  # noqa: F401 — envoi push à chaque notification enregistrée
+from app.routers import admin, auth, cinema, episodes, justwatch, letterboxd, library, media, news, notifications, plex, push, requests, search, seerr, swipe, tmdb, tonight, trakt, user
 from app.scheduler import start_scheduler, stop_scheduler
 from app.services.auth import require_ready
 from app.services.errors import ServiceError
@@ -149,7 +150,7 @@ async def same_origin_only(request: Request, call_next):
 
 app.include_router(auth.router, prefix="/api")
 # Tout le reste exige une session (et un mot de passe provisoire déjà changé)
-for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, letterboxd, seerr, justwatch, news, admin):
+for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, push, letterboxd, seerr, justwatch, news, admin):
     app.include_router(r.router, prefix="/api", dependencies=[Depends(require_ready)])
 
 
@@ -161,7 +162,7 @@ def health():
 # --- Interface (image Docker) : fichiers compilés servis par le même serveur -------------
 
 STATIC = config.static_dir.resolve()
-NO_CACHE = {"sw.js", "manifest.json", "index.html", "registerSW.js"}
+NO_CACHE = {"sw.js", "push-sw.js", "manifest.json", "index.html", "registerSW.js"}
 
 if (STATIC / "index.html").is_file():
 

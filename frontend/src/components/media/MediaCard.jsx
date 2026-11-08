@@ -74,7 +74,7 @@ export default function MediaCard({ item, fluid = false, meta = 'default', foote
               {item.trend === 'UP' ? '▲' : item.trend === 'DOWN' ? '▼' : '='}
             </span>
           )}
-          {[item.year, mediaLabel(item.media_type), item.reason].filter(Boolean).join(' · ')}
+          {[item.year, mediaLabel(item.media_type), item.reason && t(item.reason)].filter(Boolean).join(' · ')}
         </p>
         {footer}
       </div>

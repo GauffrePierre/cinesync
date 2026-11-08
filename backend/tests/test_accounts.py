@@ -490,3 +490,23 @@ def test_only_the_main_admin_links_the_plex_server(fresh):
     bob = login("bob", "provisoire1")
     bob.post("/api/auth/password", json={"new_password": "bob-secret-12"})
     assert bob.post("/api/plex/auth/pin").status_code == 403
+
+
+def test_new_accounts_get_the_first_run_assistant(fresh):
+    admin = client()
+    setup_admin(admin)
+    assert admin.get("/api/settings").json()["onboarding"] == "pending"  # nouvelle installation
+    assert admin.put("/api/settings", json={"onboarding": "done"}).json()["onboarding"] == "done"
+    alice = member(admin, "alice")
+    assert alice.get("/api/settings").json()["onboarding"] == "pending"
+    assert admin.get("/api/settings").json()["onboarding"] == "done"  # réglage propre à chaque compte
+
+
+def test_menu_order_is_saved_per_account(fresh):
+    admin = client()
+    setup_admin(admin)
+    assert admin.get("/api/settings").json()["nav_order"] == []
+    r = admin.put("/api/settings", json={"nav_order": ["watchlist", "discover", "watchlist"]})
+    assert r.json()["nav_order"] == ["watchlist", "discover"]
+    assert admin.put("/api/settings", json={"nav_order": ["<script>"]}).status_code == 422
+    assert admin.put("/api/settings", json={"nav_order": []}).json()["nav_order"] == []

@@ -167,11 +167,11 @@ def init_db() -> None:
             # Premier démarrage (ou base mono-utilisateur d'avant les comptes) : l'admin reprend le n°1
             db.add(User(id=1, username="admin", role="admin"))
         if db.get(UserSettings, 1) is None:
-            db.add(UserSettings(id=1))
+            db.add(UserSettings(id=1, onboarding="pending"))  # nouvelle installation : assistant de démarrage
         db.commit()
         for u in db.query(User).all():
             if db.get(UserSettings, u.id) is None:
-                db.add(UserSettings(id=u.id))
+                db.add(UserSettings(id=u.id, onboarding="pending"))
         db.commit()
         if setup_required(db):
             setup_code = "-".join(secrets.token_hex(2).upper() for _ in range(3))

@@ -98,7 +98,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 **Track**
 - **Watchlist, watched titles, ratings and favourites** gathered from Trakt, Plex and Letterboxd, and synced both ways (with a preview and safeguards).
 - Series tracking season by season, episode by episode.
-- **Notifications**: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding.
+- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding.
 - Detailed **statistics** of your history: hours, films, episodes, genres, days and times you watch.
 
 **For the family (server edition)**
@@ -330,6 +330,7 @@ In the `.env` file (see [`.env.example`](.env.example)). Service keys are entere
 
 - **Server edition**:
   - sign-in is required, passwords are hashed (scrypt) and the session lives in an HttpOnly cookie;
+  - push notifications encrypted for each device, no third-party service;
   - optional two-factor authentication (6-digit codes from an app such as Aegis or Google Authenticator, recovery codes);
   - sign-in attempts are limited, and requests from other sites are refused;
   - every account only sees its own data.

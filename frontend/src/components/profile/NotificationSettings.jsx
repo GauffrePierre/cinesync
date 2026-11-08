@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BellRing, Clapperboard, RefreshCw, Tv, WifiOff } from 'lucide-react'
+import { Clapperboard, RefreshCw, Tv, WifiOff } from 'lucide-react'
 import Button from '../ui/Button'
+import PushSettings from './PushSettings'
 import { useUpdateSettings } from '../../hooks/useMedia'
 import { notifications } from '../../services/notifications'
 import { toast } from '../../store/uiStore'
@@ -50,13 +51,11 @@ export default function NotificationSettings({ settings }) {
           />
         </label>
       ))}
+      <PushSettings />
       <div className="flex flex-wrap items-center gap-3 pt-2">
         <Button size="sm" icon={RefreshCw} loading={check.isPending} onClick={() => check.mutate()}>
           {t('Vérifier maintenant')}
         </Button>
-        <span className="flex items-center gap-1.5 text-xs text-text3">
-          <BellRing className="h-3.5 w-3.5" /> {t('Les notifications push sur téléphone viendront avec le déploiement HTTPS.')}
-        </span>
       </div>
     </div>
   )

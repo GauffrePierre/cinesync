@@ -1,5 +1,7 @@
 # Démarrer avec la version serveur : administrateur
 
+> Au premier démarrage, un **assistant** te guide en quelques écrans : langue et pays, clé TMDB, plateformes, cinémas, serveur Plex et comptes, notifications. Chaque membre que tu ajoutes a aussi le sien. Tu peux le relancer plus tard (Profil → Apparence → Revoir l’assistant de démarrage).
+
 Tu installes SynCiné pour ta famille : tu configures les services une fois pour tous, puis tu ajoutes les comptes. Compte 20 minutes.
 
 > Prérequis : SynCiné installé avec `CINESYNC_MODE=server` (par défaut) et, si tes proches l'utilisent hors de chez toi, une adresse **HTTPS** renseignée dans `PUBLIC_URL` (voir le [README](../../README.md#accès-https-et-application-mobile)).

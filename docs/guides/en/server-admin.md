@@ -1,5 +1,7 @@
 # Getting started: server edition, administrator
 
+> On first start, an **assistant** walks you through a few screens: language and country, TMDB key, platforms, cinemas, Plex server and accounts, notifications. Every member you add gets one too. You can run it again later (Profile → Appearance → Run the setup assistant again).
+
 You're installing SynCiné for your family: you set up the services once for everyone, then add the accounts. About 20 minutes.
 
 > Requirements: SynCiné installed with `CINESYNC_MODE=server` (the default) and, if your family uses it outside your home, an **HTTPS** address set in `PUBLIC_URL` (see the [README](../../README.en.md#https-access-and-mobile-app)).

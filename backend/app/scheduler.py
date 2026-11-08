@@ -3,6 +3,7 @@
 - Collecte de l'état personnel depuis tous les services : toutes les 30 min.
 - Disponibilités de la watchlist (Trakt + Plex) sur tes plateformes : toutes les 24 h (notifications).
 - Santé des services : toutes les 15 min.
+- Sorties récentes des watchlists (Découvrir) : toutes les 3 h.
 - Sauvegarde de la base : une par jour (vérifiée toutes les heures), si l'admin l'a activée.
 
 Chaque tâche personnelle tourne pour chaque compte actif, dans une session liée à ce compte
@@ -21,6 +22,7 @@ from app.database import SessionLocal
 from app.models import MediaState, Notification, User
 from app.services.context import Ctx, ctx_for
 from app.services.enrich import stream_providers
+from app.services import messages
 from app.services.errors import ServiceError
 
 log = logging.getLogger(__name__)
@@ -106,7 +108,7 @@ async def availability_one(ctx: Ctx) -> dict:
                     media_type=r.media_type,
                     title=title,
                     poster=r.poster,
-                    message=f"{title} est maintenant disponible sur {', '.join(names)}",
+                    **messages.fields("{title} est maintenant disponible sur {platforms}", title=title, platforms=", ".join(names)),
                     platforms=json.dumps([{"id": i, "name": available[i]["name"], "logo": available[i]["logo"]} for i in new_ids]),
                 )
             )
@@ -142,15 +144,34 @@ async def episodes_one(ctx: Ctx) -> dict:
             continue
         code = f"S{last.get('season_number', 0):02d}E{last.get('episode_number', 0):02d}"
         title = raw.get("name") or ""
-        message = f"Nouvel épisode de {title} : {code}" + (f" · {last['name']}" if last.get("name") else "")
-        exists = db.execute(select(Notification.id).where(Notification.kind == "episode", Notification.tmdb_id == tmdb_id, Notification.message == message)).first()
+        if last.get("name"):
+            text = messages.fields("Nouvel épisode de {title} : {code} · {name}", title=title, code=code, name=last["name"])
+        else:
+            text = messages.fields("Nouvel épisode de {title} : {code}", title=title, code=code)
+        exists = db.execute(select(Notification.id).where(Notification.kind == "episode", Notification.tmdb_id == tmdb_id, Notification.message == text["message"])).first()
         if exists:
             continue
         poster = f"https://image.tmdb.org/t/p/w342{raw['poster_path']}" if raw.get("poster_path") else None
-        db.add(Notification(kind="episode", tmdb_id=tmdb_id, media_type="tv", title=title, poster=poster, message=message))
+        db.add(Notification(kind="episode", tmdb_id=tmdb_id, media_type="tv", title=title, poster=poster, **text))
         created += 1
     db.commit()
     return {"checked": len(shows), "created": created}
+
+
+async def warm_releases() -> dict:
+    """Sorties récentes des watchlists et infos de tri (notes, dates), calculées d'avance : Découvrir et les tris
+s'affichent sans attendre TMDB ni plex.tv."""
+    from app.services.suggestions import watchlist_releases
+
+    from app.services.sorting import fill_info
+
+    async def one(ctx: Ctx):
+        n = len(await watchlist_releases(ctx, ctx.settings.recent_days or 0) or [])
+        # Infos de tri de la watchlist (sortie, notes TMDB, critique et public), par lots de 150
+        rows = [r for r in ctx.db.execute(select(MediaState)).scalars() if r.in_watchlist]
+        return {"releases": n, "info": await fill_info(ctx, rows)}
+
+    return await for_each_user(one)
 
 
 async def daily_backup() -> dict | None:
@@ -176,6 +197,7 @@ def start_scheduler() -> None:
         (check_watchlist_availability, {"hours": config.notification_interval_hours}, now + timedelta(minutes=5), "watchlist_availability"),
         (check_new_episodes, {"hours": 6}, now + timedelta(minutes=3), "new_episodes"),
         (daily_backup, {"hours": 1}, now + timedelta(minutes=10), "db_backup"),
+        (warm_releases, {"hours": 3}, now + timedelta(minutes=2), "watchlist_releases"),
     ]
     for func, interval, first, job_id in jobs:
         scheduler.add_job(func, "interval", **interval, next_run_time=first, id=job_id, replace_existing=True, max_instances=1, coalesce=True)

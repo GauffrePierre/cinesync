@@ -4,9 +4,10 @@ import HeroCarousel from '../components/media/HeroCarousel'
 import MediaRow from '../components/media/MediaRow'
 import PlatformFilter, { useMediaFilters } from '../components/media/PlatformFilter'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
+import SeenFilter, { useSeenFilterFn } from '../components/ui/SeenFilter'
 import MockBanner from '../components/ui/MockBanner'
 import EmptyState from '../components/ui/EmptyState'
-import { useCharts, useNewOnPlatforms, useSeenFilter, useSettings, useStatus, useSuggestions, useTrending } from '../hooks/useMedia'
+import { useCharts, useNewOnPlatforms, useSeenFilter, useSettings, useStatus, useSuggestions, useTrending, useWatchlistReleases } from '../hooks/useMedia'
 import { useUiStore } from '../store/uiStore'
 import { useT } from '../i18n'
 
@@ -45,7 +46,11 @@ export default function Discover() {
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
   const mediaFilters = useMediaFilters()
-  const hideSeen = useSeenFilter()
+  const seenFilter = useUiStore((s) => s.seenFilter)
+  const bySeen = useSeenFilterFn()
+  // Réglage « ne plus proposer les vus » : sans effet quand on demande explicitement les titres vus
+  const hideSeenSetting = useSeenFilter()
+  const hideSeen = (items) => bySeen(seenFilter === 'seen' ? items : hideSeenSetting(items))
   const filter = (items) => hideSeen(mediaFilters(items))
   const { data: settings } = useSettings()
   const { data: status } = useStatus()
@@ -54,13 +59,16 @@ export default function Discover() {
   const trending = useTrending(mediaFilter)
   const suggestions = useSuggestions(mediaFilter)
   const jwOn = !!settings?.justwatch_enabled
+  const recentDays = settings?.recent_days ?? 0
+  const releases = useWatchlistReleases(recentDays > 0)
   const chartsMovies = useCharts('movie', jwOn && mediaFilter !== 'tv')
   const chartsShows = useCharts('tv', jwOn && mediaFilter !== 'movie')
   const jwNew = useNewOnPlatforms(!!settings?.justwatch_enabled && (settings?.active_platforms?.length || 0) > 0)
 
   const trendingItems = filter(trending.data?.results)
   const hero = trendingItems.find((i) => i.backdrop) || trendingItems[0]
-  const rest = trendingItems.filter((i) => i !== hero)
+  // Le titre du carrousel n'est pas répété dans Tendances, sauf avec un filtre vus / pas vus (liste réduite)
+  const rest = seenFilter === 'all' ? trendingItems.filter((i) => i !== hero) : trendingItems
 
   return (
     <div>
@@ -69,9 +77,20 @@ export default function Discover() {
       <MockBanner show={trending.data?.mock} />
 
       <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center">
-        <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+        <div className="flex items-center gap-2">
+          <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+          <SeenFilter />
+        </div>
         <PlatformFilter />
       </div>
+
+      {recentDays > 0 && releases.data?.results?.length > 0 && (
+        <MediaRow
+          title={t('Vient de sortir dans ta watchlist')}
+          subtitle={t('Sorties de ces {n} derniers jours', { n: recentDays })}
+          items={filter(releases.data.results)}
+        />
+      )}
 
       {trending.error && <EmptyState title={t('Impossible de charger les tendances')} message={trending.error.message} action={t('Vérifier le Profil')} to="/profile" />}
 

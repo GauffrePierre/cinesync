@@ -14,6 +14,7 @@ from app.services import library_sync
 from app.services.context import Ctx, get_ctx
 from app.services.enrich import plex_keys, stream_providers
 from app.services.errors import ServiceError
+from app.services.sorting import Sort, fill_info, sort_items
 
 router = APIRouter(prefix="/library", tags=["library"])
 
@@ -68,12 +69,15 @@ def state(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx = Depends(g
 async def watchlist(
     media_type: Literal["all", "movie", "tv"] = "all",
     availability: Literal["all", "mine", "none"] = "all",
-    sort: Literal["added", "title"] = "added",
+    seen: Literal["all", "seen", "unseen"] = "all",
+    sort: Sort = "added",
     page: int = Query(1, ge=1),
     page_size: int = Query(40, ge=1, le=100),
     ctx: Ctx = Depends(get_ctx),
 ):
     rows = [r for r in ctx.db.execute(select(MediaState)).scalars() if r.in_watchlist]
+    if seen != "all":  # filtre Vus / Pas vus (une série commencée compte comme vue)
+        rows = [r for r in rows if r.watched == (seen == "seen")]
     if media_type != "all":
         rows = [r for r in rows if r.media_type == media_type]
 
@@ -93,11 +97,15 @@ async def watchlist(
         await asyncio.gather(*(fill(r) for r in unknown[:150]))  # par lots, pour garder la page réactive
         ctx.db.commit()
 
+    if sort in ("release", "rating", "critics", "audience", "year"):
+        await fill_info(ctx, rows, scores=False)  # sortie et note TMDB manquantes (notes critique / public : tâche périodique)
+
     index = await plex_keys(ctx)
     platforms = set(ctx.platforms)
     items = []
     for r in rows:
         it = r.to_item()
+        it["added"], it["personal_rating"] = r.listed_at, r.rating
         hit = index.get((r.media_type, r.tmdb_id))
         it["in_plex"] = hit is not None
         it["plex_url"] = hit.get("plex_url") if hit else None
@@ -108,10 +116,8 @@ async def watchlist(
             continue
         items.append(it)
 
-    if sort == "title":
-        items.sort(key=lambda i: (i["title"] or "").lower())
-    else:
-        items.sort(key=lambda i: i["listed_at"] or "", reverse=True)
+    items = sort_items(items, sort)
+    pending_scores = sum(1 for r in rows if r.info_checked_at is None) if sort in ("critics", "audience") else 0
 
     total = len(items)
     return {
@@ -120,6 +126,7 @@ async def watchlist(
         "page": page,
         "page_size": page_size,
         "pending_availability": max(0, len(unknown) - 150),
+        "pending_scores": pending_scores,  # notes critique / public encore en cours de récupération
         "last_pull": library_sync.last_pull(ctx) or None,
     }
 

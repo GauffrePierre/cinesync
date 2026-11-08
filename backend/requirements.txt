@@ -8,3 +8,5 @@ apscheduler>=3.11.3,<4
 feedparser>=6.0.14
 pillow>=13.0.0
 segno>=1.6
+http-ece>=1.2
+cryptography>=44

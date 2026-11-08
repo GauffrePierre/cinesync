@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 import app.database as database
 from app.database import get_db
 from app.models import Notification, User
-from app.services import auth, plex_auth, totp
+from app.services import auth, messages, plex_auth, totp
 from app.config import config
 from app.services.auth import current_user, guard_attempts, login_limiter, require_server_mode
 from app.services.context import SHARED_ID, settings_for
@@ -185,7 +185,7 @@ def _check_code(db: Session, user: User, code: str) -> bool:
         if user.totp_failures == LOCK_AFTER:
             db.add(Notification(
                 user_id=user.id, kind="service", service="security",
-                message="Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe.",
+                **messages.fields("Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe."),
             ))
     db.commit()
     return False

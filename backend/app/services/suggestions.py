@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 
@@ -101,6 +102,63 @@ async def seen_keys(ctx: Ctx) -> set[tuple[str, int]]:
         await asyncio.gather(*(check(tid) for tid in seen_on))
     cache.set(key, out, 1800)
     return out
+
+
+async def watchlist_releases(ctx: Ctx, days: int, cached_only: bool = False) -> list[dict] | None:
+    """Titres de la watchlist (pas encore vus) sortis ces `days` derniers jours, du plus récent au plus ancien.
+
+    Film : sortie en salles (ou ressortie) ou en VOD / streaming dans le pays (date mondiale si le pays n'en
+    a pas). Série : dernier épisode diffusé (nouvelle série, nouvelle saison ou nouvel épisode).
+    Une requête TMDB par titre (en cache) : la tâche périodique `warm_releases` garde le résultat prêt.
+    cached_only : None si pas encore calculé (le carrousel n'attend pas)."""
+    if days <= 0 or ctx.tmdb.is_mock:
+        return []
+    rows = [r for r in ctx.db.execute(select(MediaState)).scalars() if r.in_watchlist and not r.watched and not r.disliked]
+    stamp = (len(rows), max((r.updated_at for r in rows if r.updated_at), default=None))
+    key = ("watchlist-releases", ctx.user.id, days, date.today().isoformat(), str(stamp))
+    if (hit := cache.get(key)) is not MISS:
+        return hit
+    if cached_only:
+        return None
+    start, end = (date.today() - timedelta(days=days)).isoformat(), date.today().isoformat()
+    sem = asyncio.Semaphore(16)
+
+    async def one(r: MediaState) -> dict | None:
+        async with sem:
+            try:
+                if r.media_type == "movie":
+                    dates = await ctx.tmdb.release_dates(r.tmdb_id)
+                    first = min(dates["cinema"], default="")
+                    # Ressortie : sortie en salles plus d'un an après la première
+                    old = lambda d: first and first < (date.fromisoformat(d) - timedelta(days=365)).isoformat()  # noqa: E731
+                    found = [(d, "Ressortie au cinéma" if old(d) else "Sorti au cinéma") for d in dates["cinema"] if start <= d <= end]
+                    found += [(d, "Sorti en VOD / streaming") for d in dates["streaming"] if start <= d <= end]
+                    item = None
+                    if not found and not dates["cinema"] and not dates["streaming"]:
+                        item = await ctx.tmdb.basic("movie", r.tmdb_id)  # pas de date pour le pays : date mondiale
+                        d = (item or {}).get("release_date") or ""
+                        found = [(d, "Sorti au cinéma")] if start <= d <= end else []
+                    if not found:
+                        return None
+                    released, reason = max(found)
+                    item = item or await ctx.tmdb.basic("movie", r.tmdb_id)
+                else:
+                    raw = await ctx.tmdb._get(f"/tv/{r.tmdb_id}", ttl=21600)
+                    last = raw.get("last_episode_to_air") or {}
+                    released = last.get("air_date") or ""
+                    if not start <= released <= end:
+                        return None
+                    s, e = last.get("season_number"), last.get("episode_number")
+                    reason = "Nouvelle série" if (s, e) == (1, 1) else "Nouvelle saison" if e == 1 else "Nouvel épisode"
+                    item = await ctx.tmdb.basic("tv", r.tmdb_id)
+            except ServiceError:
+                return None  # une source indisponible ne bloque pas les autres titres
+        return {**item, "reason": reason, "released_on": released} if item else None
+
+    found = [x for x in await asyncio.gather(*(one(r) for r in rows)) if x]
+    found.sort(key=lambda i: i["released_on"], reverse=True)
+    cache.set(key, found, 6 * 3600)
+    return found
 
 
 async def seeds(ctx: Ctx, media_types: list[str]) -> list[dict]:

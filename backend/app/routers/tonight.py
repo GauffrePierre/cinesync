@@ -1,7 +1,9 @@
-"""« Pour ce soir » : uniquement ce qui se regarde tout de suite (Plex ou tes plateformes), pas encore vu."""
+"""« Pour ce soir » : uniquement ce qui se regarde tout de suite (Plex ou tes plateformes).
+Par défaut ce qui n'a pas encore été vu ; filtre « vus » : des titres déjà vus, à revoir."""
 
 import asyncio
 import random
+from datetime import date, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -12,19 +14,41 @@ from app.services.context import Ctx, get_ctx
 from app.services.enrich import enrich, plex_keys, refs_to_items
 from app.services.errors import ServiceError
 from app.services.history import _show_key
+from app.services.sorting import sort_items
 from app.services.suggestions import suggestions
 
 router = APIRouter(prefix="/tonight", tags=["tonight"])
 
-# Humeurs -> genres TMDB (les ids diffèrent entre films et séries)
+# Envies -> genres TMDB (les ids diffèrent entre films et séries)
 MOODS = {
     "rire": {35},
-    "frissons": {27, 53, 9648, 80},
-    "action": {28, 12, 10759, 10752},
-    "evasion": {878, 14, 10765, 16},
-    "emotion": {18, 10749},
-    "famille": {10751, 16, 10762},
-    "comprendre": {99, 36, 10763},
+    "frissons": {53, 9648},
+    "peur": {27},
+    "enquete": {80, 9648},
+    "action": {28, 10759},
+    "aventure": {12, 10759},
+    "evasion": {878, 14, 10765},
+    "animation": {16},
+    "emotion": {18},
+    "romance": {10749},
+    "famille": {10751, 10762},
+    "histoire": {36, 10752, 10768},
+    "western": {37},
+    "musique": {10402},
+    "comprendre": {99, 10763},
+}
+
+
+def _recent(i: dict) -> bool:
+    d = i.get("release_date") or ""
+    return bool(d) and d >= (date.today() - timedelta(days=365)).isoformat()
+
+
+# Envies de cinéphile, sans genre : d'après la note, la notoriété ou l'âge du titre
+SPECIAL_MOODS = {
+    "pepites": lambda i: (i.get("vote_average") or 0) >= 7.2 and 50 <= (i.get("vote_count") or 0) < 1500,  # méconnus mais très bien notés
+    "classiques": lambda i: (i.get("year") or 9999) < 1990 and (i.get("vote_average") or 0) >= 7.0,
+    "recents": _recent,  # sortis ces 12 derniers mois
 }
 
 
@@ -90,6 +114,8 @@ async def tonight(
     media_type: Literal["all", "movie", "tv"] = "all",
     max_runtime: int | None = Query(None, ge=20, le=400),
     mood: str | None = None,
+    sort: Literal["relevance", "release", "title", "year", "rating", "critics", "audience", "added"] = "relevance",
+    seen: Literal["unseen", "seen", "all"] = "unseen",
     ctx: Ctx = Depends(get_ctx),
 ):
     platforms = set(ctx.platforms)
@@ -119,15 +145,31 @@ async def tonight(
             it["plex_url"] = hit.get("plex_url") if hit else None
         return items
 
+    async def rewatch_items():
+        # Déjà vus, à revoir : coups de cœur et mieux notés d'abord
+        if seen == "unseen":
+            return []
+        rows = sorted((r for r in states.values() if r.watched and not r.disliked), key=lambda r: (not r.liked, -(r.rating or 0)))
+        refs = [{"tmdb_id": r.tmdb_id, "media_type": r.media_type, "title": r.title} for r in rows[:120]]
+        return await enrich(ctx, await refs_to_items(ctx, refs))
+
     async def for_you():
         try:
             return await suggestions(ctx, media_type, 40)
         except ServiceError:
             return []
 
-    deck, wl, gems, sugg = await asyncio.gather(_on_deck(ctx, index), watchlist_items(), library_gems(), for_you())
+    unseen = seen != "seen"
+    deck, wl, gems, sugg, again = await asyncio.gather(
+        _on_deck(ctx, index),
+        watchlist_items() if unseen else asyncio.sleep(0, []),
+        library_gems() if unseen else asyncio.sleep(0, []),
+        for_you() if unseen else asyncio.sleep(0, []),
+        rewatch_items(),
+    )
 
     mood_ids = MOODS.get(mood or "", set())
+    special = SPECIAL_MOODS.get(mood or "")
 
     async def keep(items: list[dict], check_watched: bool = True) -> list[dict]:
         out = []
@@ -140,6 +182,8 @@ async def tonight(
                 continue
             if mood_ids and not (set(i.get("genre_ids") or []) & mood_ids):
                 continue
+            if special and not special(i):
+                continue
             out.append(i)
         if max_runtime:
             runtimes = await asyncio.gather(*(_runtime(ctx, i) for i in out))
@@ -148,21 +192,34 @@ async def tonight(
 
     sections = {
         "resume": await keep(deck, check_watched=False),
-        "watchlist": (await keep(wl))[:20],
-        "suggestions": (await keep(sugg))[:20],
-        "library": (await keep(gems))[:20],
+        "watchlist": await keep(wl),
+        "suggestions": await keep(sugg),
+        "library": await keep(gems),
+        "rewatch": await keep(again, check_watched=False),
     }
+    if sort != "relevance":
+        # Infos de tri : notes critique / public et date d'ajout connues pour les titres suivis (watchlist)
+        for name in ("watchlist", "suggestions", "library", "rewatch"):
+            for i in sections[name]:
+                st = states.get((i["media_type"], i["id"]))
+                if st:
+                    i.setdefault("critic_score", st.critic_score)
+                    i.setdefault("audience_score", st.audience_score)
+                    i["added"] = st.listed_at
+            sections[name] = sort_items(sections[name], sort)
+    for name in ("watchlist", "suggestions", "library", "rewatch"):
+        sections[name] = sections[name][:20]
     # Un titre n'apparaît qu'une fois, dans la section la plus pertinente
-    seen = set()
-    for name in ("resume", "watchlist", "suggestions", "library"):
+    placed = set()
+    for name in ("resume", "watchlist", "suggestions", "library", "rewatch"):
         uniq = []
         for i in sections[name]:
             k = (i["media_type"], i["id"])
-            if k not in seen:
-                seen.add(k)
+            if k not in placed:
+                placed.add(k)
                 uniq.append(i)
         sections[name] = uniq
 
-    pool = sections["watchlist"] + sections["suggestions"] + sections["library"]
+    pool = sections["watchlist"] + sections["suggestions"] + sections["library"] + sections["rewatch"]
     pick = random.choice(pool) if pool else None
-    return {"sections": sections, "pick": pick, "moods": list(MOODS)}
+    return {"sections": sections, "pick": pick, "moods": list(MOODS) + list(SPECIAL_MOODS)}

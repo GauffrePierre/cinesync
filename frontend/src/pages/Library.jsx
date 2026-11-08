@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Library as LibraryIcon, Search } from 'lucide-react'
 import MediaGrid from '../components/media/MediaGrid'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
+import SeenFilter from '../components/ui/SeenFilter'
 import Button from '../components/ui/Button'
 import MockBanner from '../components/ui/MockBanner'
 import EmptyState from '../components/ui/EmptyState'
@@ -10,17 +11,13 @@ import { useLibrary, useSettings } from '../hooks/useMedia'
 import { useDebounce } from '../hooks/useDebounce'
 import { useUiStore } from '../store/uiStore'
 import { useT } from '../i18n'
+import { SORT_OPTIONS } from '../lib/sorts'
 
-const SORTS = [
-  { value: 'added', label: 'Date d’ajout' },
-  { value: 'title', label: 'Titre' },
-  { value: 'rating', label: 'Note' },
-  { value: 'year', label: 'Année' },
-]
 
 export default function Library() {
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
+  const seenFilter = useUiStore((s) => s.seenFilter)
   const [sort, setSort] = useState('added')
   const [q, setQ] = useState('')
   const [streamingOnly, setStreamingOnly] = useState(false)
@@ -29,7 +26,7 @@ export default function Library() {
   const active = settings?.active_platforms || []
   const t = useT()
 
-  const lib = useLibrary({ mediaType: mediaFilter, sort, q: debouncedQ })
+  const lib = useLibrary({ mediaType: mediaFilter, sort, q: debouncedQ, seen: seenFilter })
   const pages = lib.data?.pages || []
   const total = pages[0]?.total ?? 0
 
@@ -49,7 +46,10 @@ export default function Library() {
       <MockBanner service="Plex" show={pages[0]?.mock} />
 
       <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+        <div className="flex items-center gap-2">
+          <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
+          <SeenFilter />
+        </div>
         <div className="relative flex-1 lg:max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text3" />
           <input
@@ -66,7 +66,7 @@ export default function Library() {
             className="h-10 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
             aria-label={t('Trier par')}
           >
-            {SORTS.map((s) => (
+            {SORT_OPTIONS.map((s) => (
               <option key={s.value} value={s.value}>
                 {t('Tri : {label}', { label: t(s.label) })}
               </option>

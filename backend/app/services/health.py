@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+from app.services import messages
 from app.models import Notification, User
 from app.services.context import SHARED_ID, Ctx
 from app.services.errors import ServiceError
@@ -144,7 +145,7 @@ def record(db, service: str, result: dict, user_id: int = SHARED_ID) -> None:
                 tmdb_id=0,
                 media_type="",
                 title=LABELS[service],
-                message=f"{LABELS[service]} ne répond plus : {result['message']}",
+                **messages.fields("{service} ne répond plus : {detail}", service=LABELS[service], detail=result["message"]),
             )
         )
         created = True

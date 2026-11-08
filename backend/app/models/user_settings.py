@@ -67,6 +67,12 @@ class UserSettings(Base):
     backup_keep: Mapped[int] = mapped_column(Integer, default=7)
     # Découverte : ne plus proposer les films vus ni les séries vues sans nouvel épisode depuis
     hide_seen: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Ordre des onglets du menu (version ordinateur) : liste JSON de clés, vide = ordre par défaut
+    nav_order: Mapped[str] = mapped_column(Text, default="")
+    # Assistant de premier démarrage : "pending" pour un nouveau compte (les comptes existants : "done")
+    onboarding: Mapped[str] = mapped_column(String(8), default="done")
+    # Sorties récentes de la watchlist mises en avant pendant N jours (0 = désactivé)
+    recent_days: Mapped[int] = mapped_column(Integer, default=30)
 
     # Préférences
     country_code: Mapped[str] = mapped_column(String, default="CH")

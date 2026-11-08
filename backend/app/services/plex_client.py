@@ -100,6 +100,10 @@ class PlexClient:
             "backdrop": _image(m.get("art"), 1280),
             "added_at": datetime.fromtimestamp(added, timezone.utc).isoformat() if added else None,
             "vote_average": round(float(m.get("audienceRating") or m.get("rating") or 0), 1),
+            # Notes Plex (agent Rotten Tomatoes / IMDb) : rating = critique, audienceRating = public, sur 10
+            "critic_score": round(float(m["rating"]) * 10) if m.get("rating") else None,
+            "audience_score": round(float(m["audienceRating"]) * 10) if m.get("audienceRating") else None,
+            "release_date": m.get("originallyAvailableAt"),
             "content_rating": m.get("contentRating"),
             "duration_min": round(m["duration"] / 60000) if m.get("duration") else None,
             "view_count": m.get("viewCount", 0),

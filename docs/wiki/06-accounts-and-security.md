@@ -54,6 +54,12 @@ Optional, per account, in **Profile → My account**. `services/totp.py` impleme
 - **Disable / new recovery codes**: require a current code or a recovery code. Removing the password in the personal edition also clears 2FA (open access has nothing left to protect).
 - **Lost phone**: an admin resets it with `PATCH /api/admin/users/{id}` `{reset_two_factor: true}` (**⋯ → Reset two-factor authentication**). Not for their own account: password and 2FA changes on oneself go through Profile, where the current password or a code is required. The secret and the codes are never returned by any endpoint.
 
+## Push notifications
+
+`services/push.py` implements Web Push without a third-party service: VAPID key pair in `data/vapid.pem` (mode 600, created on first use), payload encrypted for each device (`http-ece`, aes128gcm, RFC 8291), ES256 VAPID token signed with `cryptography` (RFC 8292). Every committed `Notification` is also pushed: session events collect new rows (`after_flush`) and hand them to a single worker thread after commit, so requests and jobs never wait. The text is rendered in the recipient's interface language (`services/messages.py`).
+
+Subscription endpoints come from the browser, so they are treated as untrusted URLs: only `https` endpoints on known push services (`fcm.googleapis.com`, `push.services.mozilla.com`, `push.apple.com`, `notify.windows.com`) are accepted. An endpoint belongs to one account at a time (subscribing moves it), at most 10 devices per account, and logging out unsubscribes the device. 404/410 answers from the push service delete the subscription. If `vapid.pem` is lost (new data folder), devices simply need to turn notifications on again.
+
 ## Login rate limiting
 
 `RateLimiter` counts **failures** in a 15-minute sliding window, per key type:

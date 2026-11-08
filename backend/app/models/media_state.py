@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, UserScoped
@@ -47,6 +47,13 @@ class MediaState(UserScoped, Base):
     notified_platforms: Mapped[str] = mapped_column(Text, default="[]")
     # Premier passage de la vérification des disponibilités : sert de référence (aucune alerte)
     availability_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Infos pour les tris (watchlist) : sortie et note TMDB, notes critique / public (Rotten Tomatoes, IMDb via Plex)
+    release_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    tmdb_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    critic_score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # sur 100
+    audience_score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # sur 100
+    info_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -94,5 +101,9 @@ class MediaState(UserScoped, Base):
             "year": self.year,
             "poster": self.poster,
             "providers": _load(self.providers),
+            "release_date": self.release_date,
+            "vote_average": self.tmdb_rating,
+            "critic_score": self.critic_score,
+            "audience_score": self.audience_score,
             **self.state(),
         }

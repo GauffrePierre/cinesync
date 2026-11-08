@@ -55,6 +55,18 @@ async def get_suggestions(
     return {"results": items, "mock": ctx.tmdb.is_mock}
 
 
+@router.get("/watchlist-releases")
+async def watchlist_releases(ctx: Ctx = Depends(get_ctx)):
+    """Sorties récentes de la watchlist (réglage « Découverte » : période en jours, 0 = désactivé)."""
+    from app.services.enrich import enrich
+    from app.services.suggestions import watchlist_releases as releases
+
+    days = ctx.settings.recent_days or 0
+    items = [dict(i) for i in await releases(ctx, days)]
+    await enrich(ctx, items)
+    return {"results": items, "days": days}
+
+
 @router.get("/highlights")
 async def highlights(ctx: Ctx = Depends(get_ctx)):
     """Diapositives du carrousel de Découvrir : tendance, cinéma, streaming (Plex + plateformes), pour toi."""
@@ -141,7 +153,15 @@ async def highlights(ctx: Ctx = Depends(get_ctx)):
         items = [i for i in items if i.get("backdrop")]
         return [{"label": items[0].get("reason") or "Pour toi", "kind": "suggestion", "item": items[0]}] if items else []
 
-    groups = await asyncio.gather(trending(), cinema(), streaming(), for_you())
+    async def recent():
+        # Sorties récentes de ta watchlist (réglage « Découverte ») : en tête du carrousel
+        from app.services.suggestions import watchlist_releases as releases
+
+        # Seulement si déjà calculé (tâche périodique ou rangée de Découvrir) : le carrousel n'attend pas
+        items = [i for i in (await safe(releases(ctx, ctx.settings.recent_days or 0, cached_only=True), None) or []) if i.get("backdrop")]
+        return [{"label": "Vient de sortir · dans ta watchlist", "kind": "recent", "item": dict(i)} for i in items[:2]]
+
+    groups = await asyncio.gather(recent(), trending(), cinema(), streaming(), for_you())
     slides, seen = [], set(skip)
     for g in groups:
         for sl in g:

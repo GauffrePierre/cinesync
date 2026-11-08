@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.models import MediaRequest, Notification, User
+from app.services import messages
 from app.services.context import Ctx, get_ctx
 from app.services.errors import NotConfigured, ServiceError
 
@@ -83,10 +84,11 @@ def can_send_direct(ctx: Ctx) -> bool:
     return ctx.seerr is not None and (ctx.is_admin or ctx.user.can_request_direct)
 
 
-def _notify(ctx: Ctx, user_id: int, req: MediaRequest, message: str) -> None:
-    ctx.db.add(
-        Notification(user_id=user_id, kind="request", tmdb_id=req.tmdb_id, media_type=req.media_type, title=req.title, poster=req.poster, message=message)
-    )
+def _notify(ctx: Ctx, user_id: int, req: MediaRequest, key: str, **params) -> None:
+    ctx.db.add(Notification(
+        user_id=user_id, kind="request", tmdb_id=req.tmdb_id, media_type=req.media_type, title=req.title, poster=req.poster,
+        **messages.fields(key, title=req.title, **params),
+    ))
 
 
 async def _send(ctx: Ctx, req: MediaRequest, seasons: list[int] | None = None) -> None:
@@ -143,7 +145,7 @@ async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
     if req.status == "pending" and not ctx.is_admin:
         # Prévient les administrateurs (cloche) qu'une demande attend
         for admin in ctx.db.query(User).filter(User.role == "admin", User.active.is_(True)):
-            _notify(ctx, admin.id, req, f"{ctx.user.name} demande « {req.title} »")
+            _notify(ctx, admin.id, req, "{name} demande « {title} »", name=ctx.user.name)
     ctx.db.commit()
     return {"request": _out(ctx, req, _names(ctx)), "created": True, "message": message}
 
@@ -155,7 +157,7 @@ async def send_to_seerr(request_id: int, ctx: Ctx = Depends(get_ctx)):
         raise NotConfigured("seerr")
     await _send(ctx, req)
     if req.user_id != ctx.user.id:
-        _notify(ctx, req.user_id, req, f"Ta demande « {req.title} » a été envoyée à Seerr")
+        _notify(ctx, req.user_id, req, "Ta demande « {title} » a été envoyée à Seerr")
     ctx.db.commit()
     return _out(ctx, req, _names(ctx))
 
@@ -168,8 +170,10 @@ def update_request(request_id: int, body: RequestUpdate, ctx: Ctx = Depends(get_
     if body.note is not None:
         req.note = body.note
     if changed and req.user_id != ctx.user.id and body.status in ("available", "declined"):
-        verdict = "est disponible sur Plex" if body.status == "available" else "a été refusée"
-        _notify(ctx, req.user_id, req, f"Ta demande « {req.title} » {verdict}")
+        if body.status == "available":
+            _notify(ctx, req.user_id, req, "Ta demande « {title} » est disponible sur Plex")
+        else:
+            _notify(ctx, req.user_id, req, "Ta demande « {title} » a été refusée")
     ctx.db.commit()
     return _out(ctx, req, _names(ctx))
 

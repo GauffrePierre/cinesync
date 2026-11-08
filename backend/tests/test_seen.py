@@ -72,3 +72,64 @@ def test_setting_and_endpoint(fresh):  # noqa: F811
     assert admin.put("/api/settings", json={"hide_seen": True}).json()["hide_seen"] is True
     assert admin.post("/api/library/watched", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"}).status_code == 200
     assert admin.get("/api/library/seen").json() == {"keys": ["movie:603"]}
+
+
+# --- Sorties récentes de la watchlist --------------------------------------------------------
+
+
+class FakeReleases:
+    is_mock = False
+
+    def __init__(self, today):
+        from datetime import timedelta
+
+        ago = lambda n: (today - timedelta(days=n)).isoformat()  # noqa: E731
+        self.dates = {
+            10: {"cinema": [ago(5)], "streaming": []},  # sorti en salles il y a 5 jours
+            11: {"cinema": [ago(200)], "streaming": [ago(2)]},  # arrivé en VOD il y a 2 jours
+            12: {"cinema": [ago(90)], "streaming": []},  # trop ancien
+            13: {"cinema": [], "streaming": []},  # pas de date pour le pays : date mondiale
+            14: {"cinema": [ago(3000), ago(3)], "streaming": []},  # ressortie en salles
+        }
+        self.world = {13: ago(10)}
+        self.shows = {
+            20: {"last_episode_to_air": {"air_date": ago(1), "season_number": 3, "episode_number": 1}},
+            21: {"last_episode_to_air": {"air_date": ago(60), "season_number": 1, "episode_number": 8}},
+        }
+
+    async def release_dates(self, tmdb_id):
+        return self.dates[tmdb_id]
+
+    async def _get(self, path, ttl=0, **params):
+        return self.shows[int(path.rsplit("/", 1)[1])]
+
+    async def basic(self, media_type, tmdb_id):
+        return {"id": tmdb_id, "media_type": media_type, "title": f"T{tmdb_id}", "release_date": self.world.get(tmdb_id)}
+
+
+def test_watchlist_releases(db):
+    from datetime import date
+
+    rows = [MediaState(tmdb_id=i, media_type="movie", watchlist_sources='["local"]') for i in (10, 11, 12, 13, 14)]
+    rows += [MediaState(tmdb_id=i, media_type="tv", watchlist_sources='["trakt"]') for i in (20, 21)]
+    rows.append(MediaState(tmdb_id=99, media_type="movie", watchlist_sources='["local"]', watched_sources='["local"]'))  # déjà vu
+    db.add_all(rows)
+    db.commit()
+    ctx = SimpleNamespace(db=db, user=db.get(User, 1), tmdb=FakeReleases(date.today()))
+    out = asyncio.run(suggestions.watchlist_releases(ctx, 30))
+    assert [(i["id"], i["reason"]) for i in out] == [
+        (20, "Nouvelle saison"), (11, "Sorti en VOD / streaming"), (14, "Ressortie au cinéma"), (10, "Sorti au cinéma"),
+        (13, "Sorti au cinéma"),
+    ]
+    assert asyncio.run(suggestions.watchlist_releases(ctx, 0)) == []
+
+
+def test_watchlist_seen_filter(fresh):  # noqa: F811
+    admin = client()
+    setup_admin(admin)
+    for tid, title in ((603, "Matrix"), (604, "Matrix Reloaded")):
+        admin.post("/api/library/watchlist", json={"tmdb_id": tid, "media_type": "movie", "title": title})
+    admin.post("/api/library/watched", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"})
+    ids = lambda seen: [i["id"] for i in admin.get(f"/api/library/watchlist?seen={seen}").json()["results"]]  # noqa: E731
+    assert sorted(ids("all")) == [603, 604]
+    assert ids("seen") == [603] and ids("unseen") == [604]

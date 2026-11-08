@@ -18,7 +18,10 @@ class Notification(UserScoped, Base):
     tmdb_id: Mapped[int] = mapped_column(Integer, default=0)
     media_type: Mapped[str] = mapped_column(String(8), default="")
     title: Mapped[str] = mapped_column(String, default="")
-    message: Mapped[str] = mapped_column(String, default="")
+    message: Mapped[str] = mapped_column(String, default="")  # texte français (repli)
+    # Gabarit (français) et paramètres : traduit dans la langue du compte (services/messages.py)
+    msg_key: Mapped[str] = mapped_column(String, default="")
+    msg_params: Mapped[str] = mapped_column(Text, default="{}")
     poster: Mapped[str | None] = mapped_column(String, nullable=True)
     platforms: Mapped[str] = mapped_column(Text, default="[]")  # JSON : [{id, name, logo}]
     read: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -33,6 +36,8 @@ class Notification(UserScoped, Base):
             "media_type": self.media_type,
             "title": self.title,
             "message": self.message,
+            "msg_key": self.msg_key or None,
+            "msg_params": json.loads(self.msg_params or "{}"),
             "poster": self.poster,
             "platforms": json.loads(self.platforms or "[]"),
             "read": self.read,

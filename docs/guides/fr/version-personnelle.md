@@ -1,5 +1,7 @@
 # Démarrer avec la version personnelle
 
+> Au premier démarrage, un **assistant** te guide en quelques écrans : langue et pays, plateformes, cinémas, comptes (Plex, Trakt, Letterboxd) et notifications. Tu peux le passer et le relancer plus tard (Profil → Apparence → Revoir l’assistant de démarrage).
+
 Pour une seule personne : pas de comptes, pas de connexion obligatoire. Compte 10 minutes.
 
 > Prérequis : SynCiné installé avec `CINESYNC_MODE=personal` dans `.env` (voir le [README](../../README.md#installation)).

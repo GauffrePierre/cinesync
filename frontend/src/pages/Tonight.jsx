@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Dices, Info, Play, Popcorn } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Dices, Info, Play, Popcorn } from 'lucide-react'
 import MediaRow from '../components/media/MediaRow'
 import Poster from '../components/media/Poster'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
+import SeenFilter from '../components/ui/SeenFilter'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
@@ -13,6 +14,7 @@ import { api, qs } from '../services/api'
 import { useSettings, useStatus } from '../hooks/useMedia'
 import { detailPath, formatRuntime, mediaLabel } from '../lib/format'
 import { t as tx, useT } from '../i18n'
+import { TONIGHT_SORTS } from '../lib/sorts'
 import WatchLink from '../components/ui/WatchLink'
 
 const DURATIONS = [
@@ -23,19 +25,62 @@ const DURATIONS = [
 ]
 const MOODS = [
   { value: '', label: 'Toutes les envies' },
+  { value: 'pepites', label: '💎 Pépites méconnues' },
+  { value: 'classiques', label: '🎞️ Classiques' },
+  { value: 'recents', label: '🆕 Sortis cette année' },
   { value: 'rire', label: '😄 Rire' },
-  { value: 'frissons', label: '😱 Frissons' },
+  { value: 'frissons', label: '😰 Suspense' },
+  { value: 'peur', label: '😱 Peur' },
+  { value: 'enquete', label: '🕵️ Enquête' },
   { value: 'action', label: '💥 Action' },
-  { value: 'evasion', label: '🚀 Évasion' },
+  { value: 'aventure', label: '🗺️ Aventure' },
+  { value: 'evasion', label: '🚀 SF & fantastique' },
+  { value: 'animation', label: '🎨 Animation' },
   { value: 'emotion', label: '🥲 Émotion' },
+  { value: 'romance', label: '💘 Romance' },
   { value: 'famille', label: '👨‍👩‍👧 Famille' },
-  { value: 'comprendre', label: '🧠 Comprendre' },
+  { value: 'histoire', label: '🏛️ Histoire & guerre' },
+  { value: 'western', label: '🤠 Western' },
+  { value: 'musique', label: '🎵 Musique' },
+  { value: 'comprendre', label: '🧠 Documentaire' },
 ]
 
+// Pastilles sur une ligne : glisser du doigt sur téléphone, flèches (et molette) à la souris
 function Chips({ value, onChange, options }) {
   const t = useT()
+  const ref = useRef(null)
+  const [edges, setEdges] = useState({ left: false, right: false })
+  const update = () => {
+    const el = ref.current
+    if (el) setEdges({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+  }
+  useEffect(() => {
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [options])
+  const scroll = (dir) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.7, behavior: 'smooth' })
+  const arrow = 'absolute top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-bg2/95 text-text2 shadow hover:text-text md:flex'
   return (
-    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <div className="relative">
+      {edges.left && (
+        <button onClick={() => scroll(-1)} className={`${arrow} left-0`} aria-label={t('Précédent')}>
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {edges.right && (
+        <button onClick={() => scroll(1)} className={`${arrow} right-0`} aria-label={t('Suivant')}>
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+    <div
+      ref={ref}
+      onScroll={update}
+      onWheel={(e) => {
+        if (ref.current && Math.abs(e.deltaY) > Math.abs(e.deltaX)) ref.current.scrollLeft += e.deltaY
+      }}
+      className={`no-scrollbar -mx-4 flex gap-2 overflow-x-auto scroll-smooth px-4 md:mx-0 ${edges.left || edges.right ? 'md:px-10' : 'md:px-0'}`}
+    >
       {options.map((o) => (
         <button
           key={o.value}
@@ -47,6 +92,7 @@ function Chips({ value, onChange, options }) {
           {t(o.label)}
         </button>
       ))}
+    </div>
     </div>
   )
 }
@@ -70,13 +116,15 @@ export default function Tonight() {
   const [mediaType, setMediaType] = useState('all')
   const [duration, setDuration] = useState('')
   const [mood, setMood] = useState('')
+  const [sort, setSort] = useState('relevance')
+  const [seen, setSeen] = useState('unseen') // propre à cette page : par défaut, ce qui n'a pas encore été vu
   const [pickOpen, setPickOpen] = useState(false)
   const { data: settings } = useSettings()
   const active = settings?.active_platforms || []
   const t = useT()
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ['tonight', mediaType, duration, mood],
-    queryFn: () => api.get(`/tonight${qs({ media_type: mediaType, max_runtime: duration, mood })}`),
+    queryKey: ['tonight', mediaType, duration, mood, sort, seen],
+    queryFn: () => api.get(`/tonight${qs({ media_type: mediaType, max_runtime: duration, mood, sort, seen })}`),
     placeholderData: (prev) => prev,
     staleTime: 10 * 60_000,
   })
@@ -92,9 +140,11 @@ export default function Tonight() {
         <div>
           <h1 className="text-2xl font-semibold md:text-3xl">{t('Pour ce soir')}</h1>
           <p className="mt-1 text-sm text-text2">
-            {status?.plex?.configured
-              ? t("Uniquement ce que tu peux lancer tout de suite, sur Plex ou tes plateformes, et que tu n'as pas encore vu.")
-              : t("Uniquement ce que tu peux lancer tout de suite sur tes plateformes, et que tu n'as pas encore vu.")}
+            {seen !== 'unseen'
+              ? t('Uniquement ce que tu peux lancer tout de suite, sur Plex ou tes plateformes.')
+              : status?.plex?.configured
+                ? t("Uniquement ce que tu peux lancer tout de suite, sur Plex ou tes plateformes, et que tu n'as pas encore vu.")
+                : t("Uniquement ce que tu peux lancer tout de suite sur tes plateformes, et que tu n'as pas encore vu.")}
           </p>
         </div>
         <Button
@@ -111,7 +161,22 @@ export default function Tonight() {
       </div>
 
       <div className="mb-8 space-y-3">
-        <Tabs value={mediaType} onChange={setMediaType} options={MEDIA_OPTIONS} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs value={mediaType} onChange={setMediaType} options={MEDIA_OPTIONS} />
+          <SeenFilter value={seen} onChange={setSeen} defaultValue="unseen" />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="h-[42px] rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+            aria-label={t('Trier par')}
+          >
+            {TONIGHT_SORTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {t('Tri : {label}', { label: t(o.label) })}
+              </option>
+            ))}
+          </select>
+        </div>
         <Chips value={duration} onChange={setDuration} options={DURATIONS} />
         <Chips value={mood} onChange={setMood} options={MOODS} />
       </div>
@@ -126,6 +191,7 @@ export default function Tonight() {
           <MediaRow title={t('Ta watchlist, dispo ce soir')} items={s.watchlist} loading={isLoading} renderFooter={footer} />
           <MediaRow title={t('Suggestions dispo ce soir')} subtitle={t("D'après tes goûts")} items={s.suggestions} loading={isLoading} renderFooter={footer} />
           <MediaRow title={t('Pépites de ta bibliothèque')} subtitle={t('Bien notées, pas encore vues')} items={s.library} loading={isLoading} renderFooter={footer} />
+          <MediaRow title={t('À revoir')} subtitle={t('Déjà vus, disponibles ce soir')} items={s.rewatch} loading={isLoading && seen !== 'unseen'} renderFooter={footer} />
         </>
       )}
 

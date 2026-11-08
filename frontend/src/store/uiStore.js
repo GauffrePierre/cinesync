@@ -9,9 +9,11 @@ export const useUiStore = create(
       // Filtres persistés
       mediaFilter: 'all', // all | movie | tv
       platformFilter: [], // ids fournisseurs
+      seenFilter: 'all', // all | unseen | seen
       upcomingView: 'grid', // grid | calendar
       swipeFilter: 'all',
       setMediaFilter: (mediaFilter) => set({ mediaFilter }),
+      setSeenFilter: (seenFilter) => set({ seenFilter }),
       togglePlatform: (id) =>
         set({
           platformFilter: get().platformFilter.includes(id)
@@ -38,6 +40,7 @@ export const useUiStore = create(
       partialize: (s) => ({
         mediaFilter: s.mediaFilter,
         platformFilter: s.platformFilter,
+        seenFilter: s.seenFilter,
         upcomingView: s.upcomingView,
         swipeFilter: s.swipeFilter,
       }),

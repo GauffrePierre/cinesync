@@ -14,3 +14,7 @@ dev-tools/
 
 # Réglages propres à un serveur (ports supplémentaires…)
 docker-compose.override.yml
+
+# Réglages personnels des assistants de code (Claude Code) : CLAUDE.md et AGENTS.md, eux, sont partagés
+CLAUDE.local.md
+.claude/settings.local.json

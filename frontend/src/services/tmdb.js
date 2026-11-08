@@ -13,6 +13,7 @@ export const tmdb = {
 export const media = {
   full: (mediaType, id) => api.get(`/media/${mediaType}/${id}`),
   highlights: () => api.get('/media/highlights'),
+  watchlistReleases: () => api.get('/media/watchlist-releases'),
   suggestions: (mediaType = 'all', limit = 20) => api.get(`/media/suggestions${qs({ media_type: mediaType, limit })}`),
 }
 

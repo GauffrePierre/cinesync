@@ -61,7 +61,7 @@ class EffectiveSettings:
 def settings_for(db: Session, user_id: int) -> EffectiveSettings:
     own = db.get(UserSettings, user_id)
     if own is None:
-        own = UserSettings(id=user_id)
+        own = UserSettings(id=user_id, onboarding="pending")  # compte sans réglages : assistant de démarrage
         db.add(own)
         db.commit()
     shared = own if user_id == SHARED_ID else db.get(UserSettings, SHARED_ID)

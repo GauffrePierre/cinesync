@@ -1,5 +1,7 @@
 # Getting started as a family member
 
+> On your first sign-in, an **assistant** walks you through a few screens: language and country, platforms, cinemas, accounts and notifications. You can run it again later (Profile → Appearance → Run the setup assistant again).
+
 Someone opened an account for you on their SynCiné. You have your own watchlist, ratings, services and settings: nobody else sees them. About 5 minutes.
 
 Open the address you were given (it starts with `https://`), then follow your case.

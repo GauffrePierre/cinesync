@@ -1,5 +1,7 @@
 # Getting started: personal edition
 
+> On first start, an **assistant** walks you through a few screens: language and country, platforms, cinemas, accounts (Plex, Trakt, Letterboxd) and notifications. You can skip it and run it again later (Profile → Appearance → Run the setup assistant again).
+
 For one person: no accounts, no mandatory sign-in. About 10 minutes.
 
 > Requirement: SynCiné installed with `CINESYNC_MODE=personal` in `.env` (see the [README](../../README.en.md#installation)).

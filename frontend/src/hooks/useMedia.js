@@ -40,6 +40,10 @@ export const useTrending = (mediaType = 'all') =>
 
 export const useHighlights = () => useQuery({ queryKey: ['highlights'], queryFn: media.highlights, staleTime: 15 * 60_000 })
 
+// Sorties récentes de la watchlist (réglage « Découverte ») ; rafraîchies avec l'état personnel
+export const useWatchlistReleases = (enabled) =>
+  useQuery({ queryKey: ['library-keys', 'releases'], queryFn: media.watchlistReleases, staleTime: 15 * 60_000, enabled })
+
 export const useSuggestions = (mediaType = 'all') =>
   useQuery({ queryKey: ['suggestions', mediaType], queryFn: () => media.suggestions(mediaType), staleTime: 15 * 60_000 })
 
@@ -63,10 +67,10 @@ export const useNewOnPlatforms = (enabled) =>
 
 // --- Bibliothèque Plex -------------------------------------------------------------
 
-export const useLibrary = ({ mediaType, sort, q }) =>
+export const useLibrary = ({ mediaType, sort, q, seen = 'all' }) =>
   useInfiniteQuery({
-    queryKey: ['library', mediaType, sort, q],
-    queryFn: ({ pageParam }) => plex.library({ media_type: mediaType, sort, q, page: pageParam, page_size: 48 }),
+    queryKey: ['library', mediaType, sort, q, seen],
+    queryFn: ({ pageParam }) => plex.library({ media_type: mediaType, sort, q, seen, page: pageParam, page_size: 48 }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page * last.page_size < last.total ? last.page + 1 : undefined),
   })
@@ -101,10 +105,10 @@ export function useItemState(mediaType, id) {
   }
 }
 
-export const useLibraryWatchlist = ({ mediaType, availability, sort }) =>
+export const useLibraryWatchlist = ({ mediaType, availability, sort, seen = 'all' }) =>
   useInfiniteQuery({
-    queryKey: ['watchlist', mediaType, availability, sort],
-    queryFn: ({ pageParam }) => library.watchlist({ media_type: mediaType, availability, sort, page: pageParam, page_size: 40 }),
+    queryKey: ['watchlist', mediaType, availability, sort, seen],
+    queryFn: ({ pageParam }) => library.watchlist({ media_type: mediaType, availability, sort, seen, page: pageParam, page_size: 40 }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page * last.page_size < last.total ? last.page + 1 : undefined),
   })

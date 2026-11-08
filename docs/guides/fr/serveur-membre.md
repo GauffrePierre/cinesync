@@ -1,5 +1,7 @@
 # Démarrer en tant que membre de la famille
 
+> À ta première connexion, un **assistant** te guide en quelques écrans : langue et pays, plateformes, cinémas, comptes et notifications. Tu peux le relancer plus tard (Profil → Apparence → Revoir l’assistant de démarrage).
+
 Quelqu'un t'a ouvert un compte sur son SynCiné. Tu as ta propre watchlist, tes notes, tes services et tes réglages : personne d'autre ne les voit. Compte 5 minutes.
 
 Ouvre l'adresse que l'on t'a donnée (elle commence par `https://`), puis suis le cas qui te concerne.

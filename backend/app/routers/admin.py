@@ -88,7 +88,7 @@ def create_user(body: UserCreate, ctx: Ctx = Depends(get_ctx)):
     )
     ctx.db.add(u)
     ctx.db.flush()
-    ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language))
+    ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language, onboarding="pending"))
     ctx.db.commit()
     return u.to_dict()
 
@@ -206,7 +206,7 @@ async def allow_plex_account(body: PlexAllow, ctx: Ctx = Depends(get_ctx)):
     )
     ctx.db.add(u)
     ctx.db.flush()
-    ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language))
+    ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language, onboarding="pending"))
     ctx.db.commit()
     assign_plex_events(ctx.db, account["id"], u.id)  # son historique Plex déjà importé lui revient
     return u.to_dict()

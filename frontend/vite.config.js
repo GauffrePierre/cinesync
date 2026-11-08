@@ -15,6 +15,7 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['push-sw.js'], // réception des notifications push (public/push-sw.js)
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/image\.tmdb\.org\/.*/,
