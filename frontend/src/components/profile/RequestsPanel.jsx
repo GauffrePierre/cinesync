@@ -10,7 +10,7 @@ import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
 /**
- * Demandes d'ajout à Plex.
+ * Demandes d'ajout à la bibliothèque du serveur (Plex, Jellyfin ou Emby).
  * scope="mine" (Profil) : les demandes du compte ; il peut retirer celles encore en attente.
  * scope="all" (Espace admin) : la file de tous les comptes, avec les actions de l'administrateur.
  */
@@ -51,7 +51,7 @@ export default function RequestsPanel({ scope = 'mine' }) {
       <>
         <div className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-4 text-sm text-text2">
           <Inbox className="h-5 w-5 shrink-0 text-text3" />
-          {manage ? t('Aucune demande pour le moment.') : t("Aucune demande. Le bouton « Demander l'ajout » apparaît sur la fiche des titres absents de Plex.")}
+          {manage ? t('Aucune demande pour le moment.') : t("Aucune demande. Le bouton « Demander l'ajout » apparaît sur la fiche des titres absents de ta bibliothèque.")}
         </div>
         {footer}
       </>

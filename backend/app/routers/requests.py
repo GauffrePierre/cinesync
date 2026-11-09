@@ -172,7 +172,9 @@ def update_request(request_id: int, body: RequestUpdate, ctx: Ctx = Depends(get_
         req.note = body.note
     if changed and req.user_id != ctx.user.id and body.status in ("available", "declined"):
         if body.status == "available":
-            _notify(ctx, req.user_id, req, "Ta demande « {title} » est disponible sur Plex")
+            # Nom du serveur de la bibliothèque (Plex, Jellyfin ou Emby)
+            server = "Plex" if ctx.plex is not None else (ctx.jellyfin.label if getattr(ctx, "jellyfin", None) else "Plex")
+            _notify(ctx, req.user_id, req, "Ta demande « {title} » est disponible sur {server}", server=server)
         else:
             _notify(ctx, req.user_id, req, "Ta demande « {title} » a été refusée")
     ctx.db.commit()

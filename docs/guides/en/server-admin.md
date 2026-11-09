@@ -70,6 +70,9 @@ When a member requests a title:
 - with **Requests sent straight to Seerr**, it goes to Seerr;
 - otherwise it lands in **Profile → Admin → Requests** and you get a notification. You can **send it to Seerr**, **mark it available** or **decline** it: the member is notified.
 
+### What the family would like to watch
+**Profile → Admin → Requests → Watchlists**: for members who chose to share it (Profile → Preferences → Sharing with the administrator), the titles in their watchlist that they can watch neither on their services nor in the server's library. Titles wanted by several people come first. Nothing else from their account is visible.
+
 ## 5. Media server dashboard
 
 **Profile → Admin → Server** (the tab is named after your server: Plex, Jellyfin or Emby): what's playing (who, bandwidth, transcoding), libraries with **Scan**, statistics for the last 30 days.

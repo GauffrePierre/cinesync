@@ -4,6 +4,15 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.3.5 - 2026-11-09
+
+- SynCiné is now in the Unraid app store (Community Applications): **Apps** tab, search for **SynCine**.
+- Family members can share their watchlist with the administrator (Profile → Preferences). Admin → Requests gets two
+  tabs: add requests and watchlists. Only the titles each person can watch neither on their streaming services nor in
+  the library they have access to are shown, titles wanted by several people first; nothing else from their account.
+- Request notifications ("your request is available on …") and the Seerr description name your media server (Plex,
+  Jellyfin or Emby).
+
 ## 1.3.4 - 2026-11-09
 
 - Unraid: the template is now named `SynCine` (no accent), because Unraid uses it as the Docker container name. SynCiné

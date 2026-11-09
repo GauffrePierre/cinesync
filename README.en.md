@@ -111,6 +111,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 - One administrator and an account for each member: everyone has their own watchlist, ratings, history and services.
 - Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed (with Jellyfin, through a **Quick Connect** code, without typing the Jellyfin password).
 - **Add requests**: sent straight to Seerr for allowed members, otherwise queued for the administrator.
+- **Shared watchlists** (if each person wants to): the administrator sees what the family wants to watch but can't find on their services or in the library.
 - **Server dashboard** (Plex, Jellyfin or Emby, or several at once): what's playing (bandwidth, transcoding), libraries and scans, statistics.
 
 **Everywhere**
@@ -137,6 +138,8 @@ SynCiné never downloads anything. It can only pass a request on to Seerr, which
 ## Installation
 
 SynCiné runs in **a single Docker container** (interface and server) and keeps everything in a SQLite database.
+
+> 🟧 **On Unraid, SynCiné is available in the app store** (Community Applications): **Apps** tab, search for **SynCine**, then **Install**.
 
 ### Pick an edition
 
@@ -204,9 +207,9 @@ The container is then called `cinesync` (`docker logs cinesync` for the setup co
 
 ### On Unraid
 
-**From the Apps store**: search for **SynCine**, then **Install**.
+**From the Apps store** (Community Applications), the easiest way: **Apps** tab, search for **SynCine**, then **Install**. Check the port (3000 by default) and the edition (`server` or `personal`), then **Apply**. Updates are then applied from the **Docker** tab.
 
-**With the Unraid template**: download [`unraid/syncine.xml`](unraid/syncine.xml) to `/boot/config/plugins/dockerMan/templates-user/` (command in the [installation guide](docs/guides/en/installation.md#unraid)), then **Docker → Add Container** and pick **SynCine** from the template list. Data goes to `/mnt/user/appdata/syncine`, and the container runs as `nobody:users`.
+**Without the store, with the template**: download [`unraid/syncine.xml`](unraid/syncine.xml) to `/boot/config/plugins/dockerMan/templates-user/` (command in the [installation guide](docs/guides/en/installation.md#unraid)), then **Docker → Add Container** and pick **SynCine** from the template list. Data goes to `/mnt/user/appdata/syncine`, and the container runs as `nobody:users`.
 
 <details>
 <summary>With Docker Compose on Unraid (no plugin)</summary>

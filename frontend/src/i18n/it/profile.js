@@ -19,7 +19,6 @@ export default {
   'Indispensable : métadonnées et disponibilités': 'Indispensabile: metadati e disponibilità',
   'Ta bibliothèque, lecture, historique': 'La tua libreria, riproduzione, cronologia',
   'Watchlist, historique, notes': 'Watchlist, cronologia, voti',
-  "Demandes d'ajout à Plex": 'Richieste di aggiunta a Plex',
   'Ton journal de films (RSS)': 'Il tuo diario dei film (RSS)',
   'Liens directs, top du jour, nouveautés': 'Link diretti, top del giorno, novità',
   'Métadonnées, tendances, sorties et disponibilités streaming': 'Metadati, tendenze, uscite e disponibilità in streaming',
@@ -177,8 +176,6 @@ export default {
   'Autre méthode : fenêtre de connexion Plex': 'Altro metodo: finestra di accesso Plex',
 
   // RequestsPanel
-  "Aucune demande. Le bouton « Demander l'ajout » apparaît sur la fiche des titres absents de Plex.":
-    'Nessuna richiesta. Il pulsante “Richiedilo” compare nella scheda dei titoli assenti da Plex.',
   'En attente': 'In attesa',
   'Envoyée à Seerr': 'Inviata a Seerr',
   Refusée: 'Rifiutata',
@@ -396,4 +393,7 @@ export default {
   'Comptes': 'Account',
   'Serveur': 'Server',
   'Serveurs': 'Server',
+  "Demandes d'ajout à ta bibliothèque": "Richieste di aggiunta alla tua libreria",
+  "Aucune demande. Le bouton « Demander l'ajout » apparaît sur la fiche des titres absents de ta bibliothèque.": "Nessuna richiesta. Il pulsante «Richiedi» appare nella scheda dei titoli assenti dalla tua libreria.",
+  "Demandes d'ajout à {server}": "Richieste di aggiunta a {server}",
 }

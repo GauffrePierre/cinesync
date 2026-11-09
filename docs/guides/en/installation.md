@@ -61,7 +61,7 @@ SynCiné is at `http://<machine-address>:3000`. Go to [first start](#first-start
 
 ## Unraid
 
-**From the store**: **Apps** tab, search for **SynCine**, then **Install**.
+**From the store** (Community Applications, the easiest way): **Apps** tab, search for **SynCine**, then **Install**. Check the port (3000 by default), the data folder and the edition (`server` or `personal`), then **Apply**.
 
 **Or with the template**, by hand:
 

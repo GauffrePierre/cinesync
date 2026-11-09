@@ -111,6 +111,7 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 - Un administrateur et des comptes pour chaque membre : chacun a sa watchlist, ses notes, son historique, ses services.
 - Connexion par mot de passe, ou avec un compte Plex ou Jellyfin / Emby autorisé par l'administrateur (avec Jellyfin, par un code **Quick Connect**, sans saisir le mot de passe Jellyfin).
 - **Demandes d'ajout** : envoyées directement à Seerr pour les membres autorisés, sinon placées dans une file que l'administrateur traite.
+- **Watchlists partagées** (si chacun le veut) : l'administrateur voit ce que la famille veut regarder mais ne trouve ni sur ses plateformes, ni dans la bibliothèque.
 - **Tableau de bord du serveur** (Plex, Jellyfin ou Emby, ou plusieurs à la fois) : lectures en cours (débit, transcodage), bibliothèques et analyses, statistiques.
 
 **Partout**
@@ -137,6 +138,8 @@ SynCiné ne télécharge rien. Il peut seulement transmettre une demande à Seer
 ## Installation
 
 SynCiné tient dans **un seul conteneur Docker** (interface et serveur) et stocke tout dans une base SQLite.
+
+> 🟧 **Sur Unraid, SynCiné est disponible dans la boutique d'applications** (Community Applications) : onglet **Apps**, cherche **SynCine**, puis **Install**.
 
 ### Choisir une version
 
@@ -204,9 +207,9 @@ Le conteneur s'appelle alors `cinesync` (`docker logs cinesync` pour le code d'i
 
 ### Sur Unraid
 
-**Depuis la boutique Apps** : cherche **SynCine**, puis **Install**.
+**Depuis la boutique Apps** (Community Applications), le plus simple : onglet **Apps**, cherche **SynCine**, puis **Install**. Vérifie le port (3000 par défaut) et la version (`server` ou `personal`), puis **Apply**. Les mises à jour s'appliquent ensuite depuis l'onglet **Docker**.
 
-**Avec le modèle Unraid** : télécharge [`unraid/syncine.xml`](unraid/syncine.xml) dans `/boot/config/plugins/dockerMan/templates-user/` (commande dans le [guide d'installation](docs/guides/fr/installation.md#unraid)), puis **Docker → Add Container** et choisis **SynCine** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/syncine`, et le conteneur tourne sous `nobody:users`.
+**Sans la boutique, avec le modèle** : télécharge [`unraid/syncine.xml`](unraid/syncine.xml) dans `/boot/config/plugins/dockerMan/templates-user/` (commande dans le [guide d'installation](docs/guides/fr/installation.md#unraid)), puis **Docker → Add Container** et choisis **SynCine** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/syncine`, et le conteneur tourne sous `nobody:users`.
 
 <details>
 <summary>Avec Docker Compose sur Unraid (sans plugin)</summary>

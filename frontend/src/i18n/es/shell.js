@@ -138,4 +138,5 @@ export default {
   'Nouvel épisode de {title} sur {platforms} : {code}': 'Nuevo episodio de {title} en {platforms}: {code}',
   'Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n\'était pas toi, change ton mot de passe.': 'La cuenta de {server} «{name}» se ha vinculado a tu cuenta de SynCiné. Si no has sido tú, cambia tu contraseña.',
   'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'El inicio de sesión con tu cuenta de {server} «{name}» está activado en SynCiné.',
+  "Ta demande « {title} » est disponible sur {server}": "Tu petición «{title}» está disponible en {server}",
 }

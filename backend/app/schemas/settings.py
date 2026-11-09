@@ -38,6 +38,7 @@ class SettingsOut(BaseModel):
     cinema_films_only: bool
     auto_sync: bool
     hide_seen: bool
+    share_watchlist: bool
     recent_days: int
     onboarding: str
     nav_order: list[str]
@@ -72,6 +73,7 @@ class SettingsOut(BaseModel):
             cinema_films_only=s.cinema_films_only,
             auto_sync=s.auto_sync,
             hide_seen=s.hide_seen,
+            share_watchlist=s.share_watchlist,
             recent_days=s.recent_days,
             onboarding=s.onboarding or "done",
             nav_order=_nav_order(s.nav_order),
@@ -106,6 +108,7 @@ class SettingsUpdate(BaseModel):
     cinema_films_only: bool | None = None
     auto_sync: bool | None = None
     hide_seen: bool | None = None
+    share_watchlist: bool | None = None
     recent_days: int | None = Field(default=None, ge=0, le=365)
     onboarding: Literal["pending", "done"] | None = None
     nav_order: list[Annotated[str, StringConstraints(pattern=r"^[a-z]{2,20}$")]] | None = Field(default=None, max_length=30)

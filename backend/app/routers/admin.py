@@ -2,6 +2,7 @@
 sauvegardes de la base."""
 
 import asyncio
+import json
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import Literal
@@ -259,6 +260,95 @@ def _set_jellyfin_login(ctx: Ctx, u: User, allowed: bool) -> None:
             "La connexion avec ton compte {server} « {name} » est activée sur SynCiné.",
             server="Emby" if ctx.settings.jellyfin_kind == "emby" else "Jellyfin", name=st.own.jellyfin_username)))
     u.jellyfin_login = allowed
+
+
+# --- Watchlists partagées par la famille -------------------------------------------------------
+
+
+@router.get("/watchlists", dependencies=[Depends(require_server_mode)])
+async def family_watchlists(ctx: Ctx = Depends(get_ctx)):
+    """Titres des watchlists partagées (Profil → Préférences) que la personne ne peut pas regarder : ni sur une de
+    ses plateformes, ni dans la bibliothèque du serveur à laquelle elle a accès. Seuls les comptes qui ont choisi de
+    partager leur watchlist sont lus, sans rien de leur état personnel (vu, note…). Les titres voulus par plusieurs
+    personnes sont regroupés en tête."""
+    from app.services.enrich import plex_keys, stream_providers
+
+    sharing = set(ctx.db.execute(select(UserSettings.id).where(UserSettings.share_watchlist.is_(True))).scalars())
+    others = ctx.db.query(User).filter(User.active.is_(True), User.id != ctx.user.id).all()
+    members = {u.id: u for u in others if u.id in sharing}
+    rows = ctx.db.execute(
+        select(MediaState).where(MediaState.user_id.in_(members)).execution_options(all_users=True)
+    ).scalars().all() if members else []
+    rows = [r for r in rows if r.in_watchlist]
+    index = await plex_keys(ctx)  # bibliothèque du serveur
+    # Contexte de chaque personne (sans requête) : ses plateformes, son pays, son accès au serveur
+    access = {}
+    for uid, u in members.items():
+        mctx = Ctx(db=ctx.db, settings=settings_for(ctx.db, uid), user=u)
+        access[uid] = (mctx, set(mctx.platforms), mctx.media is not None)
+
+    # Disponibilités jamais vérifiées : demandées pour le pays de la personne (pas enregistrées dans son compte)
+    providers = {r.id: json.loads(r.providers or "[]") for r in rows}
+    unknown = [r for r in rows if r.providers_checked_at is None][:150]
+    sem = asyncio.Semaphore(10)
+
+    async def fill(r: MediaState):
+        mctx = access[r.user_id][0]
+        if mctx.tmdb.is_mock:
+            return
+        async with sem:
+            try:
+                providers[r.id] = stream_providers(await mctx.tmdb.providers(r.media_type, r.tmdb_id))
+            except ServiceError:
+                pass
+
+    await asyncio.gather(*(fill(r) for r in unknown))
+
+    per_member: dict[int, list[dict]] = {uid: [] for uid in members}
+    totals = {uid: 0 for uid in members}
+    wanted: dict[tuple[str, int], dict] = {}
+    for r in rows:
+        _, platforms, has_media = access[r.user_id]
+        key = (r.media_type, r.tmdb_id)
+        totals[r.user_id] += 1
+        on_platform = any(p.get("id") in platforms for p in providers.get(r.id, []))
+        if on_platform or (has_media and key in index):
+            continue  # la personne peut déjà le regarder
+        hit = index.get(key)
+        item = {"id": r.tmdb_id, "media_type": r.media_type, "title": r.title, "year": r.year, "poster": r.poster,
+                "release_date": r.release_date, "vote_average": r.tmdb_rating, "added": r.listed_at,
+                "in_plex": hit is not None, "plex_url": hit.get("plex_url") if hit else None}
+        per_member[r.user_id].append(item)
+        w = wanted.setdefault(key, {**item, "members": []})
+        w["members"].append(members[r.user_id].name)
+    # Affiche ou titre pas encore connus (ajout récent, avant la synchronisation) : complétés pour l'affichage seulement
+    lacking = {(i["media_type"], i["id"]) for items in per_member.values() for i in items if not i["poster"] or not i["title"]}
+    if lacking and not ctx.tmdb.is_mock:
+        found: dict[tuple[str, int], dict] = {}
+
+        async def basic(key):
+            async with sem:
+                try:
+                    found[key] = await ctx.tmdb.basic(*key) or {}
+                except ServiceError:
+                    pass
+
+        await asyncio.gather(*(basic(k) for k in list(lacking)[:100]))
+        for i in [i for items in per_member.values() for i in items] + list(wanted.values()):
+            b = found.get((i["media_type"], i["id"])) or {}
+            i["poster"], i["title"], i["year"] = i["poster"] or b.get("poster"), i["title"] or b.get("title"), i["year"] or b.get("year")
+    for items in per_member.values():
+        items.sort(key=lambda i: i["added"] or "", reverse=True)
+    shared = sorted((w for w in wanted.values() if len(w["members"]) > 1), key=lambda w: (-len(w["members"]), w["title"] or ""))
+    return {
+        "media_server": ctx.media is not None,
+        "members": [
+            {"id": uid, "name": u.name, "count": totals[uid], "unavailable": len(per_member[uid]), "items": per_member[uid]}
+            for uid, u in sorted(members.items(), key=lambda kv: kv[1].name.lower())
+        ],
+        "shared": shared,  # hors de portée de plusieurs personnes
+        "not_sharing": len(others) - len(members),  # comptes qui ne partagent pas (nombre seulement)
+    }
 
 
 # --- Serveurs multimédias reliés (Plex, Jellyfin / Emby) -------------------------------------

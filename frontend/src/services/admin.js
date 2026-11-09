@@ -15,6 +15,8 @@ export const admin = {
   scan: (srv, sectionId) => api.post(`/admin/${srv}/scan${sectionId ? `?section_id=${encodeURIComponent(sectionId)}` : ''}`),
   stats: (srv, days = 30) => api.get(`/admin/${srv}/stats?days=${days}`),
   // Sauvegardes de la base
+  // Watchlists partagées par la famille (titres hors de leur portée)
+  watchlists: () => api.get('/admin/watchlists'),
   backups: () => api.get('/admin/backups'),
   backupNow: () => api.post('/admin/backups'),
   backupSettings: (body) => api.put('/admin/backups/settings', body),

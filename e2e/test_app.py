@@ -73,7 +73,14 @@ def test_member_signs_in_and_has_no_admin_access(admin_page, browser, server):
     expect(tabs.get_by_role("tab", name="Préférences")).to_be_visible()
     expect(tabs.get_by_role("tab", name="Admin")).to_have_count(0)
     assert page.request.get("/api/admin/users").status == 403
-    assert page.errors == []
+    # Le membre partage sa watchlist ; l'administrateur la retrouve dans Demandes → Watchlists
+    page.goto("/profile?tab=prefs")
+    page.get_by_label("Montrer ma watchlist à l’administrateur").click()
+    expect(page.get_by_label("Montrer ma watchlist à l’administrateur")).to_be_checked()
+    admin_page.goto("/profile?tab=admin&section=requests")
+    admin_page.get_by_role("tab", name="Watchlists").click()
+    expect(admin_page.get_by_role("heading", name="Alice")).to_be_visible()
+    assert page.errors == [] and admin_page.errors == []
     page.context.close()
 
 

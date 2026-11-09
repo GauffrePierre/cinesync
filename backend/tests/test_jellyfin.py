@@ -541,3 +541,29 @@ def test_quick_connect_sign_in_and_link(fresh, monkeypatch):  # noqa: F811
     assert st["linked"] is True and st["username"] == "sam"
     # Relier ne donne pas la connexion par Jellyfin
     assert {u["username"]: u["jellyfin_login"] for u in admin.get("/api/admin/users").json()["results"]}["bob"] is False
+
+
+def test_request_available_notification_names_the_server(fresh, monkeypatch):  # noqa: F811
+    from app.database import SessionLocal
+    from app.models import MediaRequest
+
+    async def public_info(self):
+        return {"id": "srv1", "name": "Salon", "version": "10.11.0", "kind": "jellyfin"}
+
+    async def users(self):
+        return []
+
+    monkeypatch.setattr(JellyfinClient, "public_info", public_info)
+    monkeypatch.setattr(JellyfinClient, "users", users)
+    admin = client()
+    setup_admin(admin)
+    admin.post("/api/jellyfin/server", json={"url": "http://jf.test:8096", "api_key": "cle"})
+    alice = member(admin, "alice")
+    alice_id = alice.get("/api/auth/me").json()["user"]["id"]
+    with SessionLocal() as db:
+        db.add(MediaRequest(user_id=alice_id, tmdb_id=603, media_type="movie", title="Matrix", status="pending"))
+        db.commit()
+    req_id = admin.get("/api/requests?scope=all").json()["results"][0]["id"]
+    assert admin.patch(f"/api/requests/{req_id}", json={"status": "available"}).status_code == 200
+    messages = [n["message"] for n in alice.get("/api/notifications").json()["results"]]
+    assert "Ta demande « Matrix » est disponible sur Jellyfin" in messages

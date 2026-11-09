@@ -11,6 +11,7 @@ import CinemaPicker from '../components/profile/CinemaPicker'
 import RequestsPanel from '../components/profile/RequestsPanel'
 import ServerDashboard, { useMediaServers } from '../components/admin/ServerDashboard'
 import UsersPanel from '../components/admin/UsersPanel'
+import AdminRequests from '../components/admin/AdminRequests'
 import BackupsPanel from '../components/admin/BackupsPanel'
 import HiddenTitles from '../components/profile/HiddenTitles'
 import TwoFactor from '../components/profile/TwoFactor'
@@ -61,7 +62,7 @@ const SERVICE_META = {
   plex: { label: 'Plex', color: 'var(--plex)', hint: 'Ta bibliothèque, lecture, historique' },
   jellyfin: { label: 'Jellyfin / Emby', color: '#aa5cc3', hint: 'Ta bibliothèque Jellyfin ou Emby, tes vus' },
   trakt: { label: 'Trakt', color: 'var(--trakt)', hint: 'Watchlist, historique, notes' },
-  seerr: { label: 'Seerr', color: 'var(--seerr)', hint: "Demandes d'ajout à Plex" },
+  seerr: { label: 'Seerr', color: 'var(--seerr)', hint: "Demandes d'ajout à ta bibliothèque" },
   letterboxd: { label: 'Letterboxd', color: 'var(--letterboxd)', hint: 'Ton journal de films (RSS)' },
   justwatch: { label: 'JustWatch', color: 'var(--justwatch)', hint: 'Liens directs, top du jour, nouveautés' },
 }
@@ -303,7 +304,7 @@ function AdminArea({ section, onSection }) {
   const all = [
     { key: 'server', icon: Server, label: serverLabel, hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: ServerDashboard },
     { key: 'users', icon: Users, label: 'Comptes', hint: 'Comptes locaux et comptes Plex, Jellyfin ou Emby autorisés', Panel: UsersPanel },
-    { key: 'requests', icon: Inbox, label: 'Demandes', hint: 'Envoyer à Seerr, marquer disponible, refuser', Panel: () => <RequestsPanel scope="all" /> },
+    { key: 'requests', icon: Inbox, label: 'Demandes', hint: 'Demandes d’ajout et watchlists partagées par la famille', Panel: AdminRequests },
     { key: 'backups', icon: DatabaseBackup, label: 'Sauvegardes', hint: 'Sauvegarde automatique de la base, téléchargement', Panel: BackupsPanel },
   ]
   const panels = personal ? all.filter((p) => p.key === 'server' || p.key === 'backups') : all
@@ -404,6 +405,7 @@ export default function Profile() {
   const [params, setParams] = useSearchParams()
   const user = useCurrentUser()
   const isAdmin = !!user?.is_admin
+  const personal = usePersonal()
   const [search, setSearch] = useState('')
   const query = fold(search.trim())
   // Sous-onglets du Profil (dans l'adresse : /profile?tab=admin&section=requests) ; une recherche parcourt tous les onglets
@@ -480,6 +482,12 @@ export default function Profile() {
   const MEMBER_SERVICES = ['trakt', 'letterboxd', 'jellyfin']
   const shown = (k) => (isAdmin || MEMBER_SERVICES.includes(k)) && (used[k] || added.includes(k))
   const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (isAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id) && (k !== 'jellyfin' || status?.jellyfin?.server_linked))))
+  // Seerr : demandes vers le serveur de la bibliothèque (Plex, Jellyfin ou Emby ; « ta bibliothèque » s'il y en a plusieurs)
+  const serviceHint = (k) => {
+    const both = status?.plex?.configured && status?.jellyfin?.configured
+    if (k === 'seerr' && status?.media?.configured && !both) return t("Demandes d'ajout à {server}", { server: SERVER_LABELS[status.media.server] || 'Plex' })
+    return t(SERVICE_META[k].hint)
+  }
   const tr = stats?.trakt
   const p = stats?.plex
   const noTmdb = !status?.tmdb?.configured
@@ -585,7 +593,7 @@ export default function Profile() {
                           </span>
                           <span>
                             <span className="block text-sm font-medium">{SERVICE_META[k].label}</span>
-                            <span className="block text-xs text-text2">{t(SERVICE_META[k].hint)}</span>
+                            <span className="block text-xs text-text2">{serviceHint(k)}</span>
                           </span>
                         </button>
                       ))}
@@ -804,6 +812,25 @@ export default function Profile() {
           <Section title={t('Découverte')} keywords="découverte discover suggestions recommandations vus seen sorties releases watchlist" description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
             <DiscoverySettings settings={settings} />
           </Section>
+
+          {!personal && (
+            <Section title={t('Partage avec l’administrateur')} keywords="partage share watchlist administrateur admin confidentialité privacy">
+              <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line bg-bg2 px-4 py-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{t('Montrer ma watchlist à l’administrateur')}</span>
+                  <span className="mt-0.5 block text-xs text-text2">
+                    {t('Seulement les titres que tu ne peux regarder ni sur tes plateformes, ni dans la bibliothèque : l’administrateur sait ainsi quoi ajouter. Rien d’autre (vus, notes…) n’est partagé.')}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!!settings.share_watchlist}
+                  onChange={(e) => update.mutate({ share_watchlist: e.target.checked })}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
+                />
+              </label>
+            </Section>
+          )}
 
           <Section title={t('Apparence')} keywords="apparence appearance thème theme sombre dark clair light assistant démarrage setup app plex netflix">
             <Tabs
