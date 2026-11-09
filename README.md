@@ -129,7 +129,7 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 | [Letterboxd](https://letterboxd.com) | Ton journal de films (flux RSS public) | Option |
 | Sites de cinéma et chaînes YouTube | Actu Ciné (flux RSS publics, choisis par chacun) | Option |
 | [Plex](https://www.plex.tv) | Ta bibliothèque, lecture, historique, comptes de la famille | Option |
-| [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Ta bibliothèque, lecture, titres vus, comptes de la famille | Option |
+| [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Ta bibliothèque, lecture, titres vus, historique, comptes de la famille | Option |
 | [Seerr](https://github.com/seerr-team/seerr) | Demandes d'ajout à ta bibliothèque | Option |
 
 SynCiné ne télécharge rien. Il peut seulement transmettre une demande à Seerr, qui la traite ensuite selon tes réglages.

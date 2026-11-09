@@ -4,6 +4,8 @@ Import :
 - Plex : /status/sessions/history/all du serveur (le plus complet, avec le compte qui a regardé).
 - Trakt : /sync/history (extended=full, avec durées).
 - Letterboxd : journal RSS (films, à la journée).
+- Jellyfin / Emby : titres vus du compte relié, avec la date de leur dernière lecture (le serveur ne garde pas
+  d'historique complet : chaque import ajoute les nouvelles lectures, les anciennes restent dans SynCiné).
 Un visionnage déjà connu par une autre source (même titre, à quelques heures près) n'est pas réimporté.
 """
 
@@ -236,6 +238,45 @@ async def import_trakt(ctx: Ctx) -> int:
     return added
 
 
+async def import_jellyfin(ctx: Ctx) -> int:
+    """Lectures du compte Jellyfin / Emby relié, depuis le dernier import."""
+    j = getattr(ctx, "jellyfin", None)
+    if not j or not j.user_id:
+        return 0  # admin sans compte relié (clé API) : pas d'état « vu » propre
+    db = ctx.db
+    last = db.execute(select(func.max(WatchEvent.watched_at)).where(WatchEvent.source == "jellyfin")).scalar()
+    played = await j.played_history(last - timedelta(minutes=1) if last else None)
+    if not played:
+        return 0
+    by_key = {i["rating_key"]: i for i in await j.library()}
+    known = set(db.execute(select(WatchEvent.source_key).where(WatchEvent.source == "jellyfin")).scalars())
+    # Titres marqués vus par lots (synchronisation, import) : même minute pour des dizaines de titres, pas des visionnages
+    per_minute = Counter(p["watched_at"].strftime("%Y-%m-%dT%H:%M") for p in played)
+    bulk = {m for m, n in per_minute.items() if n >= BULK_PER_MINUTE}
+    dedup = _Dedup(db)
+    added = 0
+    for p in played:
+        at = p["watched_at"]
+        key = f"{p['item_id']}:{at.isoformat()}"
+        if key in known:
+            continue
+        known.add(key)
+        if p["kind"] == "movie":
+            tmdb = p["tmdb"] or (by_key.get(p["item_id"]) or {}).get("id")
+        else:
+            tmdb = (by_key.get(p["series_id"]) or {}).get("id")
+        kind, s, e = p["kind"], p["season"], p["episode"]
+        approx = at.strftime("%Y-%m-%dT%H:%M") in bulk
+        if dedup.seen(kind, tmdb, s, e, at) or (approx and _known_title(db, kind, tmdb, s, e)):
+            continue  # déjà connu par une autre source (Trakt, Plex)
+        db.add(WatchEvent(source="jellyfin", source_key=key, kind=kind, tmdb_id=tmdb, title=p["title"], show_title=p["show_title"],
+                          season=s, episode=e, watched_at=at, runtime_min=p["runtime_min"], approx_date=approx))
+        dedup.add(kind, tmdb, s, e, at)
+        added += 1
+    db.commit()
+    return added
+
+
 async def import_letterboxd(ctx: Ctx) -> int:
     if not ctx.letterboxd:
         return 0
@@ -308,7 +349,7 @@ async def _import_all(ctx: Ctx) -> dict:
     out = {}
     # L'historique Plex couvre tout le serveur : importé une fois (par l'admin) pour tous les comptes
     sources = (("plex", _import_plex_once),) if ctx.user.is_admin else ()
-    for name, fn in sources + (("trakt", import_trakt), ("letterboxd", import_letterboxd)):
+    for name, fn in sources + (("jellyfin", import_jellyfin), ("trakt", import_trakt), ("letterboxd", import_letterboxd)):
         try:
             out[name] = await fn(ctx)
         except ServiceError as e:

@@ -129,7 +129,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 | [Letterboxd](https://letterboxd.com) | Your film diary (public RSS feed) | Optional |
 | Film websites and YouTube channels | Film News (public RSS feeds, chosen by each user) | Optional |
 | [Plex](https://www.plex.tv) | Your library, playback, history, family accounts | Optional |
-| [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Your library, playback, watched titles, family accounts | Optional |
+| [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Your library, playback, watched titles, history, family accounts | Optional |
 | [Seerr](https://github.com/seerr-team/seerr) | Requests to add titles to your library | Optional |
 
 SynCiné never downloads anything. It can only pass a request on to Seerr, which handles it according to your settings.

@@ -108,7 +108,7 @@ const footer = (i) =>
       <p className="truncate text-[11px] text-text2">{tx(i.resume)}</p>
       {i.progress != null && (
         <div className="mt-1 h-1 overflow-hidden rounded-full bg-bg3">
-          <div className="h-full rounded-full bg-plex" style={{ width: `${i.progress}%` }} />
+          <div className={`h-full rounded-full ${i.server && i.server !== 'plex' ? 'bg-accent' : 'bg-plex'}`} style={{ width: `${i.progress}%` }} />
         </div>
       )}
     </div>
@@ -207,7 +207,7 @@ export default function Tonight() {
         <EmptyState icon={Popcorn} title={t('Rien ne correspond')} message={t("Élargis la durée ou change d'envie.")} />
       ) : (
         <>
-          <MediaRow title={t('Reprendre')} subtitle={t('En cours sur ton Plex')} items={s.resume} loading={isLoading} renderFooter={footer} />
+          <MediaRow title={t('Reprendre')} subtitle={t('En cours sur ton {server}', { server: SERVER_LABELS[status?.media?.server] || 'Plex' })} items={s.resume} loading={isLoading} renderFooter={footer} />
           <MediaRow title={t('Ta watchlist, dispo ce soir')} items={s.watchlist} loading={isLoading} renderFooter={footer} />
           <MediaRow title={t('Suggestions dispo ce soir')} subtitle={t("D'après tes goûts")} items={s.suggestions} loading={isLoading} renderFooter={footer} />
           <MediaRow title={t('Pépites de ta bibliothèque')} subtitle={t('Bien notées, pas encore vues')} items={s.library} loading={isLoading} renderFooter={footer} />

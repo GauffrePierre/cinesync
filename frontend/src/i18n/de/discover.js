@@ -154,7 +154,7 @@ export default {
   'Rien ne correspond': 'Nichts passt',
   "Élargis la durée ou change d'envie.": 'Erweitere die Dauer oder ändere die Stimmung.',
   Reprendre: 'Weiterschauen',
-  'En cours sur ton Plex': 'Angefangen auf deinem Plex',
+  'En cours sur ton {server}': 'Angefangen auf deinem {server}',
   'Ta watchlist, dispo ce soir': 'Deine Watchlist, heute Abend verfügbar',
   'Suggestions dispo ce soir': 'Vorschläge, heute Abend verfügbar',
   "D'après tes goûts": 'Nach deinem Geschmack',

@@ -490,9 +490,9 @@ async def jellyfin_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
     accounts = [u for u in await j.users() if not u["disabled"]]
     linked = {st.jellyfin_user_id: st.id for st in ctx.db.execute(select(UserSettings).where(UserSettings.jellyfin_user_id != "")).scalars()}
     names = {u.id: u.name for u in ctx.db.query(User).all()}
-    played = await asyncio.gather(*(_safe(j.played_since(u["id"], since), []) for u in accounts))
+    played = await asyncio.gather(*(_safe(j.played_history(since, user_id=u["id"]), []) for u in accounts))
     rows = [
-        (names.get(linked.get(u["id"])) or u["name"], p["kind"], p["title"], p["watched_at"], p["runtime_min"])
+        (names.get(linked.get(u["id"])) or u["name"], p["kind"], p["show_title"] or p["title"], p["watched_at"], p["runtime_min"] or 0)
         for u, items in zip(accounts, played) for p in items
     ]
     return _stats(days, since, rows, approx=True)

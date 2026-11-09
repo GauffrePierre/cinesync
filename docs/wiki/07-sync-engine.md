@@ -119,6 +119,7 @@ Writes run in parallel; each service result is `"ok"` or an error message. **The
 | Plex | `/status/sessions/history/all` of the whole server, with the admin's token, newest first until already-imported entries | Only when an admin runs it, under one global lock. Each viewing goes to the SynCiné account mapped from its Plex `accountID` (`plex_account_map`), or `0` if none |
 | Trakt | `/sync/history` (`extended=full`) since the last import minus one day | 20+ entries in the same minute (`BULK_PER_MINUTE`) are a bulk import: `approx_date=True` |
 | Letterboxd | Diary RSS | Date only, stored at 20:00 |
+| Jellyfin / Emby | Played movies and episodes of the account's own linked Jellyfin account (`played_history`), sorted by `DatePlayed`, newer than the last import | The server keeps only the last play of each title, so each import adds new plays and SynCiné keeps the older ones (`source_key` = item id + date). Items marked watched in bulk (20+ in one minute, e.g. by the sync) get `approx_date=True` and are skipped if the title is already known. Admin without a linked account: nothing imported |
 
 Duplicates across sources are skipped when the same title or episode is already known within 12 hours (`DUP_WINDOW`; one day for Letterboxd). `enrich_events` then fills genres and runtimes from TMDB (up to 300 titles per run).
 

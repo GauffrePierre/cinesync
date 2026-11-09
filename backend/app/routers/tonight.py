@@ -80,10 +80,36 @@ def _available(item: dict, platforms: set[int]) -> bool:
     return bool(item.get("in_plex")) or any(p["id"] in platforms for p in item.get("providers", []))
 
 
-async def _on_deck(ctx: Ctx, index: dict) -> list[dict]:
-    """« En cours » de Plex : épisodes / films commencés, avec la progression."""
-    if not ctx.plex_own:  # « en cours » propre au compte
+async def _jellyfin_deck(ctx: Ctx, index: dict) -> list[dict]:
+    """« Reprendre » de Jellyfin / Emby : titres commencés (progression), puis épisode suivant des séries en cours."""
+    j = ctx.jellyfin
+    try:
+        started = await j.in_progress()
+    except ServiceError:
         return []
+    by_key = {i["rating_key"]: i for i in index.values()}
+    out = []
+    for p in started:
+        if p["kind"] == "episode":
+            tmdb, media_type = (by_key.get(p["series_id"]) or {}).get("id"), "tv"
+            label = f"S{p['season'] or 0:02d}E{p['episode'] or 0:02d} · {p['title']}"
+        else:
+            tmdb, media_type, label = p["tmdb"] or (by_key.get(p["item_id"]) or {}).get("id"), "movie", "Reprendre le film"
+        item = await ctx.tmdb.basic(media_type, tmdb) if tmdb and not ctx.tmdb.is_mock else None
+        if not item:
+            continue
+        item = {**item, "resume": label, "in_plex": True, "server": j.kind, "plex_url": j.web_url(p["item_id"])}
+        if p.get("progress") is not None:
+            item["progress"], item["duration_min"] = p["progress"], p["remaining_min"]
+        out.append(item)
+    return out
+
+
+async def _on_deck(ctx: Ctx, index: dict) -> list[dict]:
+    """« En cours » de Plex : épisodes / films commencés, avec la progression (sinon ceux de Jellyfin / Emby)."""
+    if not ctx.plex_own:  # « en cours » propre au compte
+        j = getattr(ctx, "jellyfin", None)
+        return await _jellyfin_deck(ctx, index) if j and j.user_id and not ctx.plex else []
     from app.services.history import _plex_get
 
     try:

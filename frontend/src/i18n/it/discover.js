@@ -154,7 +154,7 @@ export default {
   'Rien ne correspond': 'Niente corrisponde',
   "Élargis la durée ou change d'envie.": 'Allarga la durata o cambia mood.',
   Reprendre: 'Riprendi',
-  'En cours sur ton Plex': 'In corso sul tuo Plex',
+  'En cours sur ton {server}': 'In corso sul tuo {server}',
   'Ta watchlist, dispo ce soir': 'La tua watchlist, disponibile stasera',
   'Suggestions dispo ce soir': 'Suggerimenti disponibili stasera',
   "D'après tes goûts": 'In base ai tuoi gusti',

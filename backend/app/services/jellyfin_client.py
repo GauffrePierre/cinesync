@@ -71,7 +71,7 @@ class JellyfinClient:
         if r.status_code == 401:
             raise ServiceError(self.kind, f"Accès refusé par {self.label} : clé ou identifiants incorrects", 401)
         if r.status_code >= 400:
-            raise ServiceError(self.kind, f"Erreur {self.label} ({r.status_code})")
+            raise ServiceError(self.kind, f"Erreur {self.label} ({r.status_code})", 404 if r.status_code == 404 else 502)
         data = r.json() if r.content and "json" in r.headers.get("content-type", "") else {}
         if ttl:
             cache.set(key, data, ttl)
@@ -238,25 +238,86 @@ class JellyfinClient:
         else:
             await self._req("POST", "/Library/Refresh")
 
-    async def played_since(self, user_id: str, since: datetime) -> list[dict]:
-        """Films et épisodes vus par un compte depuis une date. Jellyfin et Emby ne gardent que la dernière lecture
-        de chaque titre : un titre revu plusieurs fois compte pour une lecture."""
-        data = await self._req(
-            "GET", "/Items", ttl=300, userId=user_id, Recursive="true", IncludeItemTypes="Movie,Episode", Filters="IsPlayed",
-            SortBy="DatePlayed", SortOrder="Descending", EnableUserData="true", Limit=2000,
-        )
-        out = []
-        for m in data.get("Items", []) or []:
-            at = _iso((m.get("UserData") or {}).get("LastPlayedDate"))
-            when = datetime.fromisoformat(at[:19]) if at else None
-            if when and when >= since:
-                out.append({
-                    "kind": "episode" if m.get("Type") == "Episode" else "movie",
-                    "title": m.get("SeriesName") or m.get("Name") or "",
-                    "watched_at": when,
-                    "runtime_min": round((m.get("RunTimeTicks") or 0) / 600_000_000),
-                })
+    async def played_history(self, since: datetime | None = None, user_id: str | None = None, cap: int = 10_000) -> list[dict]:
+        """Films et épisodes vus par un compte, du plus récent au plus ancien, jusqu'à `since` (exclu).
+        Jellyfin et Emby ne gardent que la dernière lecture de chaque titre : un titre revu remplace sa date
+        précédente (l'import régulier de l'historique conserve les anciennes)."""
+        uid = user_id or self.user_id
+        out, start = [], 0
+        while start < cap:
+            data = await self._req(
+                "GET", "/Items", userId=uid, Recursive="true", IncludeItemTypes="Movie,Episode", Filters="IsPlayed",
+                SortBy="DatePlayed", SortOrder="Descending", Fields="ProviderIds", EnableUserData="true", StartIndex=start, Limit=500,
+            )
+            items = data.get("Items", []) or []
+            stop = False
+            for m in items:
+                at = _iso((m.get("UserData") or {}).get("LastPlayedDate"))
+                when = datetime.fromisoformat(at[:19]) if at else None
+                if when is None:
+                    continue  # marqué vu sans date
+                if since and when <= since:
+                    stop = True
+                    break
+                out.append(played_item(m, when))
+            start += len(items)
+            if stop or not items or start >= (data.get("TotalRecordCount") or 0):
+                break
         return out
+
+    async def _user_get(self, path: str, **params) -> dict:
+        """Route propre au compte : /UserItems/… (Jellyfin 10.9+), sinon /Users/{id}/Items/… (Emby, anciens Jellyfin)."""
+        try:
+            return await self._req("GET", f"/UserItems/{path}", userId=self.user_id, **params)
+        except ServiceError as e:
+            if e.status != 404:
+                raise
+        return await self._req("GET", f"/Users/{self.user_id}/Items/{path}", **params)
+
+    async def in_progress(self, limit: int = 20) -> list[dict]:
+        """« Reprendre » : films et épisodes commencés (avec la progression), puis l'épisode suivant des séries en cours."""
+        if not self.user_id:
+            return []
+        resume, next_up = await asyncio.gather(
+            self._user_get("Resume", Limit=limit, IncludeItemTypes="Movie,Episode", MediaTypes="Video", Fields="ProviderIds", EnableUserData="true"),
+            self._req("GET", "/Shows/NextUp", userId=self.user_id, Limit=limit, Fields="ProviderIds", EnableUserData="true"),
+            return_exceptions=True,
+        )
+        out, shows = [], set()
+        for data, started in ((resume, True), (next_up, False)):
+            if isinstance(data, BaseException):
+                continue
+            for m in data.get("Items", []) or []:
+                item = played_item(m, None)
+                if item["kind"] == "episode":
+                    if item["series_id"] in shows:
+                        continue  # une seule entrée par série : la plus avancée
+                    shows.add(item["series_id"])
+                ud, ticks = m.get("UserData") or {}, m.get("RunTimeTicks") or 0
+                pos = ud.get("PlaybackPositionTicks") or 0
+                if started and ticks and pos:
+                    item["progress"] = round(pos / ticks * 100)
+                    item["remaining_min"] = round((ticks - pos) / 600_000_000)
+                out.append(item)
+        return out[:limit]
+
+
+def played_item(m: dict, when: datetime | None) -> dict:
+    """Film ou épisode Jellyfin -> forme commune (historique, reprise)."""
+    episode = m.get("Type") == "Episode"
+    tmdb = (m.get("ProviderIds") or {}).get("Tmdb")
+    return {
+        "item_id": m.get("Id"),
+        "kind": "episode" if episode else "movie",
+        "tmdb": int(tmdb) if not episode and str(tmdb or "").isdigit() else None,  # pour un épisode : celui de la série, via la bibliothèque
+        "series_id": m.get("SeriesId") if episode else None,
+        "title": m.get("Name") or "",
+        "show_title": (m.get("SeriesName") or "") if episode else "",
+        "season": m.get("ParentIndexNumber") if episode else None,
+        "episode": m.get("IndexNumber") if episode else None,
+        "watched_at": when,
+        "runtime_min": round((m.get("RunTimeTicks") or 0) / 600_000_000) or None,
+    }
 
 
 # --- Lectures en cours : même forme que celles de Plex (tableau de bord admin) ----------------

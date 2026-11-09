@@ -204,14 +204,14 @@ def test_admin_dashboard_and_stats_for_jellyfin(fresh, monkeypatch):  # noqa: F8
     async def refresh(self, folder_id=None):
         refreshed.append(folder_id)
 
-    async def played_since(self, user_id, since):
+    async def played_history(self, since=None, user_id=None):
         now = datetime.utcnow()
-        return [{"kind": "movie", "title": "Film", "watched_at": now - timedelta(days=1), "runtime_min": 120},
-                {"kind": "episode", "title": "Série", "watched_at": now - timedelta(days=2), "runtime_min": 60}]
+        return [{"kind": "movie", "title": "Film", "show_title": "", "watched_at": now - timedelta(days=1), "runtime_min": 120},
+                {"kind": "episode", "title": "Pilote", "show_title": "Série", "watched_at": now - timedelta(days=2), "runtime_min": 60}]
 
     for name, fn in (("public_info", public_info), ("users", users), ("system_info", system_info), ("sessions", sessions),
                      ("virtual_folders", virtual_folders), ("count", count), ("running_tasks", running_tasks), ("refresh", refresh),
-                     ("played_since", played_since)):
+                     ("played_history", played_history)):
         monkeypatch.setattr(JellyfinClient, name, fn)
 
     admin = client()
@@ -236,3 +236,90 @@ def test_admin_dashboard_and_stats_for_jellyfin(fresh, monkeypatch):  # noqa: F8
     st = admin.get("/api/admin/jellyfin/stats?days=7").json()
     assert (st["approx"], st["plays"], st["movies"], st["episodes"], st["hours"]) == (True, 2, 1, 1, 3)
     assert st["by_user"] == [{"name": "alex", "plays": 2}] and len(st["by_day"]) == 7
+
+
+def _played(item_id, kind, at, tmdb=None, series_id=None, season=None, episode=None, title="T"):
+    return {"item_id": item_id, "kind": kind, "tmdb": tmdb, "series_id": series_id, "title": title, "show_title": "Série" if series_id else "",
+            "season": season, "episode": episode, "watched_at": at, "runtime_min": 50}
+
+
+def test_jellyfin_history_import(db):
+    import asyncio
+    from datetime import datetime, timedelta
+
+    from app.models import WatchEvent
+    from app.services import history
+    from tests.conftest import FakeCtx, lib_item
+
+    now = datetime(2026, 11, 9, 21, 0)
+    bulk_at = datetime(2026, 10, 1, 12, 0, 30)
+
+    class Jf(FakeJellyfin):
+        def __init__(self, items, played):
+            super().__init__(items)
+            self.played_list, self.since = played, []
+
+        async def played_history(self, since=None, user_id=None):
+            self.since.append(since)
+            return [p for p in self.played_list if since is None or p["watched_at"] > since]
+
+    played = [
+        _played("jf603", "movie", now - timedelta(days=1)),  # id TMDB via la bibliothèque
+        _played("ep1", "episode", now - timedelta(days=2), series_id="show1", season=1, episode=3),
+        _played("jf999", "movie", now - timedelta(days=3), tmdb=999),
+    ] + [_played(f"b{i}", "movie", bulk_at, tmdb=5000 + i) for i in range(25)]  # marqués vus par lot
+    jf = Jf([lib_item("movie", 603, "jf603"), lib_item("tv", 1399, "show1")], played)
+    ctx = FakeCtx(db)
+    ctx.jellyfin = jf
+    # Déjà connu par Trakt à quelques heures près : pas de doublon
+    db.add(WatchEvent(source="trakt", source_key="t1", kind="movie", tmdb_id=999, watched_at=now - timedelta(days=3, hours=2)))
+    db.commit()
+    assert asyncio.run(history.import_jellyfin(ctx)) == 27
+    rows = {r.source_key.split(":")[0]: r for r in db.query(WatchEvent).filter(WatchEvent.source == "jellyfin")}
+    assert rows["jf603"].tmdb_id == 603 and rows["ep1"].tmdb_id == 1399 and (rows["ep1"].season, rows["ep1"].episode) == (1, 3)
+    assert "jf999" not in rows
+    assert rows["b0"].approx_date is True and rows["jf603"].approx_date is False
+    # Import suivant : seulement les nouvelles lectures (un film revu garde aussi sa lecture précédente)
+    jf.played_list.append(_played("jf603", "movie", now + timedelta(hours=1)))
+    assert asyncio.run(history.import_jellyfin(ctx)) == 1
+    assert jf.since == [None, now - timedelta(days=1, minutes=1)]  # depuis la dernière lecture importée
+    assert db.query(WatchEvent).filter(WatchEvent.source == "jellyfin", WatchEvent.tmdb_id == 603).count() == 2
+    # Admin sans compte Jellyfin relié (clé API) : rien à importer
+    jf.user_id = ""
+    assert asyncio.run(history.import_jellyfin(ctx)) == 0
+
+
+def test_in_progress_reads_resume_and_next_up_with_emby_fallback(monkeypatch):
+    import asyncio
+
+    from app.services.errors import ServiceError
+
+    calls = []
+
+    async def fake_req(self, method, path, ttl=0, token=None, json=None, **params):
+        calls.append(path)
+        if path == "/UserItems/Resume":
+            raise ServiceError("emby", "Erreur Emby (404)", 404)  # Emby : ancienne route
+        if path == "/Users/u1/Items/Resume":
+            return {"Items": [
+                {"Id": "m1", "Type": "Movie", "Name": "Film", "ProviderIds": {"Tmdb": "603"}, "RunTimeTicks": 72_000_000_000,
+                 "UserData": {"PlaybackPositionTicks": 18_000_000_000}},
+                {"Id": "e5", "Type": "Episode", "Name": "Cinq", "SeriesId": "s1", "SeriesName": "Série", "ParentIndexNumber": 2, "IndexNumber": 5,
+                 "RunTimeTicks": 30_000_000_000, "UserData": {"PlaybackPositionTicks": 15_000_000_000}},
+            ]}
+        if path == "/Shows/NextUp":
+            return {"Items": [
+                {"Id": "e6", "Type": "Episode", "Name": "Six", "SeriesId": "s1", "SeriesName": "Série", "ParentIndexNumber": 2, "IndexNumber": 6},
+                {"Id": "x1", "Type": "Episode", "Name": "Un", "SeriesId": "s2", "SeriesName": "Autre", "ParentIndexNumber": 1, "IndexNumber": 1},
+            ]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(JellyfinClient, "_req", fake_req)
+    c = JellyfinClient("http://emby.test", "tok", "u1", kind="emby")
+    items = asyncio.run(c.in_progress())
+    assert [i["item_id"] for i in items] == ["m1", "e5", "x1"]  # une seule entrée par série, la plus avancée
+    assert (items[0]["tmdb"], items[0]["progress"], items[0]["remaining_min"]) == (603, 25, 90)
+    assert (items[1]["series_id"], items[1]["season"], items[1]["episode"], items[1]["progress"]) == ("s1", 2, 5, 50)
+    assert "progress" not in items[2]
+    assert set(calls) == {"/UserItems/Resume", "/Users/u1/Items/Resume", "/Shows/NextUp"}
+    assert asyncio.run(JellyfinClient("http://emby.test", "k", "").in_progress()) == []  # sans compte relié
