@@ -1,0 +1,53 @@
+# Pages « Releases » de GitHub, à partir de CHANGELOG.md : à chaque version publiée (tag vX.Y.Z), ou à la demande.
+# Chaque section « ## X.Y.Z - date » dont le tag existe devient (ou met à jour) la release vX.Y.Z ; les versions
+# antérieures sans release sont donc créées au passage. La plus récente est marquée « Latest ».
+name: Releases
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: releases
+  cancel-in-progress: false
+
+jobs:
+  releases:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # création des releases, uniquement dans ce job
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0  # tous les tags
+          persist-credentials: false
+      - name: Releases depuis CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          versions=$(grep -oE '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | cut -c4- | sort -V)
+          latest=$(for v in $versions; do git rev-parse -q --verify "refs/tags/v$v" >/dev/null && echo "$v"; done | tail -1)
+          for v in $versions; do
+            tag="v$v"
+            git rev-parse -q --verify "refs/tags/$tag" >/dev/null || { echo "$tag : pas encore de tag"; continue; }
+            # Section de la version : du titre « ## X.Y.Z » jusqu'au titre suivant
+            awk -v v="$v" '$0 ~ "^## " { if (p) exit; if (index($0, "## " v " ") == 1) { p = 1; next } } p' CHANGELOG.md > notes.md
+            minor=$(echo "$v" | cut -d. -f1,2)
+            if [ "$minor" != "1.0" ]; then  # images publiées sous le nom syncine à partir de 1.1.0
+              printf '\n---\n**Docker:** `docker pull ghcr.io/gauffrepierre/syncine:%s` (also `:latest`). Updating: see the [installation guide](https://github.com/%s/blob/main/docs/guides/en/installation.md#updates).\n' "$v" "$REPO" >> notes.md
+            fi
+            flag=$([ "$v" = "$latest" ] && echo "--latest" || echo "--latest=false")
+            if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
+              gh release edit "$tag" -R "$REPO" --title "SynCiné $v" --notes-file notes.md "$flag"
+              echo "$tag : mise à jour"
+            else
+              gh release create "$tag" -R "$REPO" --verify-tag --title "SynCiné $v" --notes-file notes.md "$flag"
+              echo "$tag : créée"
+            fi
+          done

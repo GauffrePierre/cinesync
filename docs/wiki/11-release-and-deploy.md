@@ -11,6 +11,8 @@ The version lives in two places, which must always match:
 | `backend/app/__init__.py` | `__version__ = "X.Y.Z"` | FastAPI app version, `GET /api/health` (shown in the sidebar and in Profile → About), `X-Plex-Version` header (`plex_auth.py`), Trakt user agent (`trakt_client.py`) |
 | `frontend/package.json` | `"version"` | npm metadata |
 
+Each version also needs a `## X.Y.Z - YYYY-MM-DD` section in `CHANGELOG.md` (English, written for users): it becomes the version's GitHub Release page.
+
 The backend version is the one users see. The Docker image also gets an OCI label `org.opencontainers.image.version` from the `VERSION` build argument (the tag name in CI, `dev` by default).
 
 The project uses semantic versioning: patch for fixes, minor for features, major for breaking changes (for example a migration that cannot be rolled back, or a changed environment variable).
@@ -42,6 +44,8 @@ flowchart LR
 - **Registry**: `ghcr.io/${{ github.repository_owner }}/syncine`, so `ghcr.io/gauffrepierre/syncine` for the main repository.
 - **Build cache**: GitHub Actions cache (`cache-from/to: type=gha`).
 - **Hardening**: every action is pinned to a commit SHA, checkout does not persist credentials, the workflow's default permission is `contents: read`, and only the `image` job gets `packages: write`.
+
+**GitHub Releases** (`.github/workflows/release.yml`, on every `v*.*.*` tag or by hand): for each `## X.Y.Z` section of `CHANGELOG.md` whose tag exists, it creates or updates the release `vX.Y.Z` (title `SynCiné X.Y.Z`, the section as notes, plus the `docker pull` line from 1.1.0). Earlier versions without a release are created on the way, and the newest one is marked *Latest*. Only this job gets `contents: write`.
 
 ## Deploying
 
