@@ -4,6 +4,10 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.3.6 - 2026-11-09
+
+- Unraid app store: SynCiné's page now shows six screenshots.
+
 ## 1.3.5 - 2026-11-09
 
 - SynCiné is now in the Unraid app store (Community Applications): **Apps** tab, search for **SynCine**.

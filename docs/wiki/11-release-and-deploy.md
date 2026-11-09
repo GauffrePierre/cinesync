@@ -76,7 +76,7 @@ Updating is `git pull && docker compose up -d --build` (or `docker compose pull 
 
 Users download the file into `/boot/config/plugins/dockerMan/templates-user/` and add the container from the template list. Its `TemplateURL` (raw GitHub URL of the file in the public repo) lets Unraid refresh installed templates. If you add an environment variable that users may need to set, add it to the template too.
 
-`ca_profile.xml` at the repository root is the repository profile required by Unraid Community Applications (submission at https://ca.unraid.net/submit: an Unraid account, the public repo URL, an automatic scan, then the next catalog build).
+Store screenshots are JPEG copies of the README captures in `docs/screenshots/unraid/`, listed as `<Screenshot>` tags (one per image, raw GitHub URLs); regenerate them when the README captures change. `ca_profile.xml` at the repository root is the repository profile required by Unraid Community Applications (submission at https://ca.unraid.net/submit: an Unraid account, the public repo URL, an automatic scan, then the next catalog build).
 
 ### Behind a reverse proxy (HTTPS)
 
