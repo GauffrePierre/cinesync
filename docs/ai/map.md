@@ -7,7 +7,7 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `docker-compose.yml` → single service `cinesync`, port `${CINESYNC_BIND}:${CINESYNC_PORT}:8000`, volume `${DATA_PATH}:/app/data`. Optional untracked `docker-compose.override.yml` for extra binds (proxy container).
 - `.env.example` → all env vars (see `backend/app/config.py`).
 - `.github/workflows/docker.yml` → on tag `v*.*.*`/manual: pytest + vite build, then multi-arch image to `ghcr.io/<owner>/cinesync` (actions pinned by SHA). `.github/dependabot.yml`, `.github/FUNDING.yml`.
-- `unraid/syncine.xml` → Unraid template (TemplateURL brute GitHub) ; `ca_profile.xml` → profil du dépôt pour Community Applications. `CHANGELOG.md` (une section par version → page GitHub Release, `.github/workflows/release.yml`), `SECURITY.md`, `LICENSE` (AGPL-3.0), `README.md` (FR) / `README.en.md`.
+- `unraid/syncine.xml` → Unraid template (TemplateURL brute GitHub) ; `ca_profile.xml` → profil du dépôt pour Community Applications. `e2e/` (tests navigateur Playwright : `conftest.py` démarre un serveur neuf, `test_app.py`) · `CHANGELOG.md` (une section par version → page GitHub Release, `.github/workflows/release.yml`), `SECURITY.md`, `LICENSE` (AGPL-3.0), `README.md` (FR) / `README.en.md`.
 - `docs/wiki/` human dev wiki · `docs/guides/{fr,en}/` user starter guides · `docs/ai/` this folder · `docs/screenshots/` README images (demo data).
 
 ## Backend `backend/app/`

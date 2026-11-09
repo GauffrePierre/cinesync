@@ -21,10 +21,10 @@ If you were also given a temporary password, or want to sign in without Plex: **
 The administrator allowed your Jellyfin (or Emby) account.
 
 1. On the **Sign in** screen, choose **Sign in with Jellyfin** (or Emby).
-2. Enter your Jellyfin username and password: they are checked by the server, SynCiné does not keep the password.
+2. If a 6-digit code appears (**Quick Connect**): in your Jellyfin app or website, open your profile → **Quick Connect** and enter the code. SynCiné signs you in as soon as you approve it, without your Jellyfin password. Otherwise, enter your Jellyfin username and password: they are checked by the server, SynCiné does not keep them.
 3. Your watched titles on Jellyfin are your own, and "Play" opens the title in Jellyfin.
 
-Already have a SynCiné account? Link your Jellyfin account in **Profile → Connections → + → Jellyfin / Emby → Link my account**.
+Already have a SynCiné account? Link your Jellyfin account in **Profile → Connections → + → Jellyfin / Emby → Link my account** (your SynCiné password is asked; with Quick Connect, you then approve a code in Jellyfin). To sign in with it afterwards, ask the administrator.
 
 ## Without a Plex account
 

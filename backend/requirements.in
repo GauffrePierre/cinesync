@@ -1,0 +1,15 @@
+# Dépendances du serveur : versions autorisées. Après toute modification, régénérer le fichier verrouillé :
+#   uvx --python 3.12 --from pip-tools pip-compile --generate-hashes --strip-extras requirements.in
+# (requirements.txt : versions exactes et empreintes SHA-256, installé tel quel dans l'image Docker)
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34
+sqlalchemy>=2.0.40,<2.1
+httpx>=0.28
+pydantic>=2.14.3
+pydantic-settings>=2.8
+apscheduler>=3.11.3,<4
+feedparser>=6.0.14
+pillow>=13.0.0
+segno>=1.6
+http-ece>=1.2
+cryptography>=44

@@ -80,6 +80,15 @@ def _available(item: dict, platforms: set[int]) -> bool:
     return bool(item.get("in_plex")) or any(p["id"] in platforms for p in item.get("providers", []))
 
 
+async def _resume_items(ctx: Ctx, entries: list[tuple[str, int | None, dict]]) -> list[dict]:
+    """Fiches TMDB des titres à reprendre, demandées en parallèle : (film|tv, id TMDB, champs à ajouter)."""
+    if ctx.tmdb.is_mock:
+        return []
+    found = await asyncio.gather(*(ctx.tmdb.basic(mt, tmdb) for mt, tmdb, _ in entries if tmdb), return_exceptions=True)
+    extras = [extra for _, tmdb, extra in entries if tmdb]
+    return [{**item, **extra} for item, extra in zip(found, extras) if item and not isinstance(item, BaseException)]
+
+
 async def _jellyfin_deck(ctx: Ctx, index: dict) -> list[dict]:
     """« Reprendre » de Jellyfin / Emby : titres commencés (progression), puis épisode suivant des séries en cours."""
     j = ctx.jellyfin
@@ -88,21 +97,18 @@ async def _jellyfin_deck(ctx: Ctx, index: dict) -> list[dict]:
     except ServiceError:
         return []
     by_key = {i["rating_key"]: i for i in index.values()}
-    out = []
+    entries = []
     for p in started:
         if p["kind"] == "episode":
             tmdb, media_type = (by_key.get(p["series_id"]) or {}).get("id"), "tv"
             label = f"S{p['season'] or 0:02d}E{p['episode'] or 0:02d} · {p['title']}"
         else:
             tmdb, media_type, label = p["tmdb"] or (by_key.get(p["item_id"]) or {}).get("id"), "movie", "Reprendre le film"
-        item = await ctx.tmdb.basic(media_type, tmdb) if tmdb and not ctx.tmdb.is_mock else None
-        if not item:
-            continue
-        item = {**item, "resume": label, "in_plex": True, "server": j.kind, "plex_url": j.web_url(p["item_id"])}
+        extra = {"resume": label, "in_plex": True, "server": j.kind, "plex_url": j.web_url(p["item_id"])}
         if p.get("progress") is not None:
-            item["progress"], item["duration_min"] = p["progress"], p["remaining_min"]
-        out.append(item)
-    return out
+            extra["progress"], extra["duration_min"] = p["progress"], p["remaining_min"]
+        entries.append((media_type, tmdb, extra))
+    return await _resume_items(ctx, entries)
 
 
 async def _on_deck(ctx: Ctx, index: dict) -> list[dict]:
@@ -114,36 +120,25 @@ async def _on_deck(ctx: Ctx, index: dict) -> list[dict]:
 
     try:
         mc = await _plex_get(ctx, "/library/onDeck", client=ctx.plex_own)
+        machine_id = (await ctx.plex.identity())["machine_id"]
     except ServiceError:
         return []
     by_key = {i["rating_key"]: i for i in index.values()}
-    out = []
+    entries = []
     for m in mc.get("Metadata", []) or []:
         if m.get("type") == "episode":
-            show = by_key.get(_show_key(m)) or {}
-            if not show.get("id"):
-                continue
-            item = await ctx.tmdb.basic("tv", show["id"]) if not ctx.tmdb.is_mock else None
-            if not item:
-                continue
-            item = {**item, "resume": f"S{m.get('parentIndex', 0):02d}E{m.get('index', 0):02d} · {m.get('title') or ''}"}
+            media_type, tmdb = "tv", (by_key.get(_show_key(m)) or {}).get("id")
+            label = f"S{m.get('parentIndex', 0):02d}E{m.get('index', 0):02d} · {m.get('title') or ''}"
         elif m.get("type") == "movie":
-            lib = by_key.get(m.get("ratingKey")) or {}
-            if not lib.get("id"):
-                continue
-            item = await ctx.tmdb.basic("movie", lib["id"]) if not ctx.tmdb.is_mock else None
-            if not item:
-                continue
-            item = {**item, "resume": "Reprendre le film"}
+            media_type, tmdb, label = "movie", (by_key.get(m.get("ratingKey")) or {}).get("id"), "Reprendre le film"
         else:
             continue
+        extra = {"resume": label, "in_plex": True, "plex_url": ctx.plex.web_url(machine_id, m.get("ratingKey"))}
         if m.get("duration") and m.get("viewOffset"):
-            item["progress"] = round(m["viewOffset"] / m["duration"] * 100)
-            item["duration_min"] = round((m["duration"] - m["viewOffset"]) / 60000)
-        item["in_plex"] = True
-        item["plex_url"] = ctx.plex.web_url((await ctx.plex.identity())["machine_id"], m.get("ratingKey"))
-        out.append(item)
-    return out
+            extra["progress"] = round(m["viewOffset"] / m["duration"] * 100)
+            extra["duration_min"] = round((m["duration"] - m["viewOffset"]) / 60000)
+        entries.append((media_type, tmdb, extra))
+    return await _resume_items(ctx, entries)
 
 
 @router.get("")

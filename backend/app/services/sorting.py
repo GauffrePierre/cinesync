@@ -7,10 +7,11 @@ de liste, quel que soit le sens du tri.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
 from app.services.errors import ServiceError
+from app.services.clock import utcnow
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ async def fill_info(ctx, rows, limit: int = 150, scores: bool = True) -> int:
     """Complète sortie / note TMDB (et notes critique / public si le compte a Plex) des titres à rafraîchir.
 
     scores=False : seulement TMDB, sans marquer le titre comme à jour (la tâche périodique fera le reste)."""
-    now = datetime.utcnow()
+    now = utcnow()
     todo = [r for r in rows if r.info_checked_at is None or now - r.info_checked_at > INFO_TTL] if scores else [
         r for r in rows if r.tmdb_rating is None and r.release_date is None and r.info_checked_at is None
     ]

@@ -171,6 +171,10 @@ class FakeCtx:
         self.letterboxd = None
         self.tmdb = FakeTMDB()
 
+    @property
+    def media(self):
+        return self.plex or getattr(self, "jellyfin", None)
+
 
 def lib_item(mt, tid, rk, **kw):
     base = {"media_type": mt, "id": tid, "rating_key": rk, "title": f"L{tid}", "year": 2019, "view_count": 0,

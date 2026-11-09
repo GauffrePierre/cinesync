@@ -62,6 +62,7 @@ One client for both servers (same API; Emby differs only in a few paths and in t
 - **Watched**: Jellyfin is a watched source in the sync engine (movies, fully watched series); marking watched / unwatched in SynCiné also sets it on Jellyfin (`PlayedItems`). No watchlist or ratings (Jellyfin has none to sync).
 - **History**: the account's played movies and episodes go into `watch_events` (`source="jellyfin"`, see [Sync engine](07-sync-engine.md#history-import-and-statistics-servicehistorypy)), so Statistics include them.
 - **Resume**: Tonight's "Resume" row reads started items (`/UserItems/Resume`, or `/Users/{id}/Items/Resume` on Emby and older Jellyfin, with the playback position) then the next episode of shows in progress (`/Shows/NextUp`), one entry per show.
+- **Notifications**: "added to the server" (`notify_episode_via` / `notify_movie_via` value `plex`, kept for existing settings) uses the account's media server, Plex or Jellyfin / Emby: episodes added in the last two days (`recent_episodes`, by `DateCreated`) and watchlist titles now in the library.
 - **Admin dashboard**: current playback (`/Sessions`, normalized like Plex sessions by `session_summary`), libraries (`/Library/VirtualFolders`) with scan (`/Items/{id}/Refresh`, `/Library/Refresh`), running tasks, and 30-day stats from each account's last plays (`approx: true`).
 - **Auth headers**: `Authorization: MediaBrowser … Token="…"` (recent Jellyfin) and `X-Emby-Token` (Emby).
 - Not yet: viewing history for statistics, now-playing dashboard, episode-level links.

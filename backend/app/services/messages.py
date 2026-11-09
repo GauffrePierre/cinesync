@@ -21,6 +21,8 @@ TEMPLATES: dict[str, str] = {
         "Several incorrect two-factor codes: if it wasn't you, change your password."
     ),
     "Notifications activées sur cet appareil": "Notifications enabled on this device",
+    "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": "The {server} account “{name}” was linked to your SynCiné account. If it wasn't you, change your password.",
+    'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Signing in with your {server} account “{name}” is now enabled on SynCiné.',
 }
 
 
@@ -40,6 +42,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Diversi codici di autenticazione a due fattori errati: se non eri tu, cambia la password."
         ),
         "Notifications activées sur cet appareil": "Notifiche attivate su questo dispositivo",
+        "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": "L'account {server} “{name}” è stato collegato al tuo account SynCiné. Se non sei stato tu, cambia la password.",
+        'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': "L'accesso con il tuo account {server} “{name}” è ora attivo su SynCiné.",
     },
     "de": {
         "{title} est maintenant disponible sur {platforms}": "{title} ist jetzt auf {platforms} verfügbar",
@@ -55,6 +59,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Mehrere falsche Zwei-Faktor-Codes: Wenn du das nicht warst, ändere dein Passwort."
         ),
         "Notifications activées sur cet appareil": "Benachrichtigungen auf diesem Gerät aktiviert",
+        "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": 'Das {server}-Konto „{name}“ wurde mit deinem SynCiné-Konto verbunden. Warst du das nicht, ändere dein Passwort.',
+        'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Die Anmeldung mit deinem {server}-Konto „{name}“ ist jetzt auf SynCiné aktiviert.',
     },
     "es": {
         "{title} est maintenant disponible sur {platforms}": "{title} ya está disponible en {platforms}",
@@ -70,6 +76,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Varios códigos de verificación en dos pasos incorrectos: si no fuiste tú, cambia tu contraseña."
         ),
         "Notifications activées sur cet appareil": "Notificaciones activadas en este dispositivo",
+        "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": 'La cuenta de {server} «{name}» se ha vinculado a tu cuenta de SynCiné. Si no has sido tú, cambia tu contraseña.',
+        'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'El inicio de sesión con tu cuenta de {server} «{name}» está activado en SynCiné.',
     },
 }
 

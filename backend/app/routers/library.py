@@ -15,6 +15,7 @@ from app.services.context import Ctx, get_ctx
 from app.services.enrich import plex_keys, stream_providers
 from app.services.errors import ServiceError
 from app.services.sorting import Sort, fill_info, sort_items
+from app.services.clock import utcnow
 
 router = APIRouter(prefix="/library", tags=["library"])
 
@@ -90,7 +91,7 @@ async def watchlist(
             async with sem:
                 try:
                     r.providers = json.dumps(stream_providers(await ctx.tmdb.providers(r.media_type, r.tmdb_id)))
-                    r.providers_checked_at = datetime.utcnow()
+                    r.providers_checked_at = utcnow()
                 except ServiceError:
                     pass
 

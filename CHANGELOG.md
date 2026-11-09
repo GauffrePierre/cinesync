@@ -4,7 +4,26 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
-## 1.3.2 - 2026-11-09
+## 1.3.3 - 2026-11-09
+
+**Security (Jellyfin and Emby)**
+- Sign in with **Jellyfin Quick Connect**: SynCiné shows a 6-digit code that you approve in your Jellyfin app, so your
+  Jellyfin password is never typed into SynCiné. When the server offers Quick Connect, password sign-in is refused. Linking
+  your account works the same way. (Emby has no Quick Connect: it keeps the password form.)
+- Linking a Jellyfin or Emby account no longer lets anyone sign in with it: signing in to SynCiné with a Jellyfin account
+  must be allowed by the administrator (Admin → Accounts). Accounts that were already allowed must be allowed again.
+- Linking an account asks for your SynCiné password and sends you a notification.
+- Signing in with Jellyfin only contacts the server for allowed accounts, refuses empty passwords and allows at most two
+  failures per account per day, so SynCiné cannot be used to test passwords or lock accounts on your server.
+- Unlinking revokes the token on the server; changing or removing the server forgets every linked account. Jellyfin
+  requests never follow redirects, and the image relay only passes real images.
+
+**Other changes**
+- "Added to the server" notifications also work with Jellyfin and Emby (new episodes and watchlist titles).
+- Faster first load: pages are loaded on demand; the Resume row loads faster.
+- The Docker image installs exact, hash-checked Python dependencies.
+- Browser tests run before every image is published; no more warnings in the test suite.
+
 
 - Every version now has a release page on GitHub with its notes, created automatically; earlier versions got theirs too.
 - This changelog.

@@ -1,6 +1,6 @@
 # Testing
 
-The backend has a pytest suite in `backend/tests` that runs against a throwaway SQLite database, with fake Trakt and Plex services for the sync engine and FastAPI's `TestClient` for accounts and security. The frontend has no unit tests: its check is a successful production build. CI runs both before publishing a Docker image.
+The backend has a pytest suite in `backend/tests` that runs against a throwaway SQLite database, with fake Trakt and Plex services for the sync engine and FastAPI's `TestClient` for accounts and security. The frontend has no unit tests: its checks are a successful production build and the end-to-end suite in `e2e/`, which drives a real server in Chromium. CI runs all of them before publishing a Docker image.
 
 ## Running the tests
 
@@ -94,6 +94,24 @@ npm run build      # must succeed: catches syntax errors and broken imports
 
 Then check the change in the browser, in both themes, in French and English, and at phone width. Make sure every new French string has an English entry (see [Internationalisation](09-i18n.md)).
 
+## End-to-end tests (`e2e/`)
+
+`e2e/` runs the real app in a browser with Playwright: `conftest.py` starts a fresh server (empty database in a temporary folder, the compiled interface from `frontend/dist`, no TMDB key so demo data is shown), reads the setup code from its log and installs SynCiné through the interface once per run (admin account, first-run assistant skipped). `test_app.py` then checks:
+
+- the main pages load without uncaught JavaScript errors;
+- the Profile tabs, an immediate backup, the old `/admin` address, settings search and switching the interface language;
+- a member created by the admin signs in, must change the temporary password and has no Admin tab or admin API access;
+- phone layout (iPhone 13): bottom bar, no horizontal overflow, the four Profile tabs fit the width.
+
+```bash
+cd frontend && npm run build && cd ..
+pip install -r backend/requirements.txt -r e2e/requirements.txt
+python -m playwright install chromium
+python -m pytest -q e2e        # E2E_PYTHON=… to start the server with another Python
+```
+
+Selectors use the French interface (`locale="fr-FR"`) and visible labels; when you rename a button or a label used there, update the test.
+
 ## What CI runs
 
 `.github/workflows/docker.yml` ("Image Docker") runs on tags `v*.*.*` and on manual dispatch:
@@ -102,12 +120,13 @@ Then check the change in the browser, in both themes, in French and English, and
 flowchart LR
   T["push tag vX.Y.Z<br/>or workflow_dispatch"] --> J1
   subgraph J1["job: test (ubuntu-latest)"]
-    A["Python 3.12<br/>pip install -r requirements.txt pytest<br/>python -m pytest -q"] --> B["Node 22<br/>npm ci, then npm run build"]
+    A["Python 3.12<br/>pip install --require-hashes -r requirements.txt<br/>pip install -r requirements-dev.txt<br/>python -m pytest -q"] --> B["Node 22<br/>npm ci, then npm run build"]
   end
-  J1 -->|needs: test| J2["job: image<br/>multi-arch build + push to ghcr.io"]
+  J1 -->|needs: test| J3["job: e2e<br/>npm run build, Playwright Chromium<br/>python -m pytest -q e2e"]
+  J3 -->|needs: test, e2e| J2["job: image<br/>multi-arch build + push to ghcr.io"]
 ```
 
-The image is only built and published if the tests and the frontend build pass. Actions are pinned by commit SHA, and the workflow has read-only `contents` permission; only the `image` job gets `packages: write`. See [Release and deploy](11-release-and-deploy.md).
+The image is only built and published if the tests, the frontend build and the end-to-end tests pass. Actions are pinned by commit SHA, and the workflow has read-only `contents` permission; only the `image` job gets `packages: write`. See [Release and deploy](11-release-and-deploy.md).
 
 Because CI runs on release tags, **run the tests locally before every pull request**.
 

@@ -117,11 +117,14 @@ Restore with the container stopped: decompress the file over `cinesync.db`, dele
 | Ecosystem | Directory |
 |---|---|
 | `github-actions` | `/` |
-| `pip` | `/backend` |
+| `pip` | `/backend` (`requirements.in` + the pip-compile lock `requirements.txt`, regenerated with hashes) |
+| `pip` | `/e2e` (end-to-end test tools) |
 | `npm` | `/frontend` |
 | `docker` | `/` (base images in the `Dockerfile`) |
 
-Major versions are ignored on purpose: they are done by hand, after reading the changelog and testing. When merging a Dependabot PR, run the backend tests and the frontend build locally, since CI only runs on release tags.
+Major versions are ignored on purpose: they are done by hand, after reading the changelog and testing. When merging a Dependabot PR, run the backend tests and the frontend build locally, since CI only runs on release tags. The public repository only receives one commit per version, so a Dependabot PR there is applied in the development repository instead (for Python: change `requirements.in`, regenerate the lock, see [Development setup](02-dev-setup.md)); Dependabot closes it once the published version contains the update.
+
+The Docker image installs the Python lock with `--require-hashes`: a package whose content differs from the recorded SHA-256 (republished or tampered with) makes the build fail instead of ending up in the image.
 
 ## See also
 

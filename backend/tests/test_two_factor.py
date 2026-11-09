@@ -3,6 +3,7 @@
 import time
 
 from app.services import totp
+from app.services.clock import utcnow
 from tests.test_accounts import add_member, client, fresh, login, setup_admin  # noqa: F401 (fixture)
 
 
@@ -260,7 +261,7 @@ def test_plex_only_account_needs_a_recent_sign_in_to_add_a_password(fresh):
         u = db.get(User, uid)
         u.password_hash, u.plex_user_id = "", 4242
         for s in db.query(AuthSession).filter(AuthSession.user_id == uid):
-            s.created_at = datetime.utcnow() - timedelta(hours=2)
+            s.created_at = utcnow() - timedelta(hours=2)
         db.commit()
     assert alice.post("/api/auth/password", json={"new_password": "mot-de-passe-pirate"}).status_code == 403
     assert alice.post("/api/auth/2fa/setup").status_code == 403

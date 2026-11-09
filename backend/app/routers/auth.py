@@ -5,12 +5,12 @@ import json
 import secrets
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 import app.database as database
@@ -22,6 +22,7 @@ from app.services.auth import current_user, guard_attempts, login_limiter, requi
 from app.services.context import SHARED_ID, settings_for
 from app.services.errors import ServiceError
 from app.services.history import assign_plex_events
+from app.services.clock import utcnow
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 # Connexion, installation, mot de passe : seulement dans la version serveur
@@ -75,7 +76,9 @@ def _me(db: Session, user: User | None) -> dict:
         # Connexion Plex proposée dès que l'admin a relié son serveur (version serveur seulement)
         "plex_login": config.cinesync_mode == "server" and bool(shared.plex_machine_id and shared.plex_client_id),
         # Connexion Jellyfin / Emby proposée dès que l'admin a relié son serveur
-        "jellyfin_login": config.cinesync_mode == "server" and bool(shared.jellyfin_url),
+        # Bouton « Se connecter avec Jellyfin » : seulement si au moins un compte y est autorisé
+        "jellyfin_login": config.cinesync_mode == "server" and bool(shared.jellyfin_url)
+        and db.query(User.id).filter(User.jellyfin_login.is_(True), User.active.is_(True)).first() is not None,
         "jellyfin_kind": shared.jellyfin_kind or "jellyfin",
         "mode": config.cinesync_mode,
     }
@@ -164,7 +167,7 @@ def _check_code(db: Session, user: User, code: str) -> bool:
     Mise à jour conditionnelle : deux requêtes simultanées avec le même code ne peuvent pas réussir toutes
     les deux. Les échecs d'affilée sont comptés dans la base (pas seulement par adresse) : après 10, la
     2FA du compte est bloquée 1 min, puis 2, 4… (24 h au plus) et le propriétaire est prévenu."""
-    now = datetime.utcnow()
+    now = utcnow()
     if user.totp_locked_until and user.totp_locked_until > now:
         raise HTTPException(429, "Trop de codes incorrects : réessaie plus tard")
     ok = False
@@ -221,20 +224,9 @@ class TwoFactorSetupIn(BaseModel):
     password: str = Field("", max_length=256)
 
 
-RECENT_LOGIN = timedelta(minutes=10)
 
 
-def _confirm_identity(db: Session, request: Request, user: User, password: str) -> None:
-    """Changement sensible : mot de passe actuel exigé ; sans mot de passe (compte Plex), connexion récente."""
-    if user.password_hash:
-        keys = guard_attempts(request, f"login:{user.username}")
-        if not auth.verify_password(password, user.password_hash):
-            login_limiter.fail(*keys)
-            raise HTTPException(403, "Mot de passe actuel incorrect")
-        return
-    age = auth.session_age(db, request)
-    if age is None or age > RECENT_LOGIN:
-        raise HTTPException(403, "Par sécurité, reconnecte-toi puis recommence dans les 10 minutes")
+_confirm_identity = auth.confirm_identity  # mot de passe actuel, ou connexion récente sans mot de passe
 
 
 @router.post("/2fa/setup")
@@ -299,13 +291,17 @@ def two_factor_new_codes(body: CodeIn, request: Request, user: User = Depends(cu
 
 
 class JellyfinLoginIn(BaseModel):
-    username: str = Field(max_length=100)
-    password: str = Field("", max_length=256)
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=256)  # jamais de mot de passe vide (comptes sans mot de passe)
 
 
 @router.post("/jellyfin", dependencies=server_only)
 async def login_jellyfin(body: JellyfinLoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    """Connexion avec un compte Jellyfin / Emby autorisé par l'administrateur (mot de passe vérifié par le serveur)."""
+    """Connexion avec un compte Jellyfin / Emby que l'administrateur a autorisé (mot de passe vérifié par le serveur).
+
+    Le serveur n'est interrogé que pour un compte autorisé : SynCiné ne sert pas à tester des mots de passe sur
+    les autres comptes du serveur, et chaque compte visé n'a que deux essais par jour (sous le seuil de blocage
+    du serveur). Toutes les erreurs donnent la même réponse."""
     from app.models import UserSettings
     from app.services.errors import ServiceError
     from app.services.jellyfin_client import JellyfinClient
@@ -313,28 +309,117 @@ async def login_jellyfin(body: JellyfinLoginIn, request: Request, response: Resp
     shared = settings_for(db, SHARED_ID).shared
     if not shared.jellyfin_url:
         raise HTTPException(404, "La connexion avec Jellyfin n'est pas activée sur ce SynCiné")
+    if await _jellyfin_client(shared).quick_connect_enabled():  # le mot de passe Jellyfin n'est alors jamais saisi ici
+        raise HTTPException(409, "Ce serveur Jellyfin utilise Quick Connect : connecte-toi avec un code Quick Connect")
     username = body.username.strip()
-    keys = guard_attempts(request, f"jellyfin:{username.lower()}")
-    client = JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind)
+    own = (
+        db.query(UserSettings).join(User, User.id == UserSettings.id)
+        .filter(func.lower(UserSettings.jellyfin_username) == username.lower(), UserSettings.jellyfin_user_id != "",
+                User.jellyfin_login.is_(True), User.active.is_(True))
+        .first()
+    )
+    user = db.get(User, own.id) if own else None
+    keys = guard_attempts(request, f"jflogin:{username.lower()}", trusted=user is not None and auth.known_device(request) == user.id)
+    target = f"jf:{username.lower()}"
+    if auth.jellyfin_limiter.blocked(target):
+        raise HTTPException(429, "Trop d'essais pour ce compte Jellyfin : connecte-toi avec ton mot de passe SynCiné, ou réessaie demain")
+    refused = HTTPException(401, "Identifiant ou mot de passe incorrect")
+    if user is None:
+        login_limiter.fail(*keys)
+        raise refused
+    client = JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind,
+                            device=username)
     try:
         info = await client.authenticate(username, body.password)
     except ServiceError as e:
         if e.status == 401:
             login_limiter.fail(*keys)
-            raise HTTPException(401, "Identifiant ou mot de passe incorrect") from e
+            auth.jellyfin_limiter.fail(target)
+            raise refused from e
         raise
-    own = db.query(UserSettings).filter(UserSettings.jellyfin_user_id == info["user_id"]).first()
-    user = db.get(User, own.id) if own else None
-    if user is None or not user.active:
+    if info["user_id"] != own.jellyfin_user_id:  # autre compte du serveur sous ce nom (renommage) : refusé
         login_limiter.fail(*keys)
-        raise HTTPException(403, "Ce compte Jellyfin n'est pas autorisé sur ce SynCiné — demande à l'administrateur")
+        raise refused
+    login_limiter.reset(*keys)
+    auth.jellyfin_limiter.reset(target)
+    return await _jellyfin_session(db, request, response, user, own, info, shared)
+
+
+def _jellyfin_client(shared, device: str = ""):
+    from app.services.jellyfin_client import JellyfinClient
+
+    return JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind, device=device)
+
+
+async def _jellyfin_session(db: Session, request: Request, response: Response, user: User, own, info: dict, shared):
+    """Connexion réussie avec Jellyfin : nouveau jeton du compte (l'ancien est révoqué), puis session ou 2FA."""
+    from app.services.errors import ServiceError
+    from app.services.jellyfin_client import JellyfinClient
+
+    if own.jellyfin_token and own.jellyfin_token != info["token"]:
+        try:
+            await JellyfinClient(shared.jellyfin_url, own.jellyfin_token, own.jellyfin_user_id, kind=shared.jellyfin_kind).logout()
+        except ServiceError:
+            pass
     own.jellyfin_token, own.jellyfin_username = info["token"], info["name"]  # jeton du compte : sa bibliothèque, ses vus
     db.commit()
-    login_limiter.reset(*keys)
     if user.totp_secret:
         return _two_factor_ticket(user)
     auth.open_session(db, user, request, response)
     return _me(db, user)
+
+
+@router.get("/jellyfin/quickconnect", dependencies=server_only)
+async def jellyfin_quick_connect_status(db: Session = Depends(get_db)):
+    """Quick Connect disponible sur le serveur Jellyfin relié (sinon : identifiant et mot de passe)."""
+    shared = settings_for(db, SHARED_ID).shared
+    return {"enabled": bool(shared.jellyfin_url) and await _jellyfin_client(shared).quick_connect_enabled()}
+
+
+@router.post("/jellyfin/quickconnect", dependencies=server_only)
+async def jellyfin_quick_connect_start(request: Request, db: Session = Depends(get_db)):
+    """Connexion par Quick Connect, étape 1 : un code à valider dans Jellyfin (profil → Quick Connect)."""
+    from app.services import quick_connect
+
+    shared = settings_for(db, SHARED_ID).shared
+    if not shared.jellyfin_url or not db.query(User.id).filter(User.jellyfin_login.is_(True), User.active.is_(True)).first():
+        raise HTTPException(404, "La connexion avec Jellyfin n'est pas activée sur ce SynCiné")
+    ip = auth.client_ip(request)
+    if not quick_connect.can_start(ip):
+        raise HTTPException(429, "Trop de demandes en attente, réessaie dans quelques minutes")
+    device = quick_connect.new_device()
+    started = await _jellyfin_client(shared, device).quick_connect_start()
+    key = quick_connect.add(quick_connect.Pending(started["secret"], started["code"], device, "login", ip))
+    return {"id": key, "code": started["code"], "expires_in": quick_connect.TTL}
+
+
+@router.post("/jellyfin/quickconnect/{key}", dependencies=server_only)
+async def jellyfin_quick_connect_check(key: str, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Étape 2 (interrogée toutes les 2 s) : en attente, ou connexion du compte SynCiné autorisé pour ce compte Jellyfin."""
+    from app.models import UserSettings
+    from app.services import quick_connect
+    from app.services.errors import ServiceError
+    from app.services.jellyfin_client import JellyfinClient
+
+    pending = quick_connect.get(key, "login")
+    if pending is None:
+        raise HTTPException(410, "Code expiré : recommence")
+    shared = settings_for(db, SHARED_ID).shared
+    client = _jellyfin_client(shared, pending.device)
+    if not await client.quick_connect_approved(pending.secret):
+        return {"status": "pending"}
+    quick_connect.drop(key)
+    info = await client.quick_connect_auth(pending.secret)
+    own = db.query(UserSettings).filter(UserSettings.jellyfin_user_id == info["user_id"]).first()
+    user = db.get(User, own.id) if own else None
+    if user is None or not user.active or not user.jellyfin_login:
+        # Compte non autorisé : le jeton tout juste créé est aussitôt révoqué
+        try:
+            await JellyfinClient(shared.jellyfin_url, info["token"], info["user_id"], kind=shared.jellyfin_kind).logout()
+        except ServiceError:
+            pass
+        raise HTTPException(403, "Ce compte Jellyfin n'est pas autorisé à se connecter à SynCiné — demande à l'administrateur")
+    return await _jellyfin_session(db, request, response, user, own, info, shared)
 
 
 @router.post("/logout")

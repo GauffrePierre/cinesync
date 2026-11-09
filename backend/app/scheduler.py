@@ -24,6 +24,7 @@ from app.services.context import Ctx, ctx_for
 from app.services.enrich import stream_providers
 from app.services import messages
 from app.services.errors import ServiceError
+from app.services.clock import utcnow
 
 log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
@@ -73,7 +74,13 @@ async def check_new_episodes(user_ids: list[int] | None = None) -> dict:
     return await for_each_user(episodes_one, user_ids)
 
 
-PLEX_ID = 0  # « plateforme » Plex dans la liste des disponibilités déjà notifiées
+PLEX_ID = 0  # « plateforme » du serveur multimédia (Plex, Jellyfin, Emby) dans les disponibilités déjà notifiées
+
+
+def _media(ctx: Ctx):
+    """Serveur multimédia du compte (Plex, sinon Jellyfin / Emby) et son nom affiché ; (None, "") sans serveur."""
+    media = getattr(ctx, "media", None)
+    return (media, getattr(media, "label", "Plex")) if media is not None else (None, "")
 
 
 async def availability_one(ctx: Ctx) -> dict:
@@ -85,9 +92,10 @@ async def availability_one(ctx: Ctx) -> dict:
     via = set(ctx.settings.movie_via)
     platforms = set(ctx.platforms) if "platforms" in via else set()
     plex_index = {}
-    if "plex" in via and ctx.plex is not None:
+    media, server = _media(ctx)
+    if "plex" in via and media is not None:  # valeur « plex » = le serveur multimédia, quel qu'il soit
         try:
-            plex_index = await ctx.plex.index()  # titres de la watchlist arrivés sur Plex
+            plex_index = await media.index()  # titres de la watchlist arrivés sur le serveur
         except ServiceError:
             plex_index = {}
     if not platforms and not plex_index:
@@ -104,11 +112,11 @@ async def availability_one(ctx: Ctx) -> dict:
         first_check = r.availability_checked_at is None
         if platforms:
             r.providers = json.dumps(prov)
-            r.providers_checked_at = datetime.utcnow()
-        r.availability_checked_at = datetime.utcnow()
+            r.providers_checked_at = utcnow()
+        r.availability_checked_at = utcnow()
         available = {p["id"]: p for p in prov if p["id"] in platforms}
         if (r.media_type, r.tmdb_id) in plex_index:
-            available[PLEX_ID] = {"id": PLEX_ID, "name": "Plex", "logo": None}  # Plex : identifiant réservé 0
+            available[PLEX_ID] = {"id": PLEX_ID, "name": server, "logo": None}  # serveur : identifiant réservé 0
         notified = {int(x) for x in json.loads(r.notified_platforms or "[]")}
         new_ids = set(available) - notified
         # Premier passage : on mémorise l'état sans notifier (le titre était peut-être déjà dispo)
@@ -144,7 +152,7 @@ async def episodes_one(ctx: Ctx) -> dict:
     if ctx.tmdb.is_mock or not ctx.settings.notify_new_episodes:
         return {"checked": 0, "created": 0}
     shows = {r.tmdb_id for r in db.execute(select(MediaState).where(MediaState.media_type == "tv")).scalars() if r.in_watchlist or r.watched}
-    recent = datetime.utcnow() - timedelta(days=180)
+    recent = utcnow() - timedelta(days=180)
     shows |= {t for (t,) in db.execute(select(WatchEvent.tmdb_id).where(WatchEvent.kind == "episode", WatchEvent.watched_at >= recent, WatchEvent.tmdb_id.isnot(None)))}
     cutoff = (date.today() - timedelta(days=2)).isoformat()
     via = set(ctx.settings.episode_via)
@@ -188,10 +196,11 @@ async def episodes_one(ctx: Ctx) -> dict:
                 text = messages.fields("Nouvel épisode de {title} : {code}", title=title, code=code)
             notify(tmdb_id, raw, text)
 
-    # Ajouté sur Plex (épisodes arrivés sur le serveur ces 2 derniers jours)
-    if "plex" in via and ctx.plex is not None:
+    # Ajouté sur le serveur multimédia (épisodes arrivés ces 2 derniers jours)
+    media, server = _media(ctx)
+    if "plex" in via and media is not None:
         try:
-            index, recent = await ctx.plex.library(), await ctx.plex.recent_episodes(days=2)
+            index, recent = await media.library(), await media.recent_episodes(days=2)
         except ServiceError:
             index, recent = [], []
         by_key = {str(i.get("rating_key")): i for i in index if i.get("media_type") == "tv" and i.get("id")}
@@ -206,7 +215,7 @@ async def episodes_one(ctx: Ctx) -> dict:
             first, last = (f"S{s_:02d}E{e:02d}" for s_, e in (eps[0], eps[-1]))
             code = first if len(eps) == 1 else f"{first} → {last}"
             raw = {"name": show.get("title") or "", "poster_path": None}
-            notify(show["id"], raw, messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=raw["name"], platforms="Plex", code=code))
+            notify(show["id"], raw, messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=raw["name"], platforms=server, code=code))
 
     db.commit()
     return {"checked": len(shows), "created": created}

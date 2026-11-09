@@ -22,6 +22,7 @@ from app.models import MediaState, WatchEvent
 from app.services.context import Ctx
 from app.services.errors import ServiceError
 from app.services.http import http
+from app.services.clock import utcnow
 
 log = logging.getLogger(__name__)
 
@@ -399,7 +400,7 @@ def stats(db, period: str = "week", offset: int = 0, account: int | None = None,
     """Statistiques sur une fenêtre de N périodes (day=30 jours, week=12 semaines, month=12 mois, year=tout).
     offset : décalage de la fenêtre vers le passé (0 = jusqu'à aujourd'hui)."""
     tz = timedelta(minutes=tz_offset_min)
-    now = datetime.utcnow() + tz
+    now = utcnow() + tz
     every = list(db.execute(_mine(select(WatchEvent), account).order_by(WatchEvent.watched_at)).scalars())
     events = [(ev, ev.watched_at + tz) for ev in every if not ev.approx_date]  # datés précisément
     n = PERIODS[period]

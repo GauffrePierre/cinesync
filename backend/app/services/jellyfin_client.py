@@ -7,9 +7,10 @@ pour que les pages qui affichent « dans ta bibliothèque » fonctionnent avec l
 
 import asyncio
 import hashlib
+from collections import defaultdict
 import ipaddress
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -19,7 +20,9 @@ from app.services.http import USER_AGENT, http
 
 CLIENT_NAME = "SynCine"
 FIELDS = "ProviderIds,DateCreated,PremiereDate,OfficialRating,Genres,Overview,CriticRating,OriginalTitle"
-_index_lock = asyncio.Lock()
+_index_locks: dict[tuple, asyncio.Lock] = defaultdict(asyncio.Lock)  # un chargement de bibliothèque par compte à la fois
+IMAGE_TYPES = ("image/jpeg", "image/png", "image/webp", "image/gif")
+IMAGE_MAX_BYTES = 8 * 1024 * 1024
 ITEM_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")  # identifiant d'élément ou de bibliothèque
 
 
@@ -40,7 +43,8 @@ def _iso(value: str | None) -> str | None:
 class JellyfinClient:
     is_mock = False
 
-    def __init__(self, url: str, token: str, user_id: str = "", server_id: str = "", public_url: str = "", kind: str = "jellyfin"):
+    def __init__(self, url: str, token: str, user_id: str = "", server_id: str = "", public_url: str = "", kind: str = "jellyfin",
+                 device: str = ""):
         self.url = url.rstrip("/")
         self.token = token.strip()
         self.user_id = user_id
@@ -48,12 +52,15 @@ class JellyfinClient:
         self.public_url = (public_url or url).rstrip("/")
         self.kind = kind if kind in ("jellyfin", "emby") else "jellyfin"
         self._ns = hashlib.sha256(f"{self.token}|{self.user_id}".encode()).hexdigest()[:12]
+        # Appareil vu par le serveur : un par compte (le serveur révoque les anciens jetons d'un même appareil)
+        seed = (device or user_id or token).lower()
+        self.device_id = "syncine-" + hashlib.sha256(f"device|{seed}".encode()).hexdigest()[:16]
 
     # --- Requêtes --------------------------------------------------------------------------
 
     def _headers(self, token: str | None = None) -> dict:
         tok = self.token if token is None else token
-        auth = f'MediaBrowser Client="{CLIENT_NAME}", Device="SynCine", DeviceId="syncine-{self._ns}", Version="1"'
+        auth = f'MediaBrowser Client="{CLIENT_NAME}", Device="SynCine", DeviceId="{self.device_id}", Version="1"'
         if tok:
             auth += f', Token="{tok}"'
         # Jellyfin récent : en-tête Authorization ; Emby : X-Emby-Token
@@ -65,14 +72,19 @@ class JellyfinClient:
         if ttl and (hit := cache.get(key)) is not MISS:
             return hit
         try:
-            r = await http().request(method, self.url + path, params=params or None, json=json, headers=self._headers(token), timeout=30.0)
+            # Pas de redirection suivie : la clé (en-têtes X-Emby-*) ou un mot de passe ne partiraient pas vers un autre hôte
+            r = await http().request(method, self.url + path, params=params or None, json=json, headers=self._headers(token), timeout=30.0,
+                                     follow_redirects=False)
         except httpx.HTTPError as e:
             raise ServiceError(self.kind, f"Serveur {self.label} injoignable : {e.__class__.__name__}") from e
         if r.status_code == 401:
             raise ServiceError(self.kind, f"Accès refusé par {self.label} : clé ou identifiants incorrects", 401)
-        if r.status_code >= 400:
-            raise ServiceError(self.kind, f"Erreur {self.label} ({r.status_code})", 404 if r.status_code == 404 else 502)
-        data = r.json() if r.content and "json" in r.headers.get("content-type", "") else {}
+        if r.status_code >= 300:  # redirection comprise (adresse à corriger dans le Profil)
+            raise ServiceError(self.kind, f"Erreur {self.label} ({r.status_code})", r.status_code if r.status_code in (404, 405) else 502)
+        try:
+            data = r.json() if r.content and "json" in r.headers.get("content-type", "") else {}
+        except ValueError as e:
+            raise ServiceError(self.kind, f"Réponse {self.label} illisible") from e
         if ttl:
             cache.set(key, data, ttl)
         return data
@@ -105,6 +117,40 @@ class JellyfinClient:
         if not d.get("AccessToken") or not user.get("Id"):
             raise ServiceError(self.kind, f"Connexion {self.label} impossible", 401)
         return {"user_id": user["Id"], "name": user.get("Name") or username, "token": d["AccessToken"]}
+
+    # --- Quick Connect (Jellyfin 10.8+) : connexion par un code validé dans Jellyfin, sans mot de passe ----------
+
+    async def quick_connect_enabled(self) -> bool:
+        if self.kind != "jellyfin":
+            return False  # Emby : pas de Quick Connect
+        try:
+            return await self._req("GET", "/QuickConnect/Enabled", ttl=300, token="") is True
+        except ServiceError:
+            return False
+
+    async def quick_connect_start(self) -> dict:
+        """Nouvelle demande : {secret (reste côté serveur SynCiné), code (à saisir dans Jellyfin)}."""
+        try:
+            d = await self._req("POST", "/QuickConnect/Initiate", token="")
+        except ServiceError as e:
+            if e.status not in (404, 405):
+                raise
+            d = await self._req("GET", "/QuickConnect/Initiate", token="")  # Jellyfin 10.8
+        if not d.get("Secret") or not d.get("Code"):
+            raise ServiceError(self.kind, "Quick Connect indisponible sur ce serveur")
+        return {"secret": d["Secret"], "code": str(d["Code"])}
+
+    async def quick_connect_approved(self, secret: str) -> bool:
+        d = await self._req("GET", "/QuickConnect/Connect", token="", secret=secret)
+        return bool(d.get("Authenticated"))
+
+    async def quick_connect_auth(self, secret: str) -> dict:
+        """Demande validée -> {user_id, name, token}, comme une connexion par mot de passe."""
+        d = await self._req("POST", "/Users/AuthenticateWithQuickConnect", token="", json={"Secret": secret})
+        user = d.get("User") or {}
+        if not d.get("AccessToken") or not user.get("Id"):
+            raise ServiceError(self.kind, "Connexion Quick Connect impossible", 401)
+        return {"user_id": user["Id"], "name": user.get("Name") or "", "token": d["AccessToken"]}
 
     async def test(self) -> dict:
         info = await self.public_info()
@@ -162,7 +208,7 @@ class JellyfinClient:
         key = ("jellyfin", "library", self.url, self._ns)
         if (hit := cache.get(key)) is not MISS:
             return hit
-        async with _index_lock:
+        async with _index_locks[key]:
             if (hit := cache.get(key)) is not MISS:
                 return hit
             data = await self._req(
@@ -184,20 +230,46 @@ class JellyfinClient:
         return [i for i in await self.library() if q in (i.get("title") or "").lower()][:limit]
 
     async def image(self, item_id: str, width: int, kind: str = "Primary") -> tuple[bytes, str]:
+        """Image d'un titre : seulement JPEG, PNG, WebP ou GIF, 8 Mo au plus (rien d'autre n'est relayé)."""
         try:
-            r = await http().get(f"{self.url}/Items/{item_id}/Images/{kind}", params={"maxWidth": width, "quality": 85},
-                                 headers=self._headers(), timeout=20.0)
+            async with http().stream("GET", f"{self.url}/Items/{item_id}/Images/{kind}", params={"maxWidth": width, "quality": 85},
+                                     headers=self._headers(), timeout=20.0, follow_redirects=False) as r:
+                ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
+                if r.status_code >= 300 or ctype not in IMAGE_TYPES:
+                    raise ServiceError(self.kind, f"Image {self.label} introuvable", 404)
+                body = b""
+                async for chunk in r.aiter_bytes():
+                    body += chunk
+                    if len(body) > IMAGE_MAX_BYTES:
+                        raise ServiceError(self.kind, f"Image {self.label} trop lourde", 404)
         except httpx.HTTPError as e:
             raise ServiceError(self.kind, f"Image {self.label} indisponible : {e.__class__.__name__}") from e
-        if r.status_code >= 400:
-            raise ServiceError(self.kind, f"Image {self.label} introuvable", 404)
-        return r.content, r.headers.get("content-type", "image/jpeg")
+        return body, ctype
+
+    async def recent_episodes(self, days: int = 2, limit: int = 100) -> list[dict]:
+        """Épisodes ajoutés sur le serveur ces derniers jours : {show_key, season, episode, added_at} (comme Plex)."""
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).replace(tzinfo=None)
+        data = await self._req(
+            "GET", "/Items", userId=self.user_id or None, Recursive="true", IncludeItemTypes="Episode",
+            SortBy="DateCreated", SortOrder="Descending", Fields="DateCreated", Limit=limit,
+        )
+        out = []
+        for m in data.get("Items", []) or []:
+            added = _iso(m.get("DateCreated"))
+            if not added or datetime.fromisoformat(added[:19]) < since:
+                break  # triés du plus récent au plus ancien
+            out.append({"show_key": str(m.get("SeriesId") or ""), "season": m.get("ParentIndexNumber"), "episode": m.get("IndexNumber"), "added_at": added})
+        return out
 
     # --- Vus --------------------------------------------------------------------------------
 
     async def played_keys(self) -> dict[tuple[str, int], str | None]:
         """Films et séries vus par le compte : {(type, id TMDB): date du dernier visionnage}."""
         return {(i["media_type"], i["id"]): i["last_viewed_at"] for i in await self.library() if i["id"] and i["view_count"]}
+
+    async def logout(self) -> None:
+        """Révoque le jeton du compte sur le serveur (compte délié)."""
+        await self._req("POST", "/Sessions/Logout")
 
     async def set_played(self, item_id: str, played: bool) -> None:
         if not self.user_id:

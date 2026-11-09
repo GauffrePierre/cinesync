@@ -1,7 +1,19 @@
 """Jellyfin / Emby : normalisation des titres, liens, connexion du serveur, compte relié, cloisonnement."""
 
+import pytest
+
+from app.services.clock import utcnow
 from app.services.jellyfin_client import JellyfinClient
 from tests.test_accounts import client, fresh, member, setup_admin  # noqa: F401 (fixture)
+
+
+@pytest.fixture(autouse=True)
+def no_quick_connect(monkeypatch):
+    """Par défaut, serveur sans Quick Connect (identifiant et mot de passe) ; aucun accès réseau."""
+    async def disabled(self):
+        return False
+
+    monkeypatch.setattr(JellyfinClient, "quick_connect_enabled", disabled)
 
 ITEM = {
     "Id": "abc123", "Name": "American Dad!", "Type": "Series", "ProductionYear": 2005, "ProviderIds": {"Tmdb": "1433", "Imdb": "tt0397306"},
@@ -60,9 +72,15 @@ def test_admin_connects_the_server_and_members_link_their_account(fresh, monkeyp
     assert ast["media"]["configured"] is False and ast["jellyfin"]["server"] is None and ast["jellyfin"]["server_linked"] is True
     assert alice.get("/api/plex/library").status_code == 409
     assert alice.get("/api/requests").json()["allowed"] is False
-    # Le membre relie son compte (mot de passe vérifié par le serveur) et retrouve la bibliothèque
-    assert alice.post("/api/jellyfin/link", json={"username": "alex", "password": "faux"}).status_code == 403
-    assert alice.post("/api/jellyfin/link", json={"username": "alex", "password": "bon-mot-de-passe"}).status_code == 200
+    # Le membre relie son compte (mot de passe vérifié par le serveur) et retrouve la bibliothèque ;
+    # son mot de passe SynCiné est exigé (une session laissée ouverte ne suffit pas)
+    assert alice.post("/api/jellyfin/link", json={"username": "alex", "password": "bon-mot-de-passe"}).status_code == 403
+    pw = "nouveau-mdp-alice"
+    assert alice.post("/api/jellyfin/link", json={"username": "alex", "password": "faux", "current_password": pw}).status_code == 403
+    assert alice.post("/api/jellyfin/link", json={"username": "alex", "password": "bon-mot-de-passe", "current_password": pw}).status_code == 200
+    assert any("a été relié à ton compte SynCiné" in n["message"] for n in alice.get("/api/notifications").json()["results"])
+    # Relier son compte ne permet pas de se connecter à SynCiné avec : seul l'administrateur l'autorise
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon-mot-de-passe"}).status_code == 401
     assert alice.get("/api/settings/status").json()["jellyfin"]["linked"] is True
     lib = alice.get("/api/plex/library").json()
     assert lib["results"][0]["server"] == "jellyfin" and lib["results"][0]["id"] == 1433
@@ -70,7 +88,7 @@ def test_admin_connects_the_server_and_members_link_their_account(fresh, monkeyp
     assert alice.get("/api/requests").json()["allowed"] is True
     assert alice.get("/api/stats").json()["plex"] == {"movies": 0, "shows": 1, "server": "jellyfin", "watched_movies": 0}
     # Un compte Jellyfin ne peut être relié qu'à un seul compte SynCiné
-    assert admin.post("/api/jellyfin/link", json={"username": "alex", "password": "bon-mot-de-passe"}).status_code == 409
+    assert admin.post("/api/jellyfin/link", json={"username": "alex", "password": "bon-mot-de-passe", "current_password": "motdepasse-admin"}).status_code == 409
     users_list = admin.get("/api/jellyfin/users").json()["results"]
     assert {u["name"]: u["account_name"] for u in users_list} == {"pierre": None, "alex": "Alice"}
     assert alice.request("DELETE", "/api/jellyfin/link").status_code == 200
@@ -85,6 +103,10 @@ def test_image_relay_rejects_odd_ids(fresh):  # noqa: F811
 
 
 def test_sign_in_with_an_authorized_jellyfin_account(fresh, monkeypatch):  # noqa: F811
+    from app.services.errors import ServiceError
+
+    calls = []
+
     async def public_info(self):
         return {"id": "srv1", "name": "Salon", "version": "12.4.0", "kind": "jellyfin"}
 
@@ -92,11 +114,11 @@ def test_sign_in_with_an_authorized_jellyfin_account(fresh, monkeypatch):  # noq
         return [{"id": "jf-alex", "name": "alex", "admin": False, "disabled": False}, {"id": "jf-sam", "name": "sam", "admin": False, "disabled": False}]
 
     async def authenticate(self, username, password):
-        from app.services.errors import ServiceError
-
+        calls.append(username.lower())
         if password != "bon":
             raise ServiceError("jellyfin", "refusé", 401)
-        return {"user_id": f"jf-{username}", "name": username, "token": f"jeton-{username}"}
+        name = username.lower()  # comme Jellyfin : identifiant insensible à la casse, compte renvoyé tel qu'enregistré
+        return {"user_id": f"jf-{name}", "name": name, "token": f"jeton-{name}"}
 
     monkeypatch.setattr(JellyfinClient, "public_info", public_info)
     monkeypatch.setattr(JellyfinClient, "users", users)
@@ -106,18 +128,98 @@ def test_sign_in_with_an_authorized_jellyfin_account(fresh, monkeypatch):  # noq
     assert client().get("/api/auth/me").json()["jellyfin_login"] is False
     assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 404
     admin.post("/api/jellyfin/server", json={"url": "http://jf.test:8096", "api_key": "cle"})
-    assert client().get("/api/auth/me").json()["jellyfin_login"] is True
-    # Pas encore autorisé par l'admin : refusé, même avec le bon mot de passe
-    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 403
+    assert client().get("/api/auth/me").json()["jellyfin_login"] is False  # aucun compte autorisé : pas de bouton
+    # Compte non autorisé : même réponse qu'un mauvais mot de passe, et le serveur Jellyfin n'est pas interrogé
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 401
+    assert client().post("/api/auth/jellyfin", json={"username": "sam", "password": "faux"}).status_code == 401
+    assert calls == []
     r = admin.post("/api/admin/jellyfin/accounts", json={"jellyfin_user_id": "jf-alex", "display_name": "Alex"})
-    assert r.status_code == 200 and r.json()["name"] == "Alex"
+    assert r.status_code == 200 and r.json()["name"] == "Alex" and r.json()["jellyfin_login"] is True
     assert admin.post("/api/admin/jellyfin/accounts", json={"jellyfin_user_id": "inconnu"}).status_code == 404
+    assert client().get("/api/auth/me").json()["jellyfin_login"] is True
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": ""}).status_code == 422  # jamais vide
     c = client()
     assert c.post("/api/auth/jellyfin", json={"username": "alex", "password": "faux"}).status_code == 401
-    r = c.post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"})
+    r = c.post("/api/auth/jellyfin", json={"username": "Alex", "password": "bon"})
     assert r.status_code == 200 and r.json()["user"]["name"] == "Alex"
     assert c.get("/api/settings/status").json()["jellyfin"]["linked"] is True
     assert {u["name"]: u["jellyfin"] for u in admin.get("/api/admin/users").json()["results"]}["Alex"] == "alex"
+    # Deux échecs par jour au plus pour un compte visé : SynCiné ne peut pas servir à le bloquer sur le serveur
+    for _ in range(2):
+        assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "faux"}).status_code == 401
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 429
+    assert calls.count("alex") == 4
+    # L'administrateur retire l'autorisation : connexion par Jellyfin refusée
+    alex_id = r.json()["user"]["id"]
+    assert admin.patch(f"/api/admin/users/{alex_id}", json={"jellyfin_login": False}).status_code == 200
+    from app.services import auth as auth_service
+
+    auth_service.jellyfin_limiter._fails.clear()
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 401
+
+
+def test_server_change_and_unlink_forget_accounts(fresh, monkeypatch):  # noqa: F811
+    server = {"id": "srv1"}
+    logged_out = []
+
+    async def public_info(self):
+        return {"id": server["id"], "name": "Salon", "version": "12.4.0", "kind": "jellyfin"}
+
+    async def users(self):
+        return [{"id": "jf-alex", "name": "alex", "admin": False, "disabled": False}]
+
+    async def authenticate(self, username, password):
+        return {"user_id": f"jf-{username}", "name": username, "token": f"jeton-{username}"}
+
+    async def logout(self):
+        logged_out.append(self.token)
+
+    for name, fn in (("public_info", public_info), ("users", users), ("authenticate", authenticate), ("logout", logout)):
+        monkeypatch.setattr(JellyfinClient, name, fn)
+    admin = client()
+    setup_admin(admin)
+    admin.post("/api/jellyfin/server", json={"url": "http://jf.test:8096", "api_key": "cle"})
+    alice = member(admin, "alice")
+    alice.post("/api/jellyfin/link", json={"username": "alex", "password": "x", "current_password": "nouveau-mdp-alice"})
+    assert alice.get("/api/settings/status").json()["jellyfin"]["linked"] is True
+    # Délier : jeton révoqué sur le serveur
+    assert alice.request("DELETE", "/api/jellyfin/link").status_code == 200
+    assert logged_out == ["jeton-alex"]
+    alice.post("/api/jellyfin/link", json={"username": "alex", "password": "x", "current_password": "nouveau-mdp-alice"})
+    # Un autre serveur : les comptes reliés à l'ancien sont oubliés (leurs jetons n'iraient pas au nouveau)
+    server["id"] = "srv2"
+    admin.post("/api/jellyfin/server", json={"url": "http://autre.test:8096", "api_key": "cle"})
+    assert alice.get("/api/settings/status").json()["jellyfin"]["linked"] is False
+
+
+def test_device_ids_redirects_and_images(monkeypatch):
+    import asyncio
+
+    import httpx
+
+    from app.services import jellyfin_client as jc
+    from app.services.errors import ServiceError
+
+    a, b = JellyfinClient("http://jf.test", "", device="alex"), JellyfinClient("http://jf.test", "", device="sam")
+    assert a.device_id != b.device_id and a.device_id == JellyfinClient("http://jf.test", "", device="Alex").device_id
+    assert "\"" + a.device_id + "\"" in a._headers()["Authorization"]
+
+    def handler(request):
+        if request.url.path.endswith("/Primary"):
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<script>alert(1)</script>")
+        if request.url.path.endswith("/Backdrop"):
+            return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=b"x" * (jc.IMAGE_MAX_BYTES + 10))
+        return httpx.Response(302, headers={"location": "https://sso.example.org/login"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(jc, "http", lambda: client)
+    c = JellyfinClient("http://jf.test", "cle")
+    for coro in (c.image("abc", 300, "Primary"), c.image("abc", 300, "Backdrop"), c.users()):
+        try:
+            asyncio.run(coro)
+            raise AssertionError("devait être refusé")
+        except ServiceError:
+            pass  # page HTML, image trop lourde, redirection : rien n'est relayé ni suivi
 
 
 class FakeJellyfin:
@@ -205,7 +307,7 @@ def test_admin_dashboard_and_stats_for_jellyfin(fresh, monkeypatch):  # noqa: F8
         refreshed.append(folder_id)
 
     async def played_history(self, since=None, user_id=None):
-        now = datetime.utcnow()
+        now = utcnow()
         return [{"kind": "movie", "title": "Film", "show_title": "", "watched_at": now - timedelta(days=1), "runtime_min": 120},
                 {"kind": "episode", "title": "Pilote", "show_title": "Série", "watched_at": now - timedelta(days=2), "runtime_min": 60}]
 
@@ -323,3 +425,119 @@ def test_in_progress_reads_resume_and_next_up_with_emby_fallback(monkeypatch):
     assert "progress" not in items[2]
     assert set(calls) == {"/UserItems/Resume", "/Users/u1/Items/Resume", "/Shows/NextUp"}
     assert asyncio.run(JellyfinClient("http://emby.test", "k", "").in_progress()) == []  # sans compte relié
+
+
+def test_tonight_resume_row_with_jellyfin():
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.routers.tonight import _jellyfin_deck
+
+    class Jf:
+        kind = "jellyfin"
+
+        async def in_progress(self):
+            return [
+                {"item_id": "m1", "kind": "movie", "tmdb": 603, "series_id": None, "title": "Matrix", "progress": 25, "remaining_min": 90},
+                {"item_id": "e6", "kind": "episode", "tmdb": None, "series_id": "s1", "title": "Six", "season": 2, "episode": 6},
+                {"item_id": "x", "kind": "episode", "tmdb": None, "series_id": "inconnue", "title": "?", "season": 1, "episode": 1},
+            ]
+
+        def web_url(self, item_id):
+            return f"https://jf.example.org/web/#/details?id={item_id}"
+
+    class Tmdb:
+        is_mock = False
+
+        async def basic(self, media_type, tmdb_id):
+            return {"id": tmdb_id, "media_type": media_type, "title": f"T{tmdb_id}"}
+
+    ctx = SimpleNamespace(jellyfin=Jf(), tmdb=Tmdb())
+    index = {("tv", 1399): {"rating_key": "s1", "id": 1399}}
+    items = asyncio.run(_jellyfin_deck(ctx, index))
+    assert [(i["media_type"], i["id"]) for i in items] == [("movie", 603), ("tv", 1399)]  # série inconnue de la bibliothèque : ignorée
+    assert items[0]["progress"] == 25 and items[0]["resume"] == "Reprendre le film" and items[0]["server"] == "jellyfin"
+    assert items[1]["resume"] == "S02E06 · Six" and "progress" not in items[1] and items[1]["plex_url"].endswith("id=e6")
+
+
+def test_quick_connect_sign_in_and_link(fresh, monkeypatch):  # noqa: F811
+    """Quick Connect : code validé dans Jellyfin, aucun mot de passe Jellyfin saisi dans SynCiné."""
+    approved, revoked = set(), []
+
+    async def public_info(self):
+        return {"id": "srv1", "name": "Salon", "version": "10.11.0", "kind": "jellyfin"}
+
+    async def users(self):
+        return [{"id": "jf-alex", "name": "alex", "admin": False, "disabled": False}, {"id": "jf-sam", "name": "sam", "admin": False, "disabled": False}]
+
+    async def enabled(self):
+        return True
+
+    async def start(self):
+        return {"secret": f"secret-{self.device_id}", "code": "123456"}
+
+    async def is_approved(self, secret):
+        return secret in approved
+
+    async def qc_auth(self, secret):
+        who = approved_by[secret]
+        return {"user_id": f"jf-{who}", "name": who, "token": f"jeton-{who}-{len(revoked)}"}
+
+    async def logout(self):
+        revoked.append(self.token)
+
+    async def authenticate(self, username, password):
+        raise AssertionError("aucun mot de passe Jellyfin ne doit être envoyé")
+
+    approved_by = {}
+    for name, fn in (("public_info", public_info), ("users", users), ("quick_connect_enabled", enabled), ("quick_connect_start", start),
+                     ("quick_connect_approved", is_approved), ("quick_connect_auth", qc_auth), ("logout", logout), ("authenticate", authenticate)):
+        monkeypatch.setattr(JellyfinClient, name, fn)
+
+    def approve(secret_holder, who):
+        from app.services import quick_connect
+
+        p = quick_connect._pending[secret_holder]
+        approved.add(p.secret)
+        approved_by[p.secret] = who
+
+    admin = client()
+    setup_admin(admin)
+    admin.post("/api/jellyfin/server", json={"url": "http://jf.test:8096", "api_key": "cle"})
+    assert client().get("/api/auth/jellyfin/quickconnect").json() == {"enabled": True}
+    # Mot de passe refusé : Quick Connect est disponible
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "x"}).status_code == 409
+    assert client().post("/api/auth/jellyfin/quickconnect").status_code == 404  # aucun compte autorisé
+    admin.post("/api/admin/jellyfin/accounts", json={"jellyfin_user_id": "jf-alex", "display_name": "Alex"})
+
+    # Connexion : code affiché, en attente, puis validé dans Jellyfin
+    c = client()
+    r = c.post("/api/auth/jellyfin/quickconnect").json()
+    assert r["code"] == "123456" and "secret" not in r
+    assert c.post(f"/api/auth/jellyfin/quickconnect/{r['id']}").json() == {"status": "pending"}
+    approve(r["id"], "alex")
+    me = c.post(f"/api/auth/jellyfin/quickconnect/{r['id']}").json()
+    assert me["user"]["name"] == "Alex" and c.get("/api/settings/status").json()["jellyfin"]["linked"] is True
+    assert c.post(f"/api/auth/jellyfin/quickconnect/{r['id']}").status_code == 410  # usage unique
+
+    # Compte Jellyfin non autorisé : refusé, et le jeton tout juste créé est révoqué
+    c2 = client()
+    r = c2.post("/api/auth/jellyfin/quickconnect").json()
+    approve(r["id"], "sam")
+    assert c2.post(f"/api/auth/jellyfin/quickconnect/{r['id']}").status_code == 403
+    assert revoked[-1].startswith("jeton-sam") and c2.get("/api/auth/me").json()["user"] is None
+    assert client().post("/api/auth/jellyfin/quickconnect/inconnu").status_code == 410
+
+    # Relier son compte : mot de passe SynCiné exigé, demande propre au compte qui l'a lancée
+    alice = member(admin, "bob")
+    assert alice.post("/api/jellyfin/link", json={"username": "sam", "password": "x", "current_password": "nouveau-mdp-bob"}).status_code == 409
+    assert alice.post("/api/jellyfin/link/quickconnect", json={}).status_code == 403
+    r = alice.post("/api/jellyfin/link/quickconnect", json={"current_password": "nouveau-mdp-bob"}).json()
+    assert admin.post(f"/api/jellyfin/link/quickconnect/{r['id']}").status_code == 410  # la demande d'un autre compte
+    assert alice.post(f"/api/jellyfin/link/quickconnect/{r['id']}").json() == {"status": "pending"}
+    approve(r["id"], "sam")
+    assert alice.post(f"/api/jellyfin/link/quickconnect/{r['id']}").json()["status"] == "linked"
+    st = alice.get("/api/settings/status").json()["jellyfin"]
+    assert st["linked"] is True and st["username"] == "sam"
+    # Relier ne donne pas la connexion par Jellyfin
+    assert {u["username"]: u["jellyfin_login"] for u in admin.get("/api/admin/users").json()["results"]}["bob"] is False

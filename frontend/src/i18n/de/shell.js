@@ -136,4 +136,6 @@ export default {
   "Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe.": 'Mehrere falsche Zwei-Faktor-Codes: Wenn du das nicht warst, ändere dein Passwort.',
   'Notifications activées sur cet appareil': 'Benachrichtigungen auf diesem Gerät aktiviert',
   'Nouvel épisode de {title} sur {platforms} : {code}': 'Neue Folge von {title} auf {platforms}: {code}',
+  'Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n\'était pas toi, change ton mot de passe.': 'Das {server}-Konto „{name}“ wurde mit deinem SynCiné-Konto verbunden. Warst du das nicht, ändere dein Passwort.',
+  'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Die Anmeldung mit deinem {server}-Konto „{name}“ ist jetzt auf SynCiné aktiviert.',
 }

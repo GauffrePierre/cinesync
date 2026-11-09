@@ -46,7 +46,7 @@ flowchart LR
 The root `Dockerfile` has two stages:
 
 1. **`node:22-alpine`** runs `npm ci` and `npm run build` in `frontend/`, producing `dist/`.
-2. **`python:3.12-slim`** installs `backend/requirements.txt`, copies `backend/app` to `/app/app` and the built frontend to `/app/static`.
+2. **`python:3.12-slim`** installs `backend/requirements.txt` (exact versions with SHA-256 hashes, `--require-hashes`), copies `backend/app` to `/app/app` and the built frontend to `/app/static`.
 
 At runtime, `backend/app/main.py` does both jobs:
 

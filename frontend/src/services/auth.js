@@ -16,6 +16,10 @@ export const auth = {
   plexPin: (mode = 'link') => api.post(`/auth/plex/pin?mode=${mode}`),
   plexCheck: (pinId) => api.post(`/auth/plex/pin/${pinId}`),
   jellyfinLogin: (username, password) => api.post('/auth/jellyfin', { username, password }),
+  // Quick Connect : code à valider dans Jellyfin, sans mot de passe
+  jellyfinQuickStatus: () => api.get('/auth/jellyfin/quickconnect'),
+  jellyfinQuickStart: () => api.post('/auth/jellyfin/quickconnect'),
+  jellyfinQuickCheck: (id) => api.post(`/auth/jellyfin/quickconnect/${encodeURIComponent(id)}`),
   // Double authentification : 2e étape de connexion, activation (QR code puis 1er code), désactivation
   loginTwoFactor: (ticket, code) => api.post('/auth/login/2fa', { ticket, code }),
   twoFactorSetup: (password = '') => api.post('/auth/2fa/setup', { password }),

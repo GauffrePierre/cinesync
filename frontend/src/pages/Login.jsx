@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import Button from '../components/ui/Button'
+import QuickConnectCode from '../components/ui/QuickConnectCode'
 import { auth } from '../services/auth'
 import { useResetSession } from '../hooks/useAuth'
 import { useSettingsStore } from '../store/settingsStore'
@@ -231,6 +233,11 @@ function JellyfinLogin({ kind, onDone }) {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const label = kind === 'emby' ? 'Emby' : 'Jellyfin'
+  // Quick Connect disponible : code validé dans Jellyfin, le mot de passe Jellyfin n'est jamais saisi ici
+  const { data: quick } = useQuery({ queryKey: ['jellyfin-quick'], queryFn: auth.jellyfinQuickStatus, enabled: kind !== 'emby', staleTime: 60_000 })
+  if (open && quick?.enabled) {
+    return <QuickConnectCode start={auth.jellyfinQuickStart} check={auth.jellyfinQuickCheck} onDone={onDone} onCancel={() => setOpen(false)} />
+  }
   if (!open) {
     return (
       <Button className="w-full" variant="secondary" onClick={() => setOpen(true)}>

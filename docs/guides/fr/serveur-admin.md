@@ -49,9 +49,11 @@ Pour les personnes qui ont un compte sur ton serveur Jellyfin ou Emby :
 
 1. Section **Comptes Jellyfin du serveur** (ou Emby) : la liste s'affiche toute seule.
 2. **Autoriser** à côté de la personne.
-3. Envoie-lui l'adresse de SynCiné : elle se connectera avec **Se connecter avec Jellyfin** (ou Emby), avec son identifiant et son mot de passe habituels, vérifiés par ton serveur. SynCiné ne garde pas ce mot de passe.
+3. Envoie-lui l'adresse de SynCiné : elle se connectera avec **Se connecter avec Jellyfin** (ou Emby).
 
-Un membre qui a déjà un compte SynCiné peut aussi relier son compte Jellyfin lui-même : **Profil → Connexions → + → Jellyfin / Emby → Relier mon compte**.
+**Quick Connect (conseillé, Jellyfin)** : si Quick Connect est activé sur ton serveur (Jellyfin : Tableau de bord → Général → Quick Connect), SynCiné affiche un code à 6 chiffres que la personne valide dans son application Jellyfin (profil → Quick Connect). Son mot de passe Jellyfin n'est alors jamais saisi dans SynCiné, et SynCiné refuse la connexion par mot de passe. Sans Quick Connect (et avec Emby), elle saisit son identifiant et son mot de passe Jellyfin, vérifiés par ton serveur ; SynCiné ne les garde pas.
+
+Un membre qui a déjà un compte SynCiné peut aussi relier son compte Jellyfin lui-même (**Profil → Connexions → + → Jellyfin / Emby → Relier mon compte**, avec son mot de passe SynCiné) : il retrouve sa bibliothèque et ses vus. Se **connecter** à SynCiné avec ce compte reste à autoriser par toi : case **Peut se connecter avec son compte Jellyfin** sur son compte, dans **Profil → Admin → Comptes**.
 
 ### Sans compte Plex
 Ces comptes ne voient rien de ton serveur Plex (bibliothèque, nom du serveur, titres vus) et ne peuvent pas faire de demandes d'ajout.

@@ -13,12 +13,13 @@ from sqlalchemy import delete, select, update
 
 from app.database import UserScoped
 from app.models import AuthSession, MediaRequest, MediaState, Notification, SwipeHistory, User, UserSettings, WatchEvent
-from app.services import auth, backup, plex_auth
+from app.services import auth, backup, messages, plex_auth
 from app.services.auth import require_admin, require_server_mode
 from app.services.context import SHARED_ID, Ctx, get_ctx, settings_for
 from app.services.errors import NotConfigured, ServiceError
 from app.services.history import OWNER_ACCOUNT, assign_plex_events
 from app.services.jellyfin_client import ITEM_ID, LIBRARY_TYPES, folder_id, session_summary
+from app.services.clock import utcnow
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -39,6 +40,7 @@ class UserUpdate(BaseModel):
     role: Literal["admin", "member"] | None = None
     active: bool | None = None
     can_request_direct: bool | None = None
+    jellyfin_login: bool | None = None  # connexion avec le compte Jellyfin / Emby relié
     password: str | None = Field(None, max_length=256)  # nouveau mot de passe provisoire
     reset_two_factor: bool | None = None  # téléphone perdu : désactive la 2FA du compte
 
@@ -113,6 +115,8 @@ def update_user(user_id: int, body: UserUpdate, request: Request, ctx: Ctx = Dep
         u.role = body.role
     if body.can_request_direct is not None:
         u.can_request_direct = body.can_request_direct
+    if body.jellyfin_login is not None:
+        _set_jellyfin_login(ctx, u, body.jellyfin_login)
     if body.active is not None:
         u.active = body.active
     if body.password:
@@ -232,16 +236,29 @@ async def allow_jellyfin_account(body: JellyfinAllow, ctx: Ctx = Depends(get_ctx
     if existing:
         u = ctx.db.get(User, existing.id)
         u.active = True
+        _set_jellyfin_login(ctx, u, True)
         ctx.db.commit()
         return u.to_dict()
     u = User(username=_unique_username(ctx, account["name"]), display_name=body.display_name.strip() or account["name"],
-             role="member", can_request_direct=body.can_request_direct)
+             role="member", can_request_direct=body.can_request_direct, jellyfin_login=True)
     ctx.db.add(u)
     ctx.db.flush()
     ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language, onboarding="pending",
                             jellyfin_user_id=account["id"], jellyfin_username=account["name"]))
     ctx.db.commit()
     return u.to_dict()
+
+
+def _set_jellyfin_login(ctx: Ctx, u: User, allowed: bool) -> None:
+    """Autorise (ou retire) la connexion avec le compte Jellyfin / Emby relié ; le compte est prévenu de l'ajout."""
+    st = settings_for(ctx.db, u.id)
+    if allowed and not st.own.jellyfin_user_id:
+        raise HTTPException(409, "Ce compte n'a pas de compte Jellyfin relié")
+    if allowed and not u.jellyfin_login:
+        ctx.db.add(Notification(user_id=u.id, kind="service", service="security", **messages.fields(
+            "La connexion avec ton compte {server} « {name} » est activée sur SynCiné.",
+            server="Emby" if ctx.settings.jellyfin_kind == "emby" else "Jellyfin", name=st.own.jellyfin_username)))
+    u.jellyfin_login = allowed
 
 
 # --- Serveurs multimédias reliés (Plex, Jellyfin / Emby) -------------------------------------
@@ -416,7 +433,7 @@ async def plex_scan(section_id: str | None = None, ctx: Ctx = Depends(get_ctx)):
 def plex_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
     """Visionnages sur le serveur (historique Plex importé) : par compte, par jour, titres les plus vus."""
     days = max(1, min(days, 365))
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     rows = ctx.db.execute(
         select(WatchEvent).where(WatchEvent.source == "plex", WatchEvent.watched_at >= since).execution_options(all_users=True)
     ).scalars().all()
@@ -486,7 +503,7 @@ async def jellyfin_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
     pas d'historique complet)."""
     j = _jellyfin(ctx)
     days = max(1, min(days, 365))
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     accounts = [u for u in await j.users() if not u["disabled"]]
     linked = {st.jellyfin_user_id: st.id for st in ctx.db.execute(select(UserSettings).where(UserSettings.jellyfin_user_id != "")).scalars()}
     names = {u.id: u.name for u in ctx.db.query(User).all()}

@@ -11,7 +11,7 @@ import hmac
 import secrets
 import time
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.config import config
 from app.database import bind_user, get_db
 from app.models import AuthSession, User
+from app.services.clock import utcnow
 
 COOKIE = "cinesync_session"
 SESSION_DAYS = 30
@@ -89,7 +90,9 @@ class RateLimiter:
     - all : plafond global (attaque répartie).
     """
 
-    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300, "pin": 20}
+    # jf : échecs par compte Jellyfin / Emby visé, sous le seuil de blocage du serveur (3 par défaut, remis à
+    # zéro seulement par une connexion réussie) : SynCiné ne doit pas pouvoir servir à bloquer un compte
+    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300, "pin": 20, "jf": 2}
     MAX_KEYS = 10_000
 
     def __init__(self, window: int):
@@ -126,6 +129,7 @@ class RateLimiter:
 
 
 login_limiter = RateLimiter(window=15 * 60)
+jellyfin_limiter = RateLimiter(window=24 * 3600)  # clés « jf:<identifiant Jellyfin> »
 
 
 def client_ip(request: Request) -> str:
@@ -147,6 +151,22 @@ def guard_attempts(request: Request, subject: str = "", trusted: bool = False) -
     if login_limiter.blocked(*(hard if trusted else soft + hard)):
         raise HTTPException(429, "Trop d'essais, réessaie dans quelques minutes")
     return soft + hard
+
+
+RECENT_LOGIN = timedelta(minutes=10)
+
+
+def confirm_identity(db, request: Request, user: User, password: str) -> None:
+    """Changement sensible : mot de passe actuel exigé ; sans mot de passe (compte Plex / Jellyfin), connexion récente."""
+    if user.password_hash:
+        keys = guard_attempts(request, f"login:{user.username}")
+        if not verify_password(password, user.password_hash):
+            login_limiter.fail(*keys)
+            raise HTTPException(403, "Mot de passe actuel incorrect")
+        return
+    age = session_age(db, request)
+    if age is None or age > RECENT_LOGIN:
+        raise HTTPException(403, "Par sécurité, reconnecte-toi puis recommence dans les 10 minutes")
 
 
 # --- Appareils connus ----------------------------------------------------------------
@@ -186,7 +206,7 @@ def session_age(db: Session, request: Request) -> timedelta | None:
     """Ancienneté de la session de cette requête (pour exiger une connexion récente avant un changement sensible)."""
     token = request.cookies.get(COOKIE)
     row = db.get(AuthSession, _digest(token)) if token else None
-    return datetime.utcnow() - row.created_at if row and row.created_at else None
+    return utcnow() - row.created_at if row and row.created_at else None
 
 
 # --- Sessions ----------------------------------------------------------------------
@@ -210,7 +230,7 @@ def _set_cookie(request: Request, response: Response, token: str) -> None:
 
 
 def open_session(db: Session, user: User, request: Request, response: Response) -> None:
-    now = datetime.utcnow()
+    now = utcnow()
     token = secrets.token_urlsafe(32)
     db.query(AuthSession).filter(AuthSession.expires_at < now).delete()
     db.add(
@@ -260,7 +280,7 @@ def session_user(db: Session, request: Request, response: Response | None = None
     if not token:
         return None
     sess = db.get(AuthSession, _digest(token))
-    now = datetime.utcnow()
+    now = utcnow()
     if sess is None or sess.expires_at < now:
         return None
     user = db.get(User, sess.user_id)

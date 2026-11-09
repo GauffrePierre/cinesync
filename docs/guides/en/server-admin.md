@@ -49,9 +49,11 @@ For people who have an account on your Jellyfin or Emby server:
 
 1. The **Jellyfin accounts on the server** section (or Emby) lists them automatically.
 2. **Allow** next to the person.
-3. Send them SynCiné's address: they sign in with **Sign in with Jellyfin** (or Emby), using their usual username and password, checked by your server. SynCiné does not keep that password.
+3. Send them SynCiné's address: they sign in with **Sign in with Jellyfin** (or Emby).
 
-A member who already has a SynCiné account can also link their Jellyfin account themselves: **Profile → Connections → + → Jellyfin / Emby → Link my account**.
+**Quick Connect (recommended, Jellyfin)**: when Quick Connect is enabled on your server (Jellyfin: Dashboard → General → Quick Connect), SynCiné shows a 6-digit code that the person approves in their Jellyfin app (profile → Quick Connect). Their Jellyfin password is then never typed into SynCiné, and SynCiné refuses password sign-in. Without Quick Connect (and with Emby), they enter their Jellyfin username and password, checked by your server; SynCiné does not keep them.
+
+A member who already has a SynCiné account can also link their Jellyfin account themselves (**Profile → Connections → + → Jellyfin / Emby → Link my account**, with their SynCiné password) to get their library and watched titles. **Signing in** to SynCiné with that account still needs your approval: tick **Can sign in with their Jellyfin account** on their account, in **Profile → Admin → Accounts**.
 
 ### Without a Plex account
 These accounts see nothing of your Plex server (library, server name, watched titles) and can't make add requests.

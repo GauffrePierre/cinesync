@@ -104,12 +104,12 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 - **Watchlist, watched titles, ratings and favourites** gathered from Trakt, Plex and Letterboxd, and synced both ways (with a preview and safeguards).
 - Series tracking season by season, episode by episode.
 - Sort by release date, date added, overall rating, critics score, audience score, year or your own rating.
-- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding. You choose when to be told: as soon as it airs, when it's on your services, or when it lands on Plex.
+- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding. You choose when to be told: as soon as it airs, when it's on your services, or when it lands on your Plex, Jellyfin or Emby server.
 - Detailed **statistics** of your history: hours, films, episodes, genres, days and times you watch.
 
 **For the family (server edition)**
 - One administrator and an account for each member: everyone has their own watchlist, ratings, history and services.
-- Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed.
+- Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed (with Jellyfin, through a **Quick Connect** code, without typing the Jellyfin password).
 - **Add requests**: sent straight to Seerr for allowed members, otherwise queued for the administrator.
 - **Server dashboard** (Plex, Jellyfin or Emby, or several at once): what's playing (bandwidth, transcoding), libraries and scans, statistics.
 
@@ -385,7 +385,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 # Server (Python 3.12)
 cd backend
 python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt pytest
+pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000     # database in backend/data/
 pytest
 

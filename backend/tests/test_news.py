@@ -154,6 +154,7 @@ def test_gzip_bomb_is_stopped_at_the_decompressed_size(monkeypatch):
     assert asyncio.run(safe_fetch.fetch("https://example.org/feed"))[1] == b"<rss/>"
 
 
+@pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")  # image géante envoyée exprès
 def test_oversized_or_exotic_images_are_refused():
     import io
 

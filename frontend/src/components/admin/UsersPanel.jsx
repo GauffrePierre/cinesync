@@ -215,6 +215,13 @@ function UserRow({ user, me, onReset, onDelete }) {
             {t('Demandes envoyées directement à Seerr')}
           </label>
         )}
+        {/* Compte Jellyfin relié : la connexion avec lui reste à autoriser par l'administrateur */}
+        {user.jellyfin && (
+          <label className="mt-1.5 flex items-center gap-2 text-xs text-text2">
+            <input type="checkbox" checked={!!user.jellyfin_login} onChange={(e) => update.mutate({ jellyfin_login: e.target.checked })} className="h-3.5 w-3.5" />
+            {t('Peut se connecter avec son compte Jellyfin ({name})', { name: user.jellyfin })}
+          </label>
+        )}
       </div>
       {!self && (
         <div className="relative">

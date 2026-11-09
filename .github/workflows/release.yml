@@ -40,7 +40,8 @@ jobs:
             awk -v v="$v" '$0 ~ "^## " { if (p) exit; if (index($0, "## " v " ") == 1) { p = 1; next } } p' CHANGELOG.md > notes.md
             minor=$(echo "$v" | cut -d. -f1,2)
             if [ "$minor" != "1.0" ]; then  # images publiées sous le nom syncine à partir de 1.1.0
-              printf '\n---\n**Docker:** `docker pull ghcr.io/gauffrepierre/syncine:%s` (also `:latest`). Updating: see the [installation guide](https://github.com/%s/blob/main/docs/guides/en/installation.md#updates).\n' "$v" "$REPO" >> notes.md
+              also=$([ "$v" = "$latest" ] && echo ' (also `:latest`)' || true)
+              printf '\n---\n**Docker:** `docker pull ghcr.io/gauffrepierre/syncine:%s`%s. Updating: see the [installation guide](https://github.com/%s/blob/main/docs/guides/en/installation.md#updates).\n' "$v" "$also" "$REPO" >> notes.md
             fi
             flag=$([ "$v" = "$latest" ] && echo "--latest" || echo "--latest=false")
             if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then

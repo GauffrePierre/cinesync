@@ -42,6 +42,9 @@ class User(Base):
 
     # Demandes envoyées directement à Seerr (sinon : file d'attente de l'admin)
     can_request_direct: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Connexion à SynCiné avec le compte Jellyfin / Emby relié : accordée par l'administrateur seulement
+    # (relier son compte pour ses vus ne suffit pas)
+    jellyfin_login: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -68,6 +71,7 @@ class User(Base):
             "two_factor": bool(self.totp_secret),
             "plex": {"id": self.plex_user_id, "username": self.plex_username, "thumb": self.plex_thumb or None} if self.plex_user_id else None,
             "can_request_direct": self.is_admin or self.can_request_direct,
+            "jellyfin_login": self.jellyfin_login,
             "active": self.active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,

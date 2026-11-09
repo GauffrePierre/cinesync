@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Clapperboard, RefreshCw, Tv, WifiOff } from 'lucide-react'
 import Button from '../ui/Button'
+import { SERVER_LABELS } from '../ui/PlatformBadge'
 import PushSettings from './PushSettings'
 import { useStatus, useUpdateSettings } from '../../hooks/useMedia'
 import { notifications } from '../../services/notifications'
@@ -20,19 +21,19 @@ const VIA = {
     options: [
       { value: 'air', label: 'Dès la diffusion', hint: 'Le jour de sortie de l’épisode, où qu’il soit diffusé' },
       { value: 'platforms', label: 'Quand il est sur mes plateformes', hint: 'Seulement si la série est sur une de tes plateformes' },
-      { value: 'plex', label: 'Quand il arrive sur Plex', hint: 'Dès que l’épisode est ajouté au serveur Plex', plex: true },
+      { value: 'plex', label: 'Quand il arrive sur {server}', hint: 'Dès que l’épisode est ajouté au serveur {server}', server: true },
     ],
   },
   notify_availability: {
     field: 'notify_movie_via',
     options: [
       { value: 'platforms', label: 'Sur mes plateformes', hint: 'Le titre arrive sur une de tes plateformes (vérifié chaque jour)' },
-      { value: 'plex', label: 'Ajouté sur Plex', hint: 'Le titre arrive dans la bibliothèque Plex', plex: true },
+      { value: 'plex', label: 'Ajouté sur {server}', hint: 'Le titre arrive dans la bibliothèque {server}', server: true },
     ],
   },
 }
 
-function Via({ field, options, settings, update }) {
+function Via({ field, options, settings, update, server }) {
   const t = useT()
   const current = settings?.[field] || []
   const toggle = (value, on) => {
@@ -52,8 +53,8 @@ function Via({ field, options, settings, update }) {
             className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
           />
           <span className="min-w-0">
-            <span className="block text-sm">{t(o.label)}</span>
-            <span className="block text-xs text-text3">{t(o.hint)}</span>
+            <span className="block text-sm">{t(o.label, { server })}</span>
+            <span className="block text-xs text-text3">{t(o.hint, { server })}</span>
           </span>
         </label>
       ))}
@@ -65,7 +66,8 @@ function Via({ field, options, settings, update }) {
 export default function NotificationSettings({ settings }) {
   const t = useT()
   const { data: status } = useStatus()
-  const hasPlex = !!status?.plex?.configured
+  // « Ajouté sur le serveur » : Plex, Jellyfin ou Emby, selon le serveur du compte
+  const server = status?.media?.configured ? SERVER_LABELS[status.media.server] || 'Plex' : null
   const update = useUpdateSettings()
   const qc = useQueryClient()
   const check = useMutation({
@@ -102,7 +104,7 @@ export default function NotificationSettings({ settings }) {
             />
           </label>
           {VIA[key] && (settings?.[key] ?? true) && (
-            <Via field={VIA[key].field} options={VIA[key].options.filter((o) => !o.plex || hasPlex)} settings={settings} update={update} />
+            <Via field={VIA[key].field} options={VIA[key].options.filter((o) => !o.server || server)} settings={settings} update={update} server={server} />
           )}
         </div>
       ))}

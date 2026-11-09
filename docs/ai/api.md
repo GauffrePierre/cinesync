@@ -247,3 +247,5 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 
 Aussi : `POST /api/auth/jellyfin` (connexion avec un compte autorisé), `POST /api/admin/jellyfin/accounts` (autoriser un compte du serveur).
 
+| POST | `/api/auth/jellyfin/quickconnect` | `jellyfin_quick_connect_start` | public (server mode) | Quick Connect : nouvelle demande, renvoie `{id, code}` (le secret reste côté serveur). `GET` : `{enabled}`. `POST …/{id}` : `{status: pending}` ou connexion (session ou ticket 2FA). |
+| POST | `/api/jellyfin/link/quickconnect` | `link_quick_connect_start` | user | Relier son compte par Quick Connect (`current_password` ou connexion récente) ; `POST …/{id}` : `pending` ou `linked`. |

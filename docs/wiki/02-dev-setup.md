@@ -11,6 +11,7 @@ pip install -r requirements.txt -r requirements-dev.txt   # requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+- Python dependencies: `requirements.in` lists the allowed versions; `requirements.txt` is the lock generated from it by pip-compile (exact versions and SHA-256 hashes, also used by the Docker image). To add or change a dependency, edit `requirements.in`, then run `uvx --python 3.12 --from pip-tools pip-compile --generate-hashes --strip-extras requirements.in` in `backend/`. Dependabot updates both files.
 - The database is created in `backend/data/cinesync.db` (default `data_dir` in `backend/app/config.py`).
 - Settings are read from environment variables and from a `.env` file **in the current directory** (`SettingsConfigDict(env_file=".env")`), so in this setup `backend/.env`.
 - Without a TMDB key, `ctx.tmdb` is a `MockTMDB` and the app shows demo data (`services/mock_data.py`). Add a free key in **Profile** to get real data.

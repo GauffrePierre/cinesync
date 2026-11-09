@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, LogIn, Unlink } from 'lucide-react'
 import Button from '../ui/Button'
+import QuickConnectCode from '../ui/QuickConnectCode'
+import { auth } from '../../services/auth'
 import { jellyfin } from '../../services/jellyfin'
+import { useCurrentUser } from '../../hooks/useAuth'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
@@ -28,7 +31,8 @@ export default function JellyfinConnect({ status, isAdmin }) {
     qc.invalidateQueries({ queryKey: ['library'] })
   }
   const [server, setServer] = useState({ url: '', public_url: '', api_key: '' })
-  const [account, setAccount] = useState({ username: '', password: '' })
+  const me = useCurrentUser()
+  const [account, setAccount] = useState({ username: '', password: '', current: '' })
   const onError = (e) => toast(e.message, 'error')
   const connect = useMutation({
     mutationFn: () => jellyfin.connectServer(server),
@@ -41,15 +45,23 @@ export default function JellyfinConnect({ status, isAdmin }) {
   })
   const disconnect = useMutation({ mutationFn: jellyfin.disconnectServer, onSuccess: refresh, onError })
   const link = useMutation({
-    mutationFn: () => jellyfin.link(account.username, account.password),
+    mutationFn: () => jellyfin.link(account.username, account.password, account.current),
     onSuccess: (r) => {
       toast(t('Compte {name} relié', { name: r.username }), 'success')
-      setAccount({ username: '', password: '' })
+      setAccount({ username: '', password: '', current: '' })
       refresh()
     },
     onError,
   })
   const unlink = useMutation({ mutationFn: jellyfin.unlink, onSuccess: refresh, onError })
+  // Quick Connect disponible : le compte se relie par un code validé dans Jellyfin, sans mot de passe Jellyfin
+  const { data: quick } = useQuery({
+    queryKey: ['jellyfin-quick'],
+    queryFn: auth.jellyfinQuickStatus,
+    enabled: !!status?.server_linked && status?.kind !== 'emby',
+    staleTime: 60_000,
+  })
+  const [quickOpen, setQuickOpen] = useState(false)
   const label = status?.kind === 'emby' ? 'Emby' : 'Jellyfin'
 
   return (
@@ -109,34 +121,63 @@ export default function JellyfinConnect({ status, isAdmin }) {
                 {t('Délier')}
               </Button>
             </div>
+          ) : quickOpen ? (
+            <QuickConnectCode
+              start={() => jellyfin.linkQuickStart(account.current)}
+              check={jellyfin.linkQuickCheck}
+              onDone={(r) => {
+                toast(t('Compte {name} relié', { name: r.username }), 'success')
+                setQuickOpen(false)
+                setAccount({ username: '', password: '', current: '' })
+                refresh()
+              }}
+              onCancel={() => setQuickOpen(false)}
+            />
           ) : (
             <form
               className="space-y-3 rounded-xl bg-bg3/40 p-3"
               onSubmit={(e) => {
                 e.preventDefault()
-                link.mutate()
+                if (quick?.enabled) setQuickOpen(true)
+                else link.mutate()
               }}
             >
               <p className="text-xs text-text2">
                 {t('Relie ton compte {server} : ta bibliothèque, tes vus et ta progression dans SynCiné.', { server: label })}
               </p>
-              <Field
-                label={t('Identifiant {server}', { server: label })}
-                value={account.username}
-                onChange={(e) => setAccount({ ...account, username: e.target.value })}
-                autoComplete="off"
-                autoCapitalize="none"
-                required
-              />
-              <Field
-                label={t('Mot de passe')}
-                type="password"
-                value={account.password}
-                onChange={(e) => setAccount({ ...account, password: e.target.value })}
-                autoComplete="off"
-              />
+              {!quick?.enabled && (
+                <>
+                  <Field
+                    label={t('Identifiant {server}', { server: label })}
+                    value={account.username}
+                    onChange={(e) => setAccount({ ...account, username: e.target.value })}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    required
+                  />
+                  <Field
+                    label={t('Mot de passe')}
+                    type="password"
+                    value={account.password}
+                    onChange={(e) => setAccount({ ...account, password: e.target.value })}
+                    autoComplete="off"
+                  />
+                </>
+              )}
+              {/* Relier un compte est une action sensible : on confirme que c'est bien le titulaire du compte SynCiné */}
+              {me?.has_password && (
+                <Field
+                  label={t('Ton mot de passe SynCiné')}
+                  hint={t('Pour confirmer que c’est bien toi.')}
+                  type="password"
+                  value={account.current}
+                  onChange={(e) => setAccount({ ...account, current: e.target.value })}
+                  autoComplete="current-password"
+                  required
+                />
+              )}
               <Button type="submit" icon={LogIn} loading={link.isPending}>
-                {t('Relier mon compte')}
+                {quick?.enabled ? t('Relier avec Quick Connect') : t('Relier mon compte')}
               </Button>
             </form>
           )}

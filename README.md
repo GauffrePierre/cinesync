@@ -104,12 +104,12 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 - **Watchlist, titres vus, notes et coups de cœur** réunis depuis Trakt, Plex et Letterboxd, et synchronisés dans les deux sens (avec aperçu et garde-fous).
 - Suivi des séries saison par saison, épisode par épisode.
 - Tris par date de sortie, date d'ajout, note globale, note de la critique, note du public, année ou ta propre note.
-- **Notifications**, sous la cloche et en push sur ton téléphone ou ton ordinateur : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus. Tu choisis quand être prévenu : dès la diffusion, quand c'est sur tes plateformes, ou quand c'est ajouté sur Plex.
+- **Notifications**, sous la cloche et en push sur ton téléphone ou ton ordinateur : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus. Tu choisis quand être prévenu : dès la diffusion, quand c'est sur tes plateformes, ou quand c'est ajouté sur ton serveur Plex, Jellyfin ou Emby.
 - **Statistiques** détaillées de ton historique : heures, films, épisodes, genres, jours et heures de visionnage.
 
 **En famille (version serveur)**
 - Un administrateur et des comptes pour chaque membre : chacun a sa watchlist, ses notes, son historique, ses services.
-- Connexion par mot de passe, ou avec un compte Plex ou Jellyfin / Emby autorisé par l'administrateur.
+- Connexion par mot de passe, ou avec un compte Plex ou Jellyfin / Emby autorisé par l'administrateur (avec Jellyfin, par un code **Quick Connect**, sans saisir le mot de passe Jellyfin).
 - **Demandes d'ajout** : envoyées directement à Seerr pour les membres autorisés, sinon placées dans une file que l'administrateur traite.
 - **Tableau de bord du serveur** (Plex, Jellyfin ou Emby, ou plusieurs à la fois) : lectures en cours (débit, transcodage), bibliothèques et analyses, statistiques.
 
@@ -385,7 +385,7 @@ Pour signaler une faille, voir [SECURITY.md](SECURITY.md).
 # Serveur (Python 3.12)
 cd backend
 python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt pytest
+pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000     # base dans backend/data/
 pytest
 

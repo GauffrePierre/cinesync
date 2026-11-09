@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import Sidebar from './Sidebar'
 import BottomBar from './BottomBar'
@@ -6,6 +6,7 @@ import TopBar from './TopBar'
 import SearchOverlay from '../search/SearchOverlay'
 import Toaster from '../ui/Toaster'
 import AppChooser from '../ui/AppChooser'
+import Skeleton from '../ui/Skeleton'
 import { useUiStore } from '../../store/uiStore'
 
 export default function AppLayout() {
@@ -38,7 +39,10 @@ export default function AppLayout() {
       <div className="lg:pl-[200px]">
         <TopBar />
         <main className="px-4 pb-28 pt-4 md:px-8 md:pt-6 lg:pb-12">
-          <Outlet />
+          {/* Page en cours de chargement : le menu reste en place */}
+          <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <BottomBar />

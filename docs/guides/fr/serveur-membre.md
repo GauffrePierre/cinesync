@@ -21,10 +21,10 @@ Si on t'a aussi donné un mot de passe provisoire, ou si tu veux pouvoir te conn
 L'administrateur a autorisé ton compte Jellyfin (ou Emby).
 
 1. Sur l'écran **Connexion**, choisis **Se connecter avec Jellyfin** (ou Emby).
-2. Saisis l'identifiant et le mot de passe de ton compte Jellyfin : ils sont vérifiés par le serveur, SynCiné ne garde pas le mot de passe.
+2. Si un code à 6 chiffres s'affiche (**Quick Connect**) : dans ton application Jellyfin ou sur le site, ouvre ton profil → **Quick Connect** et saisis ce code. SynCiné te connecte dès que tu l'as validé, sans ton mot de passe Jellyfin. Sinon, saisis ton identifiant et ton mot de passe Jellyfin : ils sont vérifiés par le serveur, SynCiné ne les garde pas.
 3. Tes titres vus sur Jellyfin sont les tiens, et « Lire » ouvre le titre sur Jellyfin.
 
-Tu as déjà un compte SynCiné ? Relie ton compte Jellyfin dans **Profil → Connexions → + → Jellyfin / Emby → Relier mon compte**.
+Tu as déjà un compte SynCiné ? Relie ton compte Jellyfin dans **Profil → Connexions → + → Jellyfin / Emby → Relier mon compte** (ton mot de passe SynCiné est demandé ; avec Quick Connect, tu valides ensuite un code dans Jellyfin). Pour pouvoir ensuite te connecter avec lui, demande-le à l'administrateur.
 
 ## Sans compte Plex
 

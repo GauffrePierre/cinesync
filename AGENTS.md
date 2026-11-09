@@ -12,11 +12,12 @@ Self-hosted PWA for film lovers: streaming availability, local cinema showtimes,
 
 ## Commands
 ```bash
-cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt pytest
+cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000        # API on :8000, DB in backend/data/
 python -m pytest -q                               # must stay green
 cd frontend && npm install && npm run dev         # :5173, proxies /api to :8000
 npx vite build                                    # must build without errors
+python -m pytest -q e2e                           # from the repo root, after the build: browser tests (see docs/wiki/10-testing.md)
 docker compose up -d --build                      # full image (see .env.example)
 ```
 
@@ -28,7 +29,7 @@ docker compose up -d --build                      # full image (see .env.example
 5. **Frontend security.** No `dangerouslySetInnerHTML`, no inline `<script>`. CSP is defined in `backend/app/main.py`; adding an external origin (script/connect/frame) requires updating it. Feed/remote text is rendered as plain text.
 6. **i18n.** UI strings are written in French and wrapped in `t('…')` (`useT()` in components, `t` from `i18n` outside). Add the value to the matching `<area>.js` in **every** dictionary: `frontend/src/i18n/{en,it,de,es}/` (dictionaries are lazy-loaded per language; keys must stay identical across languages). Push-notification templates also need their translations in `backend/app/services/messages.py`. Plurals = two keys chosen with `n > 1`. Labels passed to `<Tabs>` are translated by Tabs. Backend user-facing messages are French and translated client-side (add them to the dictionaries too). Check: no missing key, same keys and placeholders in all languages, no conflicting values across dictionaries.
 7. **Migrations** are automatic at startup (`init_db`): new columns need a scalar `default=` (becomes SQL `DEFAULT`); constraint changes use `_REBUILD_FOR_USERS`. Never drop user data. Test migrations against a copy of an old DB.
-8. **Code style.** Comments and docstrings in **French** (existing convention), identifiers in English. Small functions, type hints, no new dependencies without need. Keep files formatted like their neighbours (Python line length ~140; JS 2-space, no semicolons, single quotes).
+8. **Code style.** Comments and docstrings in **French** (existing convention), identifiers in English. Small functions, type hints, no new dependencies without need. Python dependencies: edit `backend/requirements.in`, then regenerate the hashed lock `backend/requirements.txt` (command at the top of `requirements.in`); never edit `requirements.txt` by hand. Keep files formatted like their neighbours (Python line length ~140; JS 2-space, no semicolons, single quotes).
 9. **Tests.** Add/adjust pytest tests for any backend behaviour change, mandatory for auth, permissions, isolation, migrations, SSRF. Use the fixtures in `backend/tests/conftest.py` and helpers in `tests/test_accounts.py` (`client`, `setup_admin`, `add_member`, `login`).
 10. **Versions.** Single source: `backend/app/__init__.py` `__version__` and `frontend/package.json` `version` — bump both together, and add a `## X.Y.Z - YYYY-MM-DD` section to `CHANGELOG.md` (English, user-facing). Release = tag `vX.Y.Z`: builds the multi-arch image to ghcr.io and creates/updates the GitHub Release from the changelog section (`.github/workflows/release.yml`).
 11. **Privacy.** Never commit personal data: real host names, IPs, emails, tokens, family names, private URLs, `.env`, databases. Demo data only in screenshots/tests (neutral first names).
@@ -40,4 +41,4 @@ docker compose up -d --build                      # full image (see .env.example
 Full map: `docs/ai/map.md`.
 
 ## Definition of done
-Backend tests green · `vite build` OK · no missing/conflicting translation keys · security rules above respected · docs updated if behaviour or settings changed (`README.md`/`README.en.md`, `docs/`, `.env.example`).
+Backend tests green · `vite build` OK · e2e tests green · no missing/conflicting translation keys · security rules above respected · docs updated if behaviour or settings changed (`README.md`/`README.en.md`, `docs/`, `.env.example`).

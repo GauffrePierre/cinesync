@@ -25,7 +25,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Versions exactes et empreintes SHA-256 (fichier généré depuis requirements.in) : tout paquet modifié est refusé
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 COPY backend/app ./app
 COPY --from=frontend /src/dist ./static
 COPY docker/entrypoint.sh /entrypoint.sh

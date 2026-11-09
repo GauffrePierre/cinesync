@@ -23,6 +23,10 @@ def fresh():
     init_db()
     cache.clear()
     auth.login_limiter._fails.clear()
+    auth.jellyfin_limiter._fails.clear()
+    from app.services import quick_connect
+
+    quick_connect.clear()
     yield
 
 
