@@ -4,6 +4,12 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.3.4 - 2026-11-09
+
+- Unraid: the template is now named `SynCine` (no accent), because Unraid uses it as the Docker container name. SynCiné
+  can then appear in the Community Applications store (Apps tab, search for SynCine).
+- Install guide and README: the Apps store comes first on Unraid.
+
 ## 1.3.3 - 2026-11-09
 
 **Security (Jellyfin and Emby)**

@@ -204,7 +204,9 @@ Le conteneur s'appelle alors `cinesync` (`docker logs cinesync` pour le code d'i
 
 ### Sur Unraid
 
-**Avec le modèle Unraid** : télécharge [`unraid/syncine.xml`](unraid/syncine.xml) dans `/boot/config/plugins/dockerMan/templates-user/` (commande dans le [guide d'installation](docs/guides/fr/installation.md#unraid)), puis **Docker → Add Container** et choisis **SynCiné** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/syncine`, et le conteneur tourne sous `nobody:users`.
+**Depuis la boutique Apps** : cherche **SynCine**, puis **Install**.
+
+**Avec le modèle Unraid** : télécharge [`unraid/syncine.xml`](unraid/syncine.xml) dans `/boot/config/plugins/dockerMan/templates-user/` (commande dans le [guide d'installation](docs/guides/fr/installation.md#unraid)), puis **Docker → Add Container** et choisis **SynCine** dans la liste des modèles. Les données vont dans `/mnt/user/appdata/syncine`, et le conteneur tourne sous `nobody:users`.
 
 <details>
 <summary>Avec Docker Compose sur Unraid (sans plugin)</summary>

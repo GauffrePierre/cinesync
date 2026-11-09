@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>SynCiné</Name>
+  <Name>SynCine</Name>
   <Repository>ghcr.io/gauffrepierre/syncine:latest</Repository>
   <Registry>https://github.com/GauffrePierre/syncine/pkgs/container/syncine</Registry>
   <Network>bridge</Network>

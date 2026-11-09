@@ -61,14 +61,16 @@ SynCiné is at `http://<machine-address>:3000`. Go to [first start](#first-start
 
 ## Unraid
 
-**With the template** (until SynCiné is in the *Apps* store):
+**From the store**: **Apps** tab, search for **SynCine**, then **Install**.
+
+**Or with the template**, by hand:
 
 1. In an Unraid terminal:
    ```bash
    wget -O /boot/config/plugins/dockerMan/templates-user/my-SynCine.xml \
      https://raw.githubusercontent.com/GauffrePierre/syncine/main/unraid/syncine.xml
    ```
-2. **Docker → Add Container**, pick **SynCiné** from the *Template* list.
+2. **Docker → Add Container**, pick **SynCine** from the *Template* list (no accent: it is also the container name).
 3. Check the port (3000 by default), the data folder (`/mnt/user/appdata/syncine`) and the edition (`server` or `personal`), then **Apply**.
 
 PUID/PGID are 99/100 (`nobody:users`), the Unraid convention. For the setup code: container icon → **Logs**.
