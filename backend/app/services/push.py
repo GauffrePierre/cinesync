@@ -104,9 +104,9 @@ def send(sub, payload: dict, client: httpx.Client) -> int:
 
 def _link(item: dict, is_admin: bool) -> str:
     if item["kind"] == "service":
-        return "/profile"
+        return "/profile?tab=connections"
     if item["kind"] == "request" and is_admin:
-        return "/admin?tab=requests"
+        return "/profile?tab=admin&section=requests"
     return f"/{item['media_type']}/{item['tmdb_id']}" if item["media_type"] and item["tmdb_id"] else "/"
 
 

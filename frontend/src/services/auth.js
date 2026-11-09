@@ -15,6 +15,7 @@ export const auth = {
   removePassword: (current_password) => api.del('/auth/password', { current_password }),
   plexPin: (mode = 'link') => api.post(`/auth/plex/pin?mode=${mode}`),
   plexCheck: (pinId) => api.post(`/auth/plex/pin/${pinId}`),
+  jellyfinLogin: (username, password) => api.post('/auth/jellyfin', { username, password }),
   // Double authentification : 2e étape de connexion, activation (QR code puis 1er code), désactivation
   loginTwoFactor: (ticket, code) => api.post('/auth/login/2fa', { ticket, code }),
   twoFactorSetup: (password = '') => api.post('/auth/2fa/setup', { password }),

@@ -7,7 +7,7 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `docker-compose.yml` → single service `cinesync`, port `${CINESYNC_BIND}:${CINESYNC_PORT}:8000`, volume `${DATA_PATH}:/app/data`. Optional untracked `docker-compose.override.yml` for extra binds (proxy container).
 - `.env.example` → all env vars (see `backend/app/config.py`).
 - `.github/workflows/docker.yml` → on tag `v*.*.*`/manual: pytest + vite build, then multi-arch image to `ghcr.io/<owner>/cinesync` (actions pinned by SHA). `.github/dependabot.yml`, `.github/FUNDING.yml`.
-- `unraid/cinesync.xml` → Unraid template. `SECURITY.md`, `LICENSE` (AGPL-3.0), `README.md` (FR) / `README.en.md`.
+- `unraid/syncine.xml` → Unraid template (TemplateURL brute GitHub) ; `ca_profile.xml` → profil du dépôt pour Community Applications. `SECURITY.md`, `LICENSE` (AGPL-3.0), `README.md` (FR) / `README.en.md`.
 - `docs/wiki/` human dev wiki · `docs/guides/{fr,en}/` user starter guides · `docs/ai/` this folder · `docs/screenshots/` README images (demo data).
 
 ## Backend `backend/app/`
@@ -37,10 +37,10 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 ## Frontend `frontend/src/`
 - `main.jsx` → React root, QueryClient defaults, self-hosted Inter font, PWA registration (`virtual:pwa-register`, hourly/visibility update checks).
 - `App.jsx` → auth gate (`useMe`: splash / setup / login / forced password change / app) + routes.
-- `pages/` → `Discover`, `Upcoming`, `News`, `Library` (Plex only), `Tonight`, `Watchlist`, `MediaDetail`, `Profile`, `Stats`, `Swipe`, `Admin`, `Login` (Setup, Login, PasswordForm, ForcePasswordChange, Splash).
+- `pages/` → `Discover`, `Upcoming`, `News`, `Library` (Plex / Jellyfin / Emby), `Tonight`, `Watchlist`, `MediaDetail`, `Profile` (onglets `?tab=account|connections|prefs|admin`, admin : `&section=server|users|requests|backups`), `Stats`, `Swipe`, `Admin` (redirection de l'ancienne adresse /admin), `Login` (Setup, Login, PasswordForm, ForcePasswordChange, Splash).
 - `components/layout/` → `AppLayout`, `Sidebar` (nav, services health, version), `BottomBar` (mobile), `TopBar`, `nav.js` (`NAV_ITEMS`, `useNavItems` hides items needing an absent service).
 - `components/media/` → `MediaCard`, `PosterActions`, `MediaRow`, `MediaGrid`, `HeroCarousel`/`HeroSection`, `PlatformFilter`, `Poster`; `detail/` (`Availability`, `SeriesTracker`, `People`, `Trailer`).
-- `components/admin/` → `PlexDashboard`, `UsersPanel`. `components/profile/` → `ConnectionCard`, `PlexConnect`, `TraktConnect`, `SyncPanel`, `CinemaPicker`, `PlatformPicker`, `RequestsPanel` (scope mine/all), `HiddenTitles`, `NotificationSettings`, `About` (`Support`, `About`).
+- `components/admin/` → `ServerDashboard` (Plex / Jellyfin / Emby, sélecteur si plusieurs ; `useMediaServers`), `UsersPanel`, `BackupsPanel`. `components/profile/` → `ConnectionCard`, `PlexConnect`, `TraktConnect`, `SyncPanel`, `CinemaPicker`, `PlatformPicker`, `RequestsPanel` (scope mine/all), `HiddenTitles`, `NotificationSettings`, `About` (`Support`, `About`).
 - `components/ui/` → `Button`, `Modal`, `Tabs` (translates labels), `EmptyState`, `Skeleton`, `Toaster`, `PlatformBadge`, `StarRating`, `WatchlistButton`, `WatchLink` (opens native apps), `AppChooser` (iOS app/browser sheet).
 - `hooks/` → `useMedia.js` (all queries/mutations; optimistic `library-keys`), `useAuth.js` (`useMe`, `useCurrentUser`, `useIsAdmin`, `usePersonal`, `useResetSession`), `useTheme.js`, `useSyncOnOpen.js`, `useDebounce.js`, `useSwipeGesture.js`.
 - `services/` → thin API wrappers: `api.js` (fetch, errors translated, 401 event), `auth.js`, `admin.js`, `user.js`, `library.js`, `media/tmdb.js`, `trakt.js`, `plex.js`, `requests.js`, `news.js`, `notifications.js`, `search.js`, `swipe.js`.

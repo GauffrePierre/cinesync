@@ -80,7 +80,7 @@ export default function HeroCarousel({ fallback, loading }) {
         >
           <HeroSection item={current.item} label={slideLabel(current.label, t)}>
             {count > 1 && (
-              <div className="absolute bottom-6 right-4 z-10 flex items-center gap-2 md:bottom-10 md:right-8">
+              <div className="absolute right-4 top-4 z-10 flex items-center gap-2 md:bottom-10 md:right-8 md:top-auto">
                 <button
                   onClick={() => go(-1)}
                   className="hidden rounded-full bg-black/30 p-1.5 text-white backdrop-blur-md transition hover:bg-black/50 md:block"

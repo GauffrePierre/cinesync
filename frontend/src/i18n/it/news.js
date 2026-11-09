@@ -1,0 +1,43 @@
+// Actu Ciné (pages/News.jsx)
+export default {
+  'Actu Ciné': 'News Cinema',
+  Actu: 'News',
+  Articles: 'Articoli',
+  Vidéos: 'Video',
+  Sources: 'Fonti',
+  Toutes: 'Tutte',
+  'Les dernières critiques, actus et vidéos de tes sources préférées.': 'Le ultime recensioni, notizie e video dalle tue fonti preferite.',
+  'Indisponible pour le moment : {names}': 'Non disponibile al momento: {names}',
+  'Actu Ciné indisponible': 'News Cinema non disponibile',
+  'Rien à lire pour le moment': 'Niente da leggere per ora',
+  'Ajoute des sources pour remplir ton fil.': 'Aggiungi delle fonti per riempire il tuo feed.',
+  'Chaque article s’ouvre sur le site de sa source.': 'Ogni articolo si apre sul sito della sua fonte.',
+  'Sources de l’Actu Ciné': 'Fonti di News Cinema',
+  'Sites en français': 'Siti in francese',
+  'Sites en anglais': 'Siti in inglese',
+  'Mes sources': 'Le mie fonti',
+  Retirer: 'Rimuovi',
+  'Site, flux RSS ou chaîne YouTube': 'Sito, feed RSS o canale YouTube',
+  'Exemples : critikat.com, youtube.com/@chaine. SynCiné trouve le flux tout seul.': 'Esempi: critikat.com, youtube.com/@canale. SynCiné trova il feed da solo.',
+  'Les articles s’ouvrent sur le site d’origine : si tu as un compte ou un abonnement (Écran Large, Le Monde…), connecte-toi sur le site dans ton navigateur pour tout lire.':
+    'Gli articoli si aprono sul sito originale: se hai un account o un abbonamento (Écran Large, Le Monde…), accedi a quel sito nel tuo browser per leggere tutto.',
+  'Clé API YouTube (admin, facultatif)': 'Chiave API YouTube (admin, facoltativa)',
+  'Clé enregistrée. Elle sert de secours quand YouTube ne fournit pas le flux d’une chaîne.': 'Chiave salvata. Serve come riserva quando YouTube non fornisce il feed di un canale.',
+  'Secours quand YouTube ne fournit pas le flux d’une chaîne. Clé gratuite : Google Cloud Console → YouTube Data API v3.':
+    'Riserva quando YouTube non fornisce il feed di un canale. Chiave gratuita: Google Cloud Console → YouTube Data API v3.',
+  'Clé API YouTube enregistrée': 'Chiave API YouTube salvata',
+  '« {name} » ajouté': '“{name}” aggiunto',
+  // Messages du serveur
+  'Adresse invalide : elle doit commencer par https://': 'Indirizzo non valido: deve iniziare con https://',
+  'Adresse invalide': 'Indirizzo non valido',
+  'Cette adresse pointe vers un réseau privé : refusée': 'Questo indirizzo punta a una rete privata: rifiutato',
+  'Réponse trop volumineuse': 'Risposta troppo grande',
+  'Trop de redirections': 'Troppi reindirizzamenti',
+  'Aucun article dans ce flux': 'Nessun articolo in questo feed',
+  "Aucun flux d'articles (RSS) trouvé à cette adresse": 'Nessun feed di articoli (RSS) trovato a questo indirizzo',
+  'Le flux trouvé ne contient aucun article': 'Il feed trovato non contiene articoli',
+  "Chaîne YouTube introuvable : utilise l'adresse youtube.com/channel/UC…": "Canale YouTube non trovato: usa l'indirizzo youtube.com/channel/UC…",
+  "YouTube ne fournit pas le flux de cette chaîne pour le moment ; l'admin peut ajouter une clé API YouTube (Actu Ciné → Sources)":
+    "YouTube non fornisce il feed di questo canale al momento; l'admin può aggiungere una chiave API YouTube (News Cinema → Fonti)",
+  'Aucune vidéo trouvée sur cette chaîne': 'Nessun video trovato su questo canale',
+}

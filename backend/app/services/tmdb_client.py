@@ -337,6 +337,67 @@ class TMDBClient:
                     out["streaming"].append(d)
         return {k: sorted(v) for k, v in out.items()}
 
+    # Classification -> âge minimum (France, Allemagne FSK, États-Unis cinéma et TV ; chiffres seuls)
+    AGE = {"U": 0, "TP": 0, "G": 0, "PG": 8, "PG-13": 13, "R": 17, "NC-17": 18, "TV-Y": 0, "TV-Y7": 7, "TV-G": 0,
+           "TV-PG": 8, "TV-14": 14, "TV-MA": 17, "ALL": 0, "AL": 0}
+
+    def _age(self, cert: str) -> int | None:
+        cert = (cert or "").strip().upper().replace("FSK", "").replace("+", "").strip()
+        if cert in self.AGE:
+            return self.AGE[cert]
+        return int(cert) if cert.isdigit() else None
+
+    async def min_age(self, media_type: str, tmdb_id: int) -> int | None:
+        """Âge minimum conseillé (classification du pays choisi, sinon des États-Unis), ou None si inconnu."""
+        try:
+            if media_type == "movie":
+                data = await self._get(f"/movie/{tmdb_id}/release_dates", ttl=86400, language=None)
+                by_country = {r.get("iso_3166_1"): [d.get("certification") for d in r.get("release_dates", []) if d.get("certification")]
+                              for r in data.get("results", [])}
+            else:
+                data = await self._get(f"/tv/{tmdb_id}/content_ratings", ttl=86400, language=None)
+                by_country = {r.get("iso_3166_1"): [r.get("rating")] for r in data.get("results", []) if r.get("rating")}
+        except ServiceError:
+            return None
+        for country in (self.country, "US"):
+            ages = [a for a in (self._age(c) for c in by_country.get(country) or []) if a is not None]
+            if ages:
+                return min(ages)
+        return None
+
+    async def keyword_ids(self, media_type: str, tmdb_id: int) -> set[int]:
+        """Mots-clés TMDB d'un titre (Noël, Halloween…), en cache une semaine."""
+        try:
+            data = await self._get(f"/{media_type}/{tmdb_id}/keywords", ttl=7 * 86400, language=None)
+        except ServiceError:
+            return set()
+        return {k["id"] for k in (data.get("keywords") or data.get("results") or []) if k.get("id")}
+
+    async def release_overview(self, tmdb_id: int) -> dict:
+        """Sortie en salles dans le pays choisi, et première sortie en streaming / VOD n'importe où dans le monde."""
+        try:
+            data = await self._get(f"/movie/{tmdb_id}/release_dates", ttl=86400, language=None)
+        except ServiceError:
+            return {}
+        cinema, streaming = [], []
+        for r in data.get("results", []):
+            country = r.get("iso_3166_1")
+            for rd in r.get("release_dates", []):
+                d = (rd.get("release_date") or "")[:10]
+                if not d:
+                    continue
+                if rd.get("type") in (2, 3) and country == self.country:
+                    cinema.append(d)
+                elif rd.get("type") == 4:
+                    streaming.append((d, country))
+        first_stream = min(streaming) if streaming else None
+        return {
+            "cinema": min(cinema) if cinema else None,
+            "cinema_country": self.country,
+            "streaming": first_stream[0] if first_stream else None,
+            "streaming_country": first_stream[1] if first_stream else None,
+        }
+
     async def _apply_regional_release(self, item: dict, kind: str, start: date, end: date) -> None:
         """Remplace la date mondiale par la date de sortie du pays et indique le type (cinéma / streaming)."""
         dates = await self.release_dates(item["id"])

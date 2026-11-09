@@ -1,14 +1,22 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clapperboard, Film, Folder, Gauge, Home, Loader2, MonitorPlay, Music, Pause, Play, RefreshCw, Server, Tv, Wifi } from 'lucide-react'
+import { Clapperboard, Film, Folder, Gauge, Home, Info, Loader2, MonitorPlay, Music, Pause, Play, RefreshCw, Server, Tv, Wifi } from 'lucide-react'
 import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
 import Skeleton from '../ui/Skeleton'
+import { SERVER_LABELS, ServerLogo } from '../ui/PlatformBadge'
 import { admin } from '../../services/admin'
 import { relativeTime } from '../../lib/format'
 import { toast } from '../../store/uiStore'
 import { currentLocale, fmtNumber, useT } from '../../i18n'
 
 const LIB_ICON = { movie: Film, show: Tv, artist: Music }
+const STORE_KEY = 'syncine.adminServer'
+
+// Serveurs multimédias reliés (Plex, Jellyfin / Emby) dont l'admin voit le tableau de bord
+export const useMediaServers = () => useQuery({ queryKey: ['admin', 'servers'], queryFn: admin.servers, staleTime: 60_000, select: (d) => d.results })
+
+const dashboardQuery = (srv) => ({ queryKey: ['admin', 'dashboard', srv], queryFn: () => admin.dashboard(srv), staleTime: 5_000, refetchIntervalInBackground: false })
 
 function Card({ title, right, children }) {
   return (
@@ -123,9 +131,10 @@ function DailyBars({ days }) {
   )
 }
 
-function Stats() {
+function Stats({ server }) {
   const t = useT()
-  const { data } = useQuery({ queryKey: ['admin', 'plex-stats'], queryFn: () => admin.stats(30), staleTime: 5 * 60_000 })
+  const { data, error } = useQuery({ queryKey: ['admin', 'stats', server.id], queryFn: () => admin.stats(server.id, 30), staleTime: 5 * 60_000 })
+  if (error) return null
   if (!data) return <Skeleton className="h-48 rounded-2xl" />
   const maxUser = Math.max(1, ...data.by_user.map((u) => u.plays))
   return (
@@ -136,6 +145,14 @@ function Stats() {
         <Tile label={t('Films')} value={fmtNumber(data.movies)} />
         <Tile label={t('Épisodes')} value={fmtNumber(data.episodes)} />
       </div>
+      {data.approx && (
+        <p className="mt-3 flex gap-2 text-xs text-text3">
+          <Info className="mt-px h-3.5 w-3.5 shrink-0" />
+          {t('{server} ne garde que la dernière lecture de chaque titre : un titre revu plusieurs fois compte pour une lecture.', {
+            server: SERVER_LABELS[server.kind],
+          })}
+        </p>
+      )}
       {data.plays === 0 ? (
         <p className="mt-4 text-sm text-text2">{t("Aucune lecture dans l'historique importé sur cette période.")}</p>
       ) : (
@@ -182,26 +199,21 @@ function Stats() {
   )
 }
 
-export default function PlexDashboard() {
+function Dashboard({ server: srv }) {
   const t = useT()
   const qc = useQueryClient()
-  const { data, error, isLoading } = useQuery({
-    queryKey: ['admin', 'plex-dashboard'],
-    queryFn: admin.dashboard,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: false,
-    staleTime: 5_000,
-  })
+  const label = SERVER_LABELS[srv.kind]
+  const { data, error, isLoading } = useQuery({ ...dashboardQuery(srv.id), refetchInterval: 10_000 })
   const scan = useMutation({
-    mutationFn: (id) => admin.scan(id),
+    mutationFn: (id) => admin.scan(srv.id, id),
     onSuccess: () => {
       toast(t('Analyse lancée'), 'success')
-      setTimeout(() => qc.invalidateQueries({ queryKey: ['admin', 'plex-dashboard'] }), 1500)
+      setTimeout(() => qc.invalidateQueries({ queryKey: ['admin', 'dashboard', srv.id] }), 1500)
     },
     onError: (e) => toast(e.message, 'error'),
   })
 
-  if (error) return <EmptyState icon={Server} title={t('Serveur Plex indisponible')} message={error.message} action={t('Vérifier le Profil')} to="/profile" />
+  if (error) return <EmptyState icon={Server} title={t('Serveur {server} indisponible', { server: label })} message={error.message} action={t('Vérifier le Profil')} to="/profile?tab=connections" />
   if (isLoading || !data) {
     return (
       <div className="space-y-4">
@@ -216,12 +228,10 @@ export default function PlexDashboard() {
     <div className="space-y-4">
       <Card>
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-plex/15 text-plex">
-            <Server className="h-5 w-5" />
-          </div>
+          <ServerLogo server={srv.kind} className="h-11 w-11 rounded-xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{server.name}</p>
-            <p className="truncate text-xs text-text2">{[server.version && `Plex ${server.version.split('-')[0]}`, server.platform].filter(Boolean).join(' · ')}</p>
+            <p className="truncate text-xs text-text2">{[server.version && `${label} ${server.version.split('-')[0]}`, server.platform].filter(Boolean).join(' · ')}</p>
           </div>
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-500">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {t('En ligne')}
@@ -306,7 +316,83 @@ export default function PlexDashboard() {
         )}
       </Card>
 
-      <Stats />
+      <Stats server={srv} />
+    </div>
+  )
+}
+
+// Sélecteur de serveur (si plusieurs) : nom, type et nombre de lectures en cours sur chacun
+function ServerTab({ server, active, onSelect }) {
+  const t = useT()
+  // Le serveur affiché se met à jour toutes les 10 s ; les autres toutes les 30 s, pour leur compteur
+  const { data } = useQuery({ ...dashboardQuery(server.id), refetchInterval: active ? 10_000 : 30_000 })
+  const streams = data?.totals?.streams || 0
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition ${
+        active ? 'border-text/30 bg-bg3' : 'border-line bg-bg2 hover:bg-bg3'
+      }`}
+    >
+      <ServerLogo server={server.kind} className="h-8 w-8 rounded-lg" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{server.name}</span>
+        <span className="block truncate text-xs text-text3">{SERVER_LABELS[server.kind]}</span>
+      </span>
+      {streams > 0 && (
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium tabular-nums text-emerald-500">
+          <Play className="h-3 w-3 fill-current" /> {streams}
+          <span className="sr-only">{t('Lectures en cours')}</span>
+        </span>
+      )}
+    </button>
+  )
+}
+
+function readStored() {
+  try {
+    return localStorage.getItem(STORE_KEY)
+  } catch {
+    return null
+  }
+}
+
+// Tableau de bord des serveurs multimédias : un seul serveur → affiché directement ; plusieurs → sélecteur en haut
+export default function ServerDashboard() {
+  const t = useT()
+  const { data: servers, isLoading } = useMediaServers()
+  const [selected, setSelected] = useState(readStored)
+  if (isLoading || !servers) return <Skeleton className="h-24 rounded-2xl" />
+  if (!servers.length) {
+    return (
+      <EmptyState
+        icon={Server}
+        title={t('Aucun serveur multimédia relié')}
+        message={t('Relie Plex, Jellyfin ou Emby dans Profil → Connexions pour suivre ici les lectures en cours et les bibliothèques.')}
+      />
+    )
+  }
+  const current = servers.find((s) => s.id === selected) || servers[0]
+  const select = (id) => {
+    setSelected(id)
+    try {
+      localStorage.setItem(STORE_KEY, id)
+    } catch {
+      /* stockage indisponible : le choix vaut pour cette visite */
+    }
+  }
+  return (
+    <div className="space-y-4">
+      {servers.length > 1 && (
+        <div className="flex gap-2" role="group" aria-label={t('Serveurs multimédias')}>
+          {servers.map((s) => (
+            <ServerTab key={s.id} server={s} active={s.id === current.id} onSelect={() => select(s.id)} />
+          ))}
+        </div>
+      )}
+      <Dashboard key={current.id} server={current} />
     </div>
   )
 }

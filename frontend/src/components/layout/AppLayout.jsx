@@ -35,9 +35,9 @@ export default function AppLayout() {
   return (
     <div className="min-h-dvh bg-bg text-text">
       <Sidebar />
-      <div className="md:pl-[200px]">
+      <div className="lg:pl-[200px]">
         <TopBar />
-        <main className="px-4 pb-28 pt-4 md:px-8 md:pb-12 md:pt-6">
+        <main className="px-4 pb-28 pt-4 md:px-8 md:pt-6 lg:pb-12">
           <Outlet />
         </main>
       </div>

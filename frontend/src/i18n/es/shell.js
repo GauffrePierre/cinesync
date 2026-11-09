@@ -1,0 +1,139 @@
+// Cadre de l'application (navigation, recherche, notifications, composants UI partagés),
+// messages des hooks et des services, et messages d'erreur statiques renvoyés par le serveur
+export default {
+  // --- Navigation ---
+  Découvrir: 'Descubrir',
+  'À venir': 'Próximamente',
+  Bibliothèque: 'Biblioteca',
+  'Pour ce soir': 'Esta noche',
+  Watchlist: 'Watchlist',
+  Profil: 'Perfil',
+  'Mode swipe': 'Modo swipe',
+  Statistiques: 'Estadísticas',
+  Services: 'Servicios',
+  Cinéma: 'Cine',
+  'Vérification en cours…': 'Comprobando…',
+
+  // --- Barre haute & recherche ---
+  'Rechercher…': 'Buscar…',
+  Rechercher: 'Buscar',
+  'Films, séries, ta bibliothèque…': 'Películas, series, tu biblioteca…',
+  Fermer: 'Cerrar',
+  'Tape au moins 2 caractères': 'Escribe al menos 2 caracteres',
+  'Aucun résultat pour « {q} »': 'Sin resultados para «{q}»',
+  'Dans ta bibliothèque Plex': 'En tu biblioteca de Plex',
+  'Dans ta watchlist': 'En tu watchlist',
+
+  // --- Notifications ---
+  Notifications: 'Notificaciones',
+  'Notifications ({n} non lues)': 'Notificaciones ({n} sin leer)',
+  '{checked} titre(s) vérifié(s), {created} nouvelle(s) alerte(s)': '{checked} título(s) comprobado(s), {created} alerta(s) nueva(s)',
+  'Vérifier maintenant': 'Comprobar ahora',
+  'Tout marquer comme lu': 'Marcar todo como leído',
+  'Aucune notification.': 'No hay notificaciones.',
+  'Tu seras prévenu quand un titre de ta watchlist arrive sur une de tes plateformes.':
+    'Te avisaremos cuando un título de tu watchlist llegue a una de tus plataformas.',
+  Supprimer: 'Eliminar',
+
+  // --- Composants UI ---
+  'Données de démonstration — configure {service} dans le Profil pour voir tes vraies données.':
+    'Datos de demostración — configura {service} en el Perfil para ver tus datos reales.',
+  '{n} étoile': '{n} estrella',
+  '{n} étoiles': '{n} estrellas',
+
+  // --- Actions synchronisées (hooks/useMedia) ---
+  'Ajouté à la watchlist': 'Añadido a la watchlist',
+  'Retiré de la watchlist': 'Quitado de la watchlist',
+  'Marqué comme vu': 'Marcado como visto',
+  'Noté {stars}/5': 'Valorado {stars}/5',
+  'Ajouté à tes coups de cœur': 'Añadido a tus favoritos',
+  'Retiré des titres vus': 'Quitado de los vistos',
+  'Retiré des coups de cœur': 'Quitado de favoritos',
+  'Masqué de tes suggestions': 'Oculto de tus sugerencias',
+  'De nouveau proposé': 'Se volverá a sugerir',
+  '{service} : {error}': '{service}: {error}',
+  '{label} — OK sur {ok}, échec {errors}': '{label} — OK en {ok}, error en {errors}',
+  '{label} — échec {errors}': '{label} — error en {errors}',
+  '{label} · {services}': '{label} · {services}',
+  '{label} (dans SynCiné)': '{label} (en SynCiné)',
+
+  // --- Services (libellés rendus ailleurs) ---
+  'En attente': 'Pendiente',
+  'Envoyée à Seerr': 'Enviada a Seerr',
+  Refusée: 'Rechazada',
+  Disponible: 'Disponible',
+
+  // --- Erreurs réseau (services/api) ---
+  'Serveur SynCiné injoignable': 'No se puede conectar con el servidor de SynCiné',
+  'Données invalides': 'Datos no válidos',
+  'Erreur {status}': 'Error {status}',
+
+  // --- Messages du serveur : services non configurés (services/errors.py) ---
+  "TMDB n'est pas configuré — voir la page Profil": 'TMDB no está configurado — ve a la página Perfil',
+  "Plex n'est pas configuré — voir la page Profil": 'Plex no está configurado — ve a la página Perfil',
+  "Trakt n'est pas connecté — voir la page Profil": 'Trakt no está conectado — ve a la página Perfil',
+  "Seerr n'est pas configuré — voir la page Profil": 'Seerr no está configurado — ve a la página Perfil',
+  "Letterboxd n'est pas configuré — voir la page Profil": 'Letterboxd no está configurado — ve a la página Perfil',
+  'JustWatch est désactivé — voir la page Profil': 'JustWatch está desactivado — ve a la página Perfil',
+  "Connecte-toi d'abord avec ton compte Plex": 'Primero inicia sesión con tu cuenta de Plex',
+  'Choisis tes cinémas dans le Profil': 'Elige tus cines en el Perfil',
+  "Renseigne d'abord le client ID de ton application Trakt": 'Primero introduce el client ID de tu app de Trakt',
+
+  // --- Messages du serveur : erreurs des services ---
+  'Client ID Trakt invalide': 'Client ID de Trakt no válido',
+  'Session Trakt expirée — reconnecte-toi dans le Profil': 'La sesión de Trakt ha caducado — vuelve a conectarte en el Perfil',
+  "Limite du compte Trakt atteinte (la watchlist d'un compte gratuit est plafonnée)":
+    'Límite de la cuenta de Trakt alcanzado (la watchlist de las cuentas gratuitas está limitada)',
+  'Trop de requêtes Trakt, réessaie dans un instant': 'Demasiadas peticiones a Trakt, vuelve a intentarlo en un momento',
+  'Introuvable sur Trakt': 'No encontrado en Trakt',
+  'Titre introuvable sur Trakt': 'Título no encontrado en Trakt',
+  'Token Plex invalide': 'Token de Plex no válido',
+  "Chemin d'image invalide": 'Ruta de imagen no válida',
+  'Image Plex indisponible': 'Imagen de Plex no disponible',
+  'Serveur introuvable sur ce compte Plex': 'Servidor no encontrado en esta cuenta de Plex',
+  'Code de connexion Plex expiré — recommence': 'El código de inicio de sesión de Plex ha caducado — vuelve a empezar',
+  'Session plex.tv expirée — reconnecte-toi': 'La sesión de plex.tv ha caducado — vuelve a iniciar sesión',
+  'Session plex.tv expirée — reconnecte-toi dans le Profil': 'La sesión de plex.tv ha caducado — vuelve a iniciar sesión en el Perfil',
+  'Titre introuvable dans le catalogue Plex': 'Título no encontrado en el catálogo de Plex',
+  "L'API JustWatch a changé — repli sur TMDB": 'La API de JustWatch ha cambiado — se usa TMDB en su lugar',
+  'Réponse AlloCiné inattendue — le site a peut-être changé': 'Respuesta inesperada de AlloCiné — puede que el sitio haya cambiado',
+  'Clé API Seerr invalide ou droits insuffisants': 'Clave de API de Seerr no válida o permisos insuficientes',
+  'Ce titre a déjà été demandé dans Seerr': 'Este título ya se ha solicitado en Seerr',
+  'Clé API TMDB invalide': 'Clave de API de TMDB no válida',
+  'Titre introuvable sur TMDB': 'Título no encontrado en TMDB',
+  'Trop de requêtes TMDB, réessaie dans un instant': 'Demasiadas peticiones a TMDB, vuelve a intentarlo en un momento',
+  "Letterboxd refuse l'accès au flux RSS depuis ce serveur (403)": 'Letterboxd bloquea el acceso al feed RSS desde este servidor (403)',
+
+  // --- Messages du serveur : routes ---
+  'period doit être day, week, month ou year': 'period debe ser day, week, month o year',
+  'Demande introuvable': 'Solicitud no encontrada',
+  'Notification introuvable': 'Notificación no encontrada',
+  "Demande enregistrée — l'administrateur la traitera": 'Solicitud guardada — el administrador se encargará',
+  'Demande envoyée à Seerr': 'Solicitud enviada a Seerr',
+  'Enregistré dans SynCiné — connecte Trakt ou Plex pour synchroniser': 'Guardado en SynCiné — conecta Trakt o Plex para sincronizar',
+  'Choisis tes plateformes dans le Profil': 'Elige tus plataformas en el Perfil',
+  'TMDB doit être configuré': 'TMDB debe estar configurado',
+  'Notifications de disponibilité désactivées': 'Notificaciones de disponibilidad desactivadas',
+  'Aucune plateforme active': 'Ninguna plataforma activa',
+
+  // --- Messages du serveur : état des services (services/health.py) ---
+  'Aucune clé TMDB enregistrée': 'No hay ninguna clave de TMDB guardada',
+  'TMDB connecté': 'TMDB conectado',
+  'URL ou token Plex manquant': 'Falta la URL o el token de Plex',
+  "Trakt n'est pas connecté": 'Trakt no está conectado',
+  'URL ou clé API Seerr manquante': 'Falta la URL o la clave de API de Seerr',
+  'Seerr connecté': 'Seerr conectado',
+  "Aucun nom d'utilisateur Letterboxd": 'Sin nombre de usuario de Letterboxd',
+  'Aucun cinéma sélectionné': 'Ningún cine seleccionado',
+  '{title} est maintenant disponible sur {platforms}': '{title} ya está disponible en {platforms}',
+  'Nouvel épisode de {title} : {code}': 'Nuevo episodio de {title}: {code}',
+  'Nouvel épisode de {title} : {code} · {name}': 'Nuevo episodio de {title}: {code} · {name}',
+  '{service} ne répond plus : {detail}': '{service} no responde: {detail}',
+  '{name} demande « {title} »': '{name} solicita «{title}»',
+  'Ta demande « {title} » a été envoyée à Seerr': 'Tu solicitud «{title}» se ha enviado a Seerr',
+  'Ta demande « {title} » est disponible sur Plex': 'Tu solicitud «{title}» ya está disponible en Plex',
+  'Ta demande « {title} » a été refusée': 'Tu solicitud «{title}» ha sido rechazada',
+  "Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe.": 'Varios códigos de autenticación en dos pasos incorrectos: si no has sido tú, cambia tu contraseña.',
+  'Notifications activées sur cet appareil': 'Notificaciones activadas en este dispositivo',
+  'Nouvel épisode de {title} sur {platforms} : {code}': 'Nuevo episodio de {title} en {platforms}: {code}',
+}

@@ -85,10 +85,14 @@ export const useLibraryKeys = () => useQuery({ queryKey: ['library-keys'], query
  */
 export function useSeenFilter() {
   const { data: settings } = useSettings()
-  const on = !!settings?.hide_seen
-  const { data } = useQuery({ queryKey: ['library-keys', 'seen'], queryFn: library.seen, staleTime: 5 * 60_000, enabled: on })
-  const seen = on && data ? new Set(data.keys) : null
+  const seen = useSeenKeys(!!settings?.hide_seen)
   return (items) => (seen && items ? items.filter((i) => !seen.has(keyOf(i.media_type, i.id))) : items)
+}
+
+/** Titres « déjà vus » au sens du réglage : films vus et séries vues sans nouvel épisode (Set, ou null). */
+export function useSeenKeys(enabled) {
+  const { data } = useQuery({ queryKey: ['library-keys', 'seen'], queryFn: library.seen, staleTime: 5 * 60_000, enabled })
+  return enabled && data ? new Set(data.keys) : null
 }
 
 /** Statut d'un titre depuis la vue compacte : { inWatchlist, watched, liked, rating } */

@@ -1,14 +1,15 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plus, RotateCcw, Search, Server, ShieldCheck, Sparkles, Sun, Tv, Users } from 'lucide-react'
+import { AlertTriangle, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plug, Plus, RotateCcw, Search, Server, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Tv, User, Users } from 'lucide-react'
 import ConnectionCard from '../components/profile/ConnectionCard'
 import TraktConnect from '../components/profile/TraktConnect'
+import JellyfinConnect from '../components/profile/JellyfinConnect'
 import PlexConnect from '../components/profile/PlexConnect'
 import SyncPanel from '../components/profile/SyncPanel'
 import CinemaPicker from '../components/profile/CinemaPicker'
 import RequestsPanel from '../components/profile/RequestsPanel'
-import PlexDashboard from '../components/admin/PlexDashboard'
+import ServerDashboard, { useMediaServers } from '../components/admin/ServerDashboard'
 import UsersPanel from '../components/admin/UsersPanel'
 import BackupsPanel from '../components/admin/BackupsPanel'
 import HiddenTitles from '../components/profile/HiddenTitles'
@@ -21,6 +22,7 @@ import PlatformPicker from '../components/profile/PlatformPicker'
 import Tabs from '../components/ui/Tabs'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
+import { SERVER_LABELS } from '../components/ui/PlatformBadge'
 import { useCountries, useSettings, useStats, useStatus, useUpdateSettings } from '../hooks/useMedia'
 import { useSettingsStore } from '../store/settingsStore'
 import { swipe } from '../services/swipe'
@@ -57,6 +59,7 @@ function Section({ title, description, keywords = '', children, right, className
 const SERVICE_META = {
   tmdb: { label: 'TMDB', color: '#01b4e4', hint: 'Indispensable : métadonnées et disponibilités' },
   plex: { label: 'Plex', color: 'var(--plex)', hint: 'Ta bibliothèque, lecture, historique' },
+  jellyfin: { label: 'Jellyfin / Emby', color: '#aa5cc3', hint: 'Ta bibliothèque Jellyfin ou Emby, tes vus' },
   trakt: { label: 'Trakt', color: 'var(--trakt)', hint: 'Watchlist, historique, notes' },
   seerr: { label: 'Seerr', color: 'var(--seerr)', hint: "Demandes d'ajout à Plex" },
   letterboxd: { label: 'Letterboxd', color: 'var(--letterboxd)', hint: 'Ton journal de films (RSS)' },
@@ -263,56 +266,66 @@ function AccountSection({ user }) {
   )
 }
 
-// Réglages admin : chaque rubrique se déplie sur place (contenu chargé seulement à l'ouverture)
-function AdminSection() {
+// Onglets du Profil : toujours sur une ligne ; sur téléphone, pictogramme au-dessus du libellé (colonnes égales)
+function ProfileTabs({ value, onChange, options, className = '' }) {
+  const t = useT()
+  return (
+    <div role="tablist" className={`grid w-full auto-cols-fr grid-flow-col gap-1 rounded-xl border border-line bg-bg2 p-1 sm:inline-grid sm:w-fit sm:auto-cols-auto ${className}`}>
+      {options.map(({ value: v, label, icon: Icon }) => {
+        const active = v === value
+        return (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(v)}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${
+              active ? 'bg-bg3 text-text shadow-sm' : 'text-text2 hover:text-text'
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="max-w-full truncate">{t(label)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// Onglet Admin du Profil : serveur(s) multimédia, comptes, demandes, sauvegardes, chacun dans un sous-onglet
+function AdminArea({ section, onSection }) {
   const t = useT()
   const personal = usePersonal()
-  const description = personal ? null : t('Les connexions TMDB, serveur Plex, Seerr et JustWatch ci-dessous sont partagées par tous les comptes.')
-  const [open, setOpen] = useState(null)
+  const { data: servers = [] } = useMediaServers()
+  // Libellé court : le nom du serveur (Plex, Jellyfin, Emby), ou « Serveurs » s'il y en a plusieurs
+  const serverLabel = servers.length === 1 ? SERVER_LABELS[servers[0].kind] : servers.length > 1 ? 'Serveurs' : 'Serveur'
   const all = [
-    { key: 'plex', icon: Server, label: 'Serveur Plex', hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: PlexDashboard },
-    { key: 'users', icon: Users, label: 'Comptes de la famille', hint: 'Comptes locaux et comptes Plex autorisés', Panel: UsersPanel },
-    { key: 'requests', icon: Inbox, label: 'Demandes des utilisateurs', hint: 'Envoyer à Seerr, marquer disponible, refuser', Panel: () => <RequestsPanel scope="all" /> },
+    { key: 'server', icon: Server, label: serverLabel, hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: ServerDashboard },
+    { key: 'users', icon: Users, label: 'Comptes', hint: 'Comptes locaux et comptes Plex, Jellyfin ou Emby autorisés', Panel: UsersPanel },
+    { key: 'requests', icon: Inbox, label: 'Demandes', hint: 'Envoyer à Seerr, marquer disponible, refuser', Panel: () => <RequestsPanel scope="all" /> },
     { key: 'backups', icon: DatabaseBackup, label: 'Sauvegardes', hint: 'Sauvegarde automatique de la base, téléchargement', Panel: BackupsPanel },
   ]
-  const panels = personal ? all.filter((p) => p.key === 'plex' || p.key === 'backups') : all
-  // Recherche : la rubrique admin qui correspond s'ouvre d'elle-même
+  const panels = personal ? all.filter((p) => p.key === 'server' || p.key === 'backups') : all
+  // Recherche : la rubrique qui correspond s'affiche d'elle-même
   const query = useContext(SearchContext)
-  const auto = query ? panels.find((p) => fold(`${t(p.label)} ${t(p.hint)}`).includes(query))?.key : null
+  const keywords = 'admin administration plex jellyfin emby serveur server dashboard comptes accounts famille family utilisateurs users demandes requests sauvegardes backups'
+  const match = query ? panels.find((p) => fold(`${t(p.label)} ${t(p.hint)}`).includes(query)) : null
+  if (query && !match && !fold(keywords).includes(query)) return null
+  const current = match || panels.find((p) => p.key === section) || panels[0]
+  const { Panel } = current
   return (
-    <Section
-      title={t('Réglages admin')}
-      description={description}
-      keywords={`admin plex serveur server dashboard comptes accounts famille family utilisateurs users demandes requests sauvegardes backups ${panels.map((p) => t(p.label)).join(' ')}`}
-    >
-      <div className="space-y-2">
-        {panels.map(({ key, icon: Icon, label, hint, Panel }) => {
-          const isOpen = open === key || (open === null && auto === key)
-          return (
-            <div key={key} className="overflow-hidden rounded-2xl border border-line bg-bg2">
-              <button
-                type="button"
-                onClick={() => setOpen(isOpen ? null : key)}
-                aria-expanded={isOpen}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg3"
-              >
-                <Icon className="h-5 w-5 shrink-0 text-accent2" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{t(label)}</span>
-                  <span className="block truncate text-xs text-text2">{t(hint)}</span>
-                </span>
-                <ChevronDown className={`h-4 w-4 shrink-0 text-text3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isOpen && (
-                <div className="border-t border-line bg-bg p-3 md:p-4">
-                  <Panel />
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </Section>
+    <section className="mb-10">
+      {query && <h2 className="mb-4 text-lg font-semibold">{t('Réglages admin')}</h2>}
+      {panels.length > 1 && (
+        <ProfileTabs value={current.key} onChange={onSection} options={panels.map(({ key, label, icon }) => ({ value: key, label, icon }))} />
+      )}
+      <p className="mb-4 mt-3 text-sm text-text2">
+        {t(current.hint)}
+        {current.key === 'server' && !personal && ` · ${t('Les connexions TMDB, serveur multimédia (Plex, Jellyfin, Emby), Seerr et JustWatch sont partagées par tous les comptes.')}`}
+      </p>
+      <Panel />
+    </section>
   )
 }
 
@@ -332,8 +345,17 @@ function ServerServices({ user, status }) {
         : t('Serveur {server}, partagé par l’administrateur', { server: status?.plex?.server || '—' }),
       note: !status?.plex?.own && t('Connecte-toi avec Plex pour synchroniser tes propres vus et ta progression.'),
     },
-    // Demandes d'ajout au serveur Plex : seulement pour les comptes reliés à Plex
-    status?.seerr?.configured && status?.plex?.configured && {
+    status?.jellyfin?.configured && !status?.plex?.configured && {
+      key: 'jellyfin',
+      color: '#aa5cc3',
+      label: SERVER_LABELS[status.jellyfin.kind] || 'Jellyfin',
+      on: true,
+      desc: status.jellyfin.linked
+        ? t('Compte {name} · serveur {server}', { name: status.jellyfin.username, server: status.jellyfin.server || '—' })
+        : t('Serveur {server}, partagé par l’administrateur', { server: status.jellyfin.server || '—' }),
+    },
+    // Demandes d'ajout au serveur multimédia : seulement pour les comptes qui y sont reliés
+    status?.seerr?.configured && status?.media?.configured && {
       key: 'seerr',
       color: 'var(--seerr)',
       label: 'Seerr',
@@ -384,6 +406,19 @@ export default function Profile() {
   const isAdmin = !!user?.is_admin
   const [search, setSearch] = useState('')
   const query = fold(search.trim())
+  // Sous-onglets du Profil (dans l'adresse : /profile?tab=admin&section=requests) ; une recherche parcourt tous les onglets
+  const tabs = [
+    { value: 'account', label: 'Compte', icon: User },
+    { value: 'connections', label: 'Connexions', icon: Plug },
+    { value: 'prefs', label: 'Préférences', icon: SlidersHorizontal },
+    isAdmin && { value: 'admin', label: 'Admin', icon: ShieldCheck },
+  ].filter(Boolean)
+  const tab = tabs.some((x) => x.value === params.get('tab')) ? params.get('tab') : 'account'
+  const show = (group) => !!query || tab === group
+  const goTab = (value) => {
+    setParams({ tab: value }, { replace: true })
+    window.scrollTo({ top: 0 })
+  }
 
   // Retour du flux OAuth Trakt
   useEffect(() => {
@@ -397,7 +432,7 @@ export default function Profile() {
       const reason = params.get('reason')
       toast(t('Connexion Trakt échouée : {reason}', { reason: reasons[reason] ? t(reasons[reason]) : reason || t('erreur inconnue') }), 'error')
     }
-    setParams({}, { replace: true })
+    setParams({ tab: 'connections' }, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -435,15 +470,16 @@ export default function Profile() {
   const used = {
     tmdb: true, // toujours affiché : indispensable
     plex: !!(status?.plex?.configured || settings.plex_account_connected),
+    jellyfin: !!status?.jellyfin?.server_linked,
     trakt: !!settings.trakt_client_id,
     seerr: !!status?.seerr?.configured,
     letterboxd: !!status?.letterboxd?.configured,
     justwatch: !!settings.justwatch_enabled,
   }
   // Un membre ne règle que ses services personnels ; le reste appartient à l'administrateur
-  const MEMBER_SERVICES = ['trakt', 'letterboxd']
+  const MEMBER_SERVICES = ['trakt', 'letterboxd', 'jellyfin']
   const shown = (k) => (isAdmin || MEMBER_SERVICES.includes(k)) && (used[k] || added.includes(k))
-  const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (isAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id))))
+  const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (isAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id) && (k !== 'jellyfin' || status?.jellyfin?.server_linked))))
   const tr = stats?.trakt
   const p = stats?.plex
   const noTmdb = !status?.tmdb?.configured
@@ -465,15 +501,7 @@ export default function Profile() {
         />
       </div>
 
-      <SearchContext.Provider value={query}>
-      {!query && (
-        <div className="mb-10">
-          <Support />
-        </div>
-      )}
-
-      {user && <AccountSection user={user} />}
-      {isAdmin && <AdminSection />}
+      {!query && <ProfileTabs className="mb-8" value={tab} onChange={goTab} options={tabs} />}
 
       {noTmdb && isAdmin && (
         <div className="mb-8 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
@@ -483,303 +511,343 @@ export default function Profile() {
             <p className="mt-0.5 text-text2">
               {t('Sans clé TMDB, SynCiné affiche des données de démonstration. La clé est gratuite : crée un compte sur themoviedb.org, puis Paramètres → API.')}
             </p>
+            {tab !== 'connections' && !query && (
+              <button type="button" onClick={() => goTab('connections')} className="mt-2 font-medium text-accent2 hover:underline">
+                {t('Aller aux connexions')}
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      <Section
-        title={t('Connexions')}
-        keywords="connexions connections services tmdb plex trakt seerr letterboxd justwatch clé key api token serveur server"
-        description={t("Les services que tu utilises. Ajoute-en d'autres avec le bouton +.")}
-        right={
-          hidden.length > 0 && (
-            <div className="relative">
-              <Button size="icon" variant="primary" onClick={() => setAddOpen((o) => !o)} aria-label={t('Ajouter un service')} title={t('Ajouter un service')}>
-                <Plus className="h-5 w-5" />
-              </Button>
-              {addOpen && (
-                <div className="absolute right-0 top-12 z-20 w-72 overflow-hidden rounded-2xl border border-line bg-bg2 shadow-2xl">
-                  {hidden.map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => {
-                        setAdded((a) => [...a, k])
-                        setAddOpen(false)
-                      }}
-                      className="flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left last:border-none hover:bg-bg3"
-                    >
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white" style={{ background: SERVICE_META[k].color }}>
-                        {SERVICE_META[k].label[0]}
-                      </span>
-                      <span>
-                        <span className="block text-sm font-medium">{SERVICE_META[k].label}</span>
-                        <span className="block text-xs text-text2">{t(SERVICE_META[k].hint)}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
+      <SearchContext.Provider value={query}>
+      {show('account') && (
+        <>
+          {!query && (
+            <div className="mb-10">
+              <Support />
+            </div>
+          )}
+          {user && <AccountSection user={user} />}
+          <Section title={t('Notifications')} keywords="notifications alertes alerts cloche bell push téléphone phone appareil device épisodes disponibilités pannes" description={t("Choisis ce qui s'affiche sous la cloche.")}>
+            <NotificationSettings settings={settings} />
+          </Section>
+          <Section title={t('Statistiques')} keywords="statistiques stats heures hours films séries" description={t('Aperçu — le détail par jour, semaine, mois et année est dans la page Statistiques.')}>
+            <Link to="/stats" className="mb-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:brightness-110">
+              {t('Voir toutes les statistiques')}
+            </Link>
+            <div className={`grid grid-cols-2 gap-3 ${p ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
+              <Stat icon={Film} label={t('Films vus')} value={tr?.movies_watched} />
+              <Stat icon={Tv} label={t('Séries suivies')} value={tr?.shows_watched} sub={tr ? t('{n} épisodes', { n: fmtNumber(tr.episodes_watched) }) : null} />
+              <Stat icon={Clock} label={t('Heures de visionnage')} value={tr?.hours != null ? fmtNumber(tr.hours) : undefined} />
+              {p && (
+                <Stat
+                  icon={Layers}
+                  label={t('Bibliothèque {server}', { server: SERVER_LABELS[p.server] || 'Plex' })}
+                  value={p ? p.movies + p.shows : null}
+                  sub={p ? t('{movies} films · {shows} séries', { movies: p.movies, shows: p.shows }) : null}
+                />
               )}
             </div>
-          )
-        }
-      >
-        <div className="grid grid-cols-1 gap-4">
-          {!isAdmin && <ServerServices user={user} status={status} />}
-          {shown('tmdb') && (
-          <ConnectionCard
-            service="tmdb"
-            title="TMDB"
-            color="#01b4e4"
-            description="Métadonnées, tendances, sorties et disponibilités streaming"
-            helpUrl="https://www.themoviedb.org/settings/api"
-            helpLabel="Obtenir une clé"
-            settings={settings}
-            connected={status?.tmdb?.configured}
-            fields={[{ name: 'tmdb_api_key', label: 'Clé API (v3) ou jeton de lecture (v4)', secret: true, placeholder: 'ex. 3f2a…' }]}
-          />
-          )}
-
-          {shown('plex') && (
-          <ConnectionCard
-            service="plex"
-            title="Plex"
-            color="var(--plex)"
-            description="Ta bibliothèque personnelle"
-            helpUrl="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
-            helpLabel="Trouver mon token"
-            settings={settings}
-            connected={status?.plex?.configured}
-            manualLabel="Saisie manuelle (URL du serveur + token)"
-            fields={[
-              { name: 'plex_url', label: 'URL du serveur', placeholder: 'http://ip-du-serveur:32400', hint: 'Adresse du serveur Plex vue depuis le backend (IP locale, pas localhost en Docker)' },
-              { name: 'plex_token', label: 'Token (X-Plex-Token)', secret: true, placeholder: 'xxxxxxxxxxxxxxxxxxxx' },
-            ]}
-          >
-            <PlexConnect settings={settings} />
-          </ConnectionCard>
-          )}
-
-          {shown('trakt') && (
-          <ConnectionCard
-            service="trakt"
-            title="Trakt"
-            color="var(--trakt)"
-            description="Watchlist, historique, notes et recommandations"
-            helpUrl="https://trakt.tv/oauth/applications/new"
-            helpLabel="Créer une application"
-            settings={settings}
-            connected={status?.trakt?.connected}
-            fields={!isAdmin ? [] : [
-              {
-                name: 'trakt_client_id',
-                label: 'Client ID',
-                placeholder: 'Client ID de ton application Trakt',
-                hint: 'Aucun client secret nécessaire. Dans l’appli Trakt, l’URL de retour peut rester urn:ietf:wg:oauth:2.0:oob.',
-              },
-            ]}
-          >
-            <TraktConnect settings={settings} />
-          </ConnectionCard>
-          )}
-
-          {shown('seerr') && (
-          <ConnectionCard
-            service="seerr"
-            title="Seerr"
-            color="var(--seerr)"
-            description="Envoyer une demande de film ou série (tu valides dans Seerr)"
-            settings={settings}
-            connected={status?.seerr?.configured}
-            optional
-            fields={[
-              { name: 'seerr_url', label: 'URL de Seerr', placeholder: 'http://ip-du-serveur:5055' },
-              { name: 'seerr_api_key', label: 'Clé API', secret: true, placeholder: 'Paramètres → Général → Clé API', hint: 'Dans Seerr : Paramètres → Général → Clé API' },
-            ]}
-          />
-          )}
-
-          {shown('letterboxd') && (
-          <ConnectionCard
-            service="letterboxd"
-            title="Letterboxd"
-            color="var(--letterboxd)"
-            description="Tes derniers films vus, via ton flux RSS public"
-            settings={settings}
-            connected={status?.letterboxd?.configured}
-            optional
-            fields={[{ name: 'letterboxd_username', label: "Nom d'utilisateur", placeholder: 'ton-pseudo' }]}
-          />
-          )}
-
-          {shown('justwatch') && (
-          <ConnectionCard
-            service="justwatch"
-            title="JustWatch"
-            color="var(--justwatch)"
-            description="Liens directs vers chaque plateforme et nouveautés de la semaine"
-            settings={settings}
-            connected={settings.justwatch_enabled}
-            optional
-            testable={settings.justwatch_enabled}
-          >
-            <div className="flex items-start gap-3 rounded-xl bg-bg3 p-3 text-xs text-text2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
-              <span>
-                {t(
-                  "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, SynCiné revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).",
-                )}
-              </span>
-            </div>
-            <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border border-line bg-bg px-3 py-3">
-              <span className="text-sm">{t('Activer JustWatch')}</span>
-              <input
-                type="checkbox"
-                checked={settings.justwatch_enabled}
-                onChange={(e) => update.mutate({ justwatch_enabled: e.target.checked })}
-                className="h-5 w-5 accent-[var(--accent)]"
-              />
-            </label>
-          </ConnectionCard>
-          )}
-        </div>
-      </Section>
-
-      <Section title={t('Synchronisation')} keywords="sync synchro trakt plex letterboxd watchlist vus watched notes ratings" description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.')}>
-        <SyncPanel />
-      </Section>
-
-      {(isAdmin || status?.plex?.configured) && (
-        <Section title={t('Mes demandes')} keywords="demandes requests seerr plex ajout" description={t('Titres que tu as demandés pour la bibliothèque Plex.')}>
-          <RequestsPanel />
-        </Section>
+          </Section>
+          <Section title={t('À propos')} keywords="à propos about version licence license crédits credits contributeurs ko-fi soutenir support">
+            <About />
+          </Section>
+        </>
       )}
 
-      <Section title={t('Notifications')} keywords="notifications alertes alerts cloche bell push téléphone phone appareil device épisodes disponibilités pannes" description={t("Choisis ce qui s'affiche sous la cloche.")}>
-        <NotificationSettings settings={settings} />
-      </Section>
+      {show('connections') && (
+        <>
 
-      <Section title={t('Région & Langue')} keywords="pays country langue language interface anglais english français region" description={t('Le pays détermine les disponibilités et sorties affichées ; la langue des contenus, celle des titres et résumés.')}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-text2">{t('Pays')}</span>
-            <select
-              value={settings.country_code}
-              onChange={(e) => update.mutate({ country_code: e.target.value })}
-              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
-            >
-              {(countries || [{ code: settings.country_code, name: settings.country_code }]).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-text2">{t('Langue des contenus')}</span>
-            <select
-              value={settings.language}
-              onChange={(e) => update.mutate({ language: e.target.value })}
-              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
-            >
-              {LANGUAGES.map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-text3">{t('Titres, résumés et bandes-annonces.')}</span>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-text2">{t("Langue de l'interface")}</span>
-            <select
-              value={uiLanguage}
-              onChange={(e) => changeUiLanguage(e.target.value)}
-              className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
-            >
-              {UI_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </Section>
+          <Section
+            title={t('Connexions')}
+            keywords="connexions connections services tmdb plex trakt seerr letterboxd justwatch clé key api token serveur server"
+            description={t("Les services que tu utilises. Ajoute-en d'autres avec le bouton +.")}
+            right={
+              hidden.length > 0 && (
+                <div className="relative">
+                  <Button size="icon" variant="primary" onClick={() => setAddOpen((o) => !o)} aria-label={t('Ajouter un service')} title={t('Ajouter un service')}>
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                  {addOpen && (
+                    <div className="absolute right-0 top-12 z-20 w-72 overflow-hidden rounded-2xl border border-line bg-bg2 shadow-2xl">
+                      {hidden.map((k) => (
+                        <button
+                          key={k}
+                          onClick={() => {
+                            setAdded((a) => [...a, k])
+                            setAddOpen(false)
+                          }}
+                          className="flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left last:border-none hover:bg-bg3"
+                        >
+                          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white" style={{ background: SERVICE_META[k].color }}>
+                            {SERVICE_META[k].label[0]}
+                          </span>
+                          <span>
+                            <span className="block text-sm font-medium">{SERVICE_META[k].label}</span>
+                            <span className="block text-xs text-text2">{t(SERVICE_META[k].hint)}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+          >
+            <div className="grid grid-cols-1 gap-4">
+              {!isAdmin && <ServerServices user={user} status={status} />}
+              {shown('tmdb') && (
+              <ConnectionCard
+                service="tmdb"
+                title="TMDB"
+                color="#01b4e4"
+                description="Métadonnées, tendances, sorties et disponibilités streaming"
+                helpUrl="https://www.themoviedb.org/settings/api"
+                helpLabel="Obtenir une clé"
+                settings={settings}
+                connected={status?.tmdb?.configured}
+                fields={[{ name: 'tmdb_api_key', label: 'Clé API (v3) ou jeton de lecture (v4)', secret: true, placeholder: 'ex. 3f2a…' }]}
+              />
+              )}
 
-      <Section title={t('Plateformes')} keywords="plateformes platforms abonnements subscriptions streaming netflix disney prime canal" description={t('Coche les plateformes auxquelles tu es abonné : badges, filtres, bouton « Regarder sur… » et notifications.')}>
-        <PlatformPicker settings={settings} />
-      </Section>
+              {shown('plex') && (
+              <ConnectionCard
+                service="plex"
+                title="Plex"
+                color="var(--plex)"
+                description="Ta bibliothèque personnelle"
+                helpUrl="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
+                helpLabel="Trouver mon token"
+                settings={settings}
+                connected={status?.plex?.configured}
+                manualLabel="Saisie manuelle (URL du serveur + token)"
+                fields={[
+                  { name: 'plex_url', label: 'URL du serveur', placeholder: 'http://ip-du-serveur:32400', hint: 'Adresse du serveur Plex vue depuis le backend (IP locale, pas localhost en Docker)' },
+                  { name: 'plex_token', label: 'Token (X-Plex-Token)', secret: true, placeholder: 'xxxxxxxxxxxxxxxxxxxx' },
+                ]}
+              >
+                <PlexConnect settings={settings} />
+              </ConnectionCard>
+              )}
 
-      <Section title={t('Cinémas')} keywords="cinémas cinemas salles séances showtimes allociné" description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
-        <CinemaPicker settings={settings} />
-      </Section>
+              {shown('trakt') && (
+              <ConnectionCard
+                service="trakt"
+                title="Trakt"
+                color="var(--trakt)"
+                description="Watchlist, historique, notes et recommandations"
+                helpUrl="https://trakt.tv/oauth/applications/new"
+                helpLabel="Créer une application"
+                settings={settings}
+                connected={status?.trakt?.connected}
+                fields={!isAdmin ? [] : [
+                  {
+                    name: 'trakt_client_id',
+                    label: 'Client ID',
+                    placeholder: 'Client ID de ton application Trakt',
+                    hint: 'Aucun client secret nécessaire. Dans l’appli Trakt, l’URL de retour peut rester urn:ietf:wg:oauth:2.0:oob.',
+                  },
+                ]}
+              >
+                <TraktConnect settings={settings} />
+              </ConnectionCard>
+              )}
 
-      <Section title={t('Découverte')} keywords="découverte discover suggestions recommandations vus seen sorties releases watchlist" description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
-        <DiscoverySettings settings={settings} />
-      </Section>
+              {shown('jellyfin') && (
+              <ConnectionCard
+                service="jellyfin"
+                title={status?.jellyfin?.kind === 'emby' ? 'Emby' : 'Jellyfin'}
+                color="#aa5cc3"
+                description="Ta bibliothèque Jellyfin ou Emby, tes vus et ta progression"
+                settings={settings}
+                connected={status?.jellyfin?.configured}
+                optional
+                testable={!!status?.jellyfin?.server_linked}
+              >
+                <JellyfinConnect status={status?.jellyfin} isAdmin={isAdmin} />
+              </ConnectionCard>
+              )}
 
-      <Section title={t('Apparence')} keywords="apparence appearance thème theme sombre dark clair light assistant démarrage setup app plex netflix">
-        <Tabs
-          value={settings.theme}
-          onChange={changeTheme}
-          options={[
-            { value: 'auto', label: 'Auto', icon: Monitor },
-            { value: 'light', label: 'Clair', icon: Sun },
-            { value: 'dark', label: 'Sombre', icon: Moon },
-          ]}
-        />
-        <AppPrefsReset />
-        <Link to="/welcome" className="mt-4 inline-flex items-center gap-1.5 text-sm text-accent2 hover:underline">
-          <Sparkles className="h-4 w-4" /> {t('Revoir l’assistant de démarrage')}
-        </Link>
-      </Section>
+              {shown('seerr') && (
+              <ConnectionCard
+                service="seerr"
+                title="Seerr"
+                color="var(--seerr)"
+                description="Envoyer une demande de film ou série (tu valides dans Seerr)"
+                settings={settings}
+                connected={status?.seerr?.configured}
+                optional
+                fields={[
+                  { name: 'seerr_url', label: 'URL de Seerr', placeholder: 'http://ip-du-serveur:5055' },
+                  { name: 'seerr_api_key', label: 'Clé API', secret: true, placeholder: 'Paramètres → Général → Clé API', hint: 'Dans Seerr : Paramètres → Général → Clé API' },
+                ]}
+              />
+              )}
 
-      <Section title={t('Statistiques')} keywords="statistiques stats heures hours films séries" description={t('Aperçu — le détail par jour, semaine, mois et année est dans la page Statistiques.')}>
-        <Link to="/stats" className="mb-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:brightness-110">
-          {t('Voir toutes les statistiques')}
-        </Link>
-        <div className={`grid grid-cols-2 gap-3 ${status?.plex?.configured ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
-          <Stat icon={Film} label={t('Films vus')} value={tr?.movies_watched} />
-          <Stat icon={Tv} label={t('Séries suivies')} value={tr?.shows_watched} sub={tr ? t('{n} épisodes', { n: fmtNumber(tr.episodes_watched) }) : null} />
-          <Stat icon={Clock} label={t('Heures de visionnage')} value={tr?.hours != null ? fmtNumber(tr.hours) : undefined} />
-          {status?.plex?.configured && (
-            <Stat
-              icon={Layers}
-              label={t('Bibliothèque Plex')}
-              value={p ? p.movies + p.shows : null}
-              sub={p ? t('{movies} films · {shows} séries', { movies: p.movies, shows: p.shows }) : null}
-            />
+              {shown('letterboxd') && (
+              <ConnectionCard
+                service="letterboxd"
+                title="Letterboxd"
+                color="var(--letterboxd)"
+                description="Tes derniers films vus, via ton flux RSS public"
+                settings={settings}
+                connected={status?.letterboxd?.configured}
+                optional
+                fields={[{ name: 'letterboxd_username', label: "Nom d'utilisateur", placeholder: 'ton-pseudo' }]}
+              />
+              )}
+
+              {shown('justwatch') && (
+              <ConnectionCard
+                service="justwatch"
+                title="JustWatch"
+                color="var(--justwatch)"
+                description="Liens directs vers chaque plateforme et nouveautés de la semaine"
+                settings={settings}
+                connected={settings.justwatch_enabled}
+                optional
+                testable={settings.justwatch_enabled}
+              >
+                <div className="flex items-start gap-3 rounded-xl bg-bg3 p-3 text-xs text-text2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>
+                    {t(
+                      "Utilise l'API interne non officielle de JustWatch : elle peut cesser de fonctionner sans prévenir. Dans ce cas, SynCiné revient automatiquement aux données TMDB (qui proviennent aussi de JustWatch, mais sans liens directs).",
+                    )}
+                  </span>
+                </div>
+                <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border border-line bg-bg px-3 py-3">
+                  <span className="text-sm">{t('Activer JustWatch')}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.justwatch_enabled}
+                    onChange={(e) => update.mutate({ justwatch_enabled: e.target.checked })}
+                    className="h-5 w-5 accent-[var(--accent)]"
+                  />
+                </label>
+              </ConnectionCard>
+              )}
+            </div>
+          </Section>
+
+          <Section title={t('Synchronisation')} keywords="sync synchro trakt plex letterboxd watchlist vus watched notes ratings" description={t('Watchlist, titres vus, notes et coups de cœur, réunis depuis Trakt, Plex et Letterboxd, et sauvegardés dans SynCiné.')}>
+            <SyncPanel />
+          </Section>
+
+          {(isAdmin || status?.media?.configured) && (
+            <Section title={t('Mes demandes')} keywords="demandes requests seerr plex jellyfin emby ajout" description={t('Titres que tu as demandés pour ta bibliothèque.')}>
+              <RequestsPanel />
+            </Section>
           )}
-        </div>
-      </Section>
+        </>
+      )}
 
-      <Section title={t('Titres masqués')} keywords="masqués hidden pas intéressé not interested" description={t("Marqués « pas intéressé » : ils n'apparaissent plus dans tes suggestions (ni dans tes recommandations Trakt).")}>
-        <HiddenTitles />
-      </Section>
+      {show('prefs') && (
+        <>
+          <Section title={t('Région & Langue')} keywords="pays country langue language interface anglais english français region" description={t('Le pays détermine les disponibilités et sorties affichées ; la langue des contenus, celle des titres et résumés.')}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-text2">{t('Pays')}</span>
+                <select
+                  value={settings.country_code}
+                  onChange={(e) => update.mutate({ country_code: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+                >
+                  {(countries || [{ code: settings.country_code, name: settings.country_code }]).map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-text2">{t('Langue des contenus')}</span>
+                <select
+                  value={settings.language}
+                  onChange={(e) => update.mutate({ language: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+                >
+                  {LANGUAGES.map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-text3">{t('Titres, résumés et bandes-annonces.')}</span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-text2">{t("Langue de l'interface")}</span>
+                <select
+                  value={uiLanguage}
+                  onChange={(e) => changeUiLanguage(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+                >
+                  {UI_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </Section>
 
-      <Section title={t('Mode swipe')} keywords="swipe passés skipped réinitialiser reset" description={t('Les titres passés (✕) ne sont jamais reproposés. Tu peux remettre ce compteur à zéro.')}>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-text2">
-            {t('{skip} passé(s) · {like} aimé(s) · {seen} déjà vu(s)', { skip: stats?.swipe?.skip || 0, like: stats?.swipe?.like || 0, seen: stats?.swipe?.seen || 0 })}
-          </span>
-          <Button size="sm" icon={RotateCcw} onClick={() => resetSkips.mutate()} loading={resetSkips.isPending}>
-            {t('Réinitialiser les titres passés')}
-          </Button>
-        </div>
-      </Section>
+          <Section title={t('Plateformes')} keywords="plateformes platforms abonnements subscriptions streaming netflix disney prime canal" description={t('Coche les plateformes auxquelles tu es abonné : badges, filtres, bouton « Regarder sur… » et notifications.')}>
+            <PlatformPicker settings={settings} />
+          </Section>
 
-      <Section title={t('À propos')} keywords="à propos about version licence license crédits credits contributeurs ko-fi soutenir support">
-        <About />
-      </Section>
+          <Section title={t('Cinémas')} keywords="cinémas cinemas salles séances showtimes allociné" description={t('Tes salles habituelles : leurs séances apparaissent dans « À venir » → Sorties cinéma et dans Découvrir.')}>
+            <CinemaPicker settings={settings} />
+          </Section>
 
-      <Section
-        className="hidden md:block"
-        title={t('Menu (version ordinateur)')}
-        description={t('Range les onglets du menu de gauche dans l’ordre qui te convient.')}
-        keywords="menu onglets tabs ordre order barre latérale sidebar navigation"
-      >
-        <MenuOrder settings={settings} />
-      </Section>
+          <Section title={t('Découverte')} keywords="découverte discover suggestions recommandations vus seen sorties releases watchlist" description={t('Ce que SynCiné te propose dans Découvrir et dans les recommandations des fiches.')}>
+            <DiscoverySettings settings={settings} />
+          </Section>
+
+          <Section title={t('Apparence')} keywords="apparence appearance thème theme sombre dark clair light assistant démarrage setup app plex netflix">
+            <Tabs
+              value={settings.theme}
+              onChange={changeTheme}
+              options={[
+                { value: 'auto', label: 'Auto', icon: Monitor },
+                { value: 'light', label: 'Clair', icon: Sun },
+                { value: 'dark', label: 'Sombre', icon: Moon },
+              ]}
+            />
+            <AppPrefsReset />
+            <Link to="/welcome" className="mt-4 inline-flex items-center gap-1.5 text-sm text-accent2 hover:underline">
+              <Sparkles className="h-4 w-4" /> {t('Revoir l’assistant de démarrage')}
+            </Link>
+          </Section>
+
+          <Section title={t('Titres masqués')} keywords="masqués hidden pas intéressé not interested" description={t("Marqués « pas intéressé » : ils n'apparaissent plus dans tes suggestions (ni dans tes recommandations Trakt).")}>
+            <HiddenTitles />
+          </Section>
+
+          <Section title={t('Mode swipe')} keywords="swipe passés skipped réinitialiser reset" description={t('Les titres passés (✕) ne sont jamais reproposés. Tu peux remettre ce compteur à zéro.')}>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-text2">
+                {t('{skip} passé(s) · {like} aimé(s) · {seen} déjà vu(s)', { skip: stats?.swipe?.skip || 0, like: stats?.swipe?.like || 0, seen: stats?.swipe?.seen || 0 })}
+              </span>
+              <Button size="sm" icon={RotateCcw} onClick={() => resetSkips.mutate()} loading={resetSkips.isPending}>
+                {t('Réinitialiser les titres passés')}
+              </Button>
+            </div>
+          </Section>
+
+          <Section
+            className="hidden lg:block"
+            title={t('Menu (version ordinateur)')}
+            description={t('Range les onglets du menu de gauche dans l’ordre qui te convient.')}
+            keywords="menu onglets tabs ordre order barre latérale sidebar navigation"
+          >
+            <MenuOrder settings={settings} />
+          </Section>
+        </>
+      )}
+
+      {isAdmin && show('admin') && <AdminArea section={params.get('section')} onSection={(v) => setParams({ tab: 'admin', section: v }, { replace: true })} />}
 
       {query && <p className="py-10 text-center text-sm text-text3 only:block">{t('Aucun autre réglage ne correspond à « {q} ».', { q: search })}</p>}
       </SearchContext.Provider>

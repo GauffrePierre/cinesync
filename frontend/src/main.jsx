@@ -9,6 +9,7 @@ import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
 import '@fontsource/inter/600.css'
 import './index.css'
+import { currentLang, loadLanguage } from './i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +21,8 @@ const queryClient = new QueryClient({
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// Dictionnaire de la langue choisie chargé avant le premier affichage (pas de passage par le français)
+loadLanguage(currentLang()).finally(() => ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -28,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,
+  ),
 )
 
 // Appli installée (PWA) : nouvelle version cherchée à l'ouverture, à chaque retour dans l'appli et toutes les heures.

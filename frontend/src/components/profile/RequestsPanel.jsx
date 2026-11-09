@@ -39,7 +39,7 @@ export default function RequestsPanel({ scope = 'mine' }) {
         {data?.direct ? t('Tes demandes sont envoyées directement à Seerr.') : t("Tes demandes sont transmises à l'administrateur.")}
       </span>
       {isAdmin && (
-        <Link to="/admin?tab=requests" className="inline-flex items-center gap-1 text-accent2 hover:underline">
+        <Link to="/profile?tab=admin&section=requests" className="inline-flex items-center gap-1 text-accent2 hover:underline">
           {t('Voir toutes les demandes')} <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       )}

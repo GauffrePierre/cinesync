@@ -23,7 +23,7 @@ All are mounted under `/api` in `main.py`.
 | Module | Prefix | Purpose |
 |---|---|---|
 | `auth.py` | `/auth` | Setup, login/logout, password, profile, Plex sign-in (public router) |
-| `admin.py` | `/admin` | Accounts, allowed Plex accounts, Plex dashboard (admin only) |
+| `admin.py` | `/admin` | Accounts, allowed Plex / Jellyfin accounts, media server dashboards (Plex, Jellyfin / Emby), backups (admin only) |
 | `user.py` | (none) | `/settings`, `/settings/status`, `/settings/test/{service}`, `/meta/*`, `/stats/*` |
 | `library.py` | `/library` | Merged personal state, actions, sync, sync preview |
 | `media.py` | `/media` | Aggregated title page, highlights, suggestions |

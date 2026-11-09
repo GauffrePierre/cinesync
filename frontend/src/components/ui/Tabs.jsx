@@ -5,7 +5,8 @@ export default function Tabs({ value, onChange, options, size = 'md', className 
   const t = useT()
   const pad = size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'
   return (
-    <div className={`inline-flex rounded-xl border border-line bg-bg2 p-1 ${className}`} role="tablist">
+    // w-fit : ne s'étire pas dans une colonne ; trop large pour l'écran : défile au doigt, sans retour à la ligne
+    <div className={`no-scrollbar inline-flex w-fit max-w-full shrink-0 overflow-x-auto rounded-xl border border-line bg-bg2 p-1 ${className}`} role="tablist">
       {options.map((o) => {
         const active = o.value === value
         const Icon = o.icon
@@ -15,7 +16,7 @@ export default function Tabs({ value, onChange, options, size = 'md', className 
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition ${pad} ${
+            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition ${pad} ${
               active ? 'bg-bg3 text-text shadow-sm' : 'text-text2 hover:text-text'
             }`}
           >

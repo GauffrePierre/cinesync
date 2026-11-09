@@ -25,10 +25,10 @@ from app.services.tmdb_client import TMDBClient
 
 log = logging.getLogger(__name__)
 
-SERVICES = ("tmdb", "plex", "trakt", "seerr", "letterboxd", "justwatch", "cinema")
-LABELS = {"tmdb": "TMDB", "plex": "Plex", "trakt": "Trakt", "seerr": "Seerr", "letterboxd": "Letterboxd", "justwatch": "JustWatch", "cinema": "Cinéma (AlloCiné)"}
+SERVICES = ("tmdb", "plex", "jellyfin", "trakt", "seerr", "letterboxd", "justwatch", "cinema")
+LABELS = {"tmdb": "TMDB", "plex": "Plex", "jellyfin": "Jellyfin", "trakt": "Trakt", "seerr": "Seerr", "letterboxd": "Letterboxd", "justwatch": "JustWatch", "cinema": "Cinéma (AlloCiné)"}
 
-GLOBAL_SERVICES = ("tmdb", "plex", "seerr", "justwatch")
+GLOBAL_SERVICES = ("tmdb", "plex", "jellyfin", "seerr", "justwatch")
 
 # État en mémoire : {(0 | id du compte, service): {"ok": bool, "message": str, "checked_at": iso}}
 _state: dict[tuple[int, str], dict] = {}
@@ -36,6 +36,11 @@ _state: dict[tuple[int, str], dict] = {}
 
 def _key(service: str, user_id: int) -> tuple[int, str]:
     return (0, service) if service in GLOBAL_SERVICES else (user_id, service)
+
+
+def _own(s):
+    """Ligne propre au compte (réglages effectifs ou ligne brute)."""
+    return getattr(s, "own", s)
 
 
 def _plex_token(s) -> str:
@@ -49,6 +54,8 @@ def used_services(s) -> list[str]:
     used = {
         "tmdb": bool(s.tmdb_api_key),
         "plex": bool(s.plex_url and _plex_token(s)),
+        # Jellyfin : compte relié, ou clé API pour le compte principal (comme le jeton Plex partagé)
+        "jellyfin": bool(s.jellyfin_url and (_own(s).jellyfin_token or (s.jellyfin_api_key and _own(s).id == SHARED_ID))),
         "trakt": bool(s.trakt_client_id and s.trakt_access_token),
         "seerr": bool(s.seerr_url and s.seerr_api_key),
         "letterboxd": bool(s.letterboxd_username),
@@ -72,6 +79,13 @@ async def test_service(ctx: Ctx, service: str) -> dict:
                 return {"ok": False, "message": "URL ou token Plex manquant"}
             d = await ctx.plex.test()
             return {"ok": True, "message": f"Plex connecté — {d['sections']} bibliothèque(s) films/séries", "details": d}
+        if service == "jellyfin":
+            client = ctx.jellyfin_admin if ctx.is_admin else ctx.jellyfin
+            if not client:
+                return {"ok": False, "message": "Serveur Jellyfin non relié"}
+            d = await client.test()
+            label = "Emby" if d["kind"] == "emby" else "Jellyfin"
+            return {"ok": True, "message": f"{label} connecté — {d['titles']} films et séries", "details": d}
         if service == "trakt":
             if not ctx.trakt:
                 return {"ok": False, "message": "Trakt n'est pas connecté"}

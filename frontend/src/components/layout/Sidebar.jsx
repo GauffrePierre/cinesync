@@ -11,6 +11,7 @@ import { useT } from '../../i18n'
 const SERVICES = {
   tmdb: { label: 'TMDB', color: '#01b4e4' },
   plex: { label: 'Plex', color: 'var(--plex)' },
+  jellyfin: { label: 'Jellyfin', color: '#aa5cc3' },
   trakt: { label: 'Trakt', color: 'var(--trakt)' },
   seerr: { label: 'Seerr', color: 'var(--seerr)' },
   justwatch: { label: 'JustWatch', color: 'var(--justwatch)' },
@@ -26,7 +27,7 @@ function ServiceDot({ id, health }) {
   const title = health ? t(health.message) : t('Vérification en cours…')
   return (
     <li>
-      <Link to="/profile" title={title} className={`flex items-center gap-2.5 rounded-lg px-3 py-1 text-xs hover:text-text ${down ? 'text-red-400' : 'text-text2'}`}>
+      <Link to="/profile?tab=connections" title={title} className={`flex items-center gap-2.5 rounded-lg px-3 py-1 text-xs hover:text-text ${down ? 'text-red-400' : 'text-text2'}`}>
         <span className="relative flex h-2 w-2">
           {down && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />}
           <span
@@ -55,7 +56,7 @@ export default function Sidebar() {
   const pending = queue?.pending || 0
 
   return (
-    <aside className="no-scrollbar fixed inset-y-0 left-0 z-40 hidden w-[200px] flex-col overflow-y-auto border-r border-line bg-bg2/60 px-3 py-5 backdrop-blur-xl md:flex">
+    <aside className="no-scrollbar fixed inset-y-0 left-0 z-40 hidden w-[200px] flex-col overflow-y-auto border-r border-line bg-bg2/60 px-3 py-5 backdrop-blur-xl lg:flex">
       <Link to="/" className="mb-8 px-2">
         <Logo />
       </Link>

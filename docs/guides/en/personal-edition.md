@@ -1,6 +1,6 @@
 # Getting started: personal edition
 
-> On first start, an **assistant** walks you through a few screens: language and country, platforms, cinemas, accounts (Plex, Trakt, Letterboxd) and notifications. You can skip it and run it again later (Profile → Appearance → Run the setup assistant again).
+> On first start, an **assistant** walks you through a few screens: language and country, platforms, cinemas, accounts (Plex, Jellyfin, Trakt, Letterboxd) and notifications. You can skip it and run it again later (Profile → Appearance → Run the setup assistant again).
 
 For one person: no accounts, no mandatory sign-in. About 10 minutes.
 
@@ -29,7 +29,7 @@ Without it, SynCiné shows demo data.
 
 ## 4. Your country, services and cinemas
 
-- **Region & Language**: your **country** (availability and releases), the **content language** (titles, synopses) and the **interface language** (French or English).
+- **Region & Language**: your **country** (availability and releases), the **content language** (titles, synopses) and the **interface language** (French, English, Italian, German or Spanish).
 - **Platforms**: tick your subscriptions. They drive badges, filters, the "Watch on…" button and notifications.
 - **Cinemas**: search for the cinemas you go to (France, Germany, Spain, Turkey, Mexico). Their showtimes appear in **Upcoming → Cinema releases** and in Discover.
 
@@ -43,6 +43,7 @@ Add them from **Profile → Connections** with the **+** button ("Add a service"
 | **Letterboxd** | Your film diary | Your Letterboxd username (public profile) |
 | **JustWatch** | Direct links to each service, new arrivals, charts | Tick **Enable JustWatch** (unofficial source) |
 | **Plex** | Your library, "Play on Plex", history | **Sign in with Plex**, enter the code at plex.tv/link; SynCiné finds your server |
+| **Jellyfin / Emby** | Your library, "Play", watched titles | Server address (local IP, not `localhost` under Docker) and API key (Jellyfin: Dashboard → API Keys), then **Link the server** and **Link my account** for your watched titles |
 | **Seerr** | Request titles for your library | Seerr address + API key (Seerr → Settings → General) |
 
 ## 6. Sync your lists

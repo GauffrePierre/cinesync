@@ -2,22 +2,23 @@ import { useMemo, useState } from 'react'
 import { Library as LibraryIcon, Search } from 'lucide-react'
 import MediaGrid from '../components/media/MediaGrid'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
-import SeenFilter from '../components/ui/SeenFilter'
+import SeenFilter, { usePageSeen } from '../components/ui/SeenFilter'
 import Button from '../components/ui/Button'
 import MockBanner from '../components/ui/MockBanner'
 import EmptyState from '../components/ui/EmptyState'
 import PlatformBadge from '../components/ui/PlatformBadge'
-import { useLibrary, useSettings } from '../hooks/useMedia'
+import { useLibrary, useSettings, useStatus } from '../hooks/useMedia'
 import { useDebounce } from '../hooks/useDebounce'
 import { useUiStore } from '../store/uiStore'
 import { useT } from '../i18n'
+import { SERVER_LABELS } from '../components/ui/PlatformBadge'
 import { SORT_OPTIONS } from '../lib/sorts'
 
 
 export default function Library() {
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
-  const seenFilter = useUiStore((s) => s.seenFilter)
+  const { value: seenFilter } = usePageSeen('library')
   const [sort, setSort] = useState('added')
   const [q, setQ] = useState('')
   const [streamingOnly, setStreamingOnly] = useState(false)
@@ -29,6 +30,8 @@ export default function Library() {
   const lib = useLibrary({ mediaType: mediaFilter, sort, q: debouncedQ, seen: seenFilter })
   const pages = lib.data?.pages || []
   const total = pages[0]?.total ?? 0
+  const { data: status } = useStatus()
+  const server = SERVER_LABELS[status?.media?.server] || 'Plex'
 
   const items = useMemo(() => {
     const all = pages.flatMap((p) => p.results)
@@ -40,7 +43,7 @@ export default function Library() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold md:text-3xl">{t('Bibliothèque')}</h1>
-        <p className="mt-1 text-sm text-text2">{lib.isLoading ? t('Chargement…') : total > 1 ? t('{n} titres dans ton Plex', { n: total }) : t('{n} titre dans ton Plex', { n: total })}</p>
+        <p className="mt-1 text-sm text-text2">{lib.isLoading ? t('Chargement…') : total > 1 ? t('{n} titres dans ta bibliothèque {server}', { n: total, server }) : t('{n} titre dans ta bibliothèque {server}', { n: total, server })}</p>
       </div>
 
       <MockBanner service="Plex" show={pages[0]?.mock} />
@@ -48,7 +51,7 @@ export default function Library() {
       <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex items-center gap-2">
           <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
-          <SeenFilter />
+          <SeenFilter page="library" />
         </div>
         <div className="relative flex-1 lg:max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text3" />
@@ -84,7 +87,7 @@ export default function Library() {
       </div>
 
       {lib.error ? (
-        <EmptyState title={t('Plex injoignable')} message={lib.error.message} action={t('Vérifier le Profil')} to="/profile" />
+        <EmptyState title={t('{server} injoignable', { server })} message={lib.error.message} action={t('Vérifier le Profil')} to="/profile?tab=connections" />
       ) : !lib.isLoading && items.length === 0 ? (
         <EmptyState icon={LibraryIcon} title={t('Aucun titre')} message={q ? t('Rien ne correspond à « {q} »', { q }) : t('Ta bibliothèque est vide pour ces filtres.')} />
       ) : (

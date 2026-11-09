@@ -53,6 +53,16 @@ SynCiné talks to about ten external services, each wrapped in a small client in
 
 `Ctx` exposes `plex` (member's own token, else the admin's), `plex_own` (member's token only: their watched state and ratings), `plex_admin` (admin token: full history, sessions, scans) and `plex_account`. The admin links the server once (`/api/plex/auth/pin`, `/api/plex/servers/select`); members get their own tokens when they sign in with Plex (see [Accounts and security](06-accounts-and-security.md)).
 
+## Jellyfin / Emby — `jellyfin_client.py`
+
+One client for both servers (same API; Emby differs only in a few paths and in the web link format). The admin links the server in Profile with its address, an optional public address (used in "Play" links) and an **API key**; SynCiné reads the server name, id and type (`/System/Info/Public`) and stores them as server-wide settings (`jellyfin_*` in `GLOBAL_FIELDS`, the key in `SECRET_FIELDS`).
+
+- **Accounts**: each user links their own Jellyfin account (username + password checked by the server with `AuthenticateByName`); SynCiné keeps only the user id and the access token. The admin can authorize server accounts (`POST /api/admin/jellyfin/accounts`) so that people sign in to SynCiné with their Jellyfin credentials (`POST /api/auth/jellyfin`, 2FA still applies). A member without a linked account sees nothing of the server, like Plex.
+- **Library**: items are normalized to the same shape as Plex items (`rating_key`, TMDB `id`, `plex_url` = play link, `in_plex`, plus `server`), so Library, badges, Tonight and title pages work with either server. `ctx.media` is Plex if linked, otherwise Jellyfin. Images go through `/api/jellyfin/image/{id}` (the internal address and key never reach the browser).
+- **Watched**: Jellyfin is a watched source in the sync engine (movies, fully watched series); marking watched / unwatched in SynCiné also sets it on Jellyfin (`PlayedItems`). No watchlist or ratings (Jellyfin has none to sync).
+- **Auth headers**: `Authorization: MediaBrowser … Token="…"` (recent Jellyfin) and `X-Emby-Token` (Emby).
+- Not yet: viewing history for statistics, now-playing dashboard, episode-level links.
+
 ## Seerr — `seerr_client.py`
 
 - **Auth**: `X-Api-Key` header on `<seerr_url>/api/v1`.

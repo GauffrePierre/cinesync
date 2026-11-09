@@ -1,6 +1,6 @@
 # Getting started: server edition, administrator
 
-> On first start, an **assistant** walks you through a few screens: language and country, TMDB key, platforms, cinemas, Plex server and accounts, notifications. Every member you add gets one too. You can run it again later (Profile → Appearance → Run the setup assistant again).
+> On first start, an **assistant** walks you through a few screens: language and country, TMDB key, platforms, cinemas, media server (Plex, Jellyfin or Emby) and accounts, notifications. Every member you add gets one too. You can run it again later (Profile → Appearance → Run the setup assistant again).
 
 You're installing SynCiné for your family: you set up the services once for everyone, then add the accounts. About 20 minutes.
 
@@ -24,6 +24,7 @@ These are set **once, by you**, in **Profile → Connections**. Members don't se
 |---|---|---|
 | **TMDB** (required) | Title pages, trending, releases, availability | Free key: [themoviedb.org](https://www.themoviedb.org/settings/api) → Settings → API, then **Test connection** |
 | **Plex** | Library, "Play on Plex", members signing in with Plex | **Sign in with Plex** → code at plex.tv/link → pick your server |
+| **Jellyfin / Emby** | Library, "Play", watched titles, members signing in with their Jellyfin or Emby account | **Connections → + → Jellyfin / Emby**: server address as seen from SynCiné (local IP, not `localhost` under Docker), API key (Jellyfin: Dashboard → API Keys; Emby: Settings → API Keys), then **Link the server**. The optional public address is used by "Play" links opened away from home |
 | **Trakt** (app) | Lets everyone link **their own** Trakt account | Create an app at [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications/new) (redirect URI `urn:ietf:wg:oauth:2.0:oob`) and paste its **Client ID**. Each member then connects their own account |
 | **Seerr** | Requests to add titles to your library | Address + API key (Seerr → Settings → General) |
 | **JustWatch** | Direct links, new arrivals, charts | **Enable JustWatch** |
@@ -32,7 +33,7 @@ Your **personal** settings (country, services, cinemas, your Trakt account, Lett
 
 ## 3. Add family members
 
-**Profile → Admin settings → Family accounts** (or **Admin area → Users**).
+**Profile → Admin → Accounts** (the **Admin area** menu entry leads there too).
 
 ### With their Plex account
 For people your Plex server is already shared with:
@@ -42,6 +43,15 @@ For people your Plex server is already shared with:
    - **Requests sent straight to Seerr**: their requests skip your queue;
    - **Also allow signing in with a username and password**: a temporary password to pass on.
 3. Send them SynCiné's address: they sign in with **Sign in with Plex**. Everyone gets their own watched titles and Plex progress.
+
+### With their Jellyfin or Emby account
+For people who have an account on your Jellyfin or Emby server:
+
+1. The **Jellyfin accounts on the server** section (or Emby) lists them automatically.
+2. **Allow** next to the person.
+3. Send them SynCiné's address: they sign in with **Sign in with Jellyfin** (or Emby), using their usual username and password, checked by your server. SynCiné does not keep that password.
+
+A member who already has a SynCiné account can also link their Jellyfin account themselves: **Profile → Connections → + → Jellyfin / Emby → Link my account**.
 
 ### Without a Plex account
 These accounts see nothing of your Plex server (library, server name, watched titles) and can't make add requests.
@@ -56,18 +66,20 @@ Later, an account's **⋯** menu lets you give or renew a password, make someone
 
 When a member requests a title:
 - with **Requests sent straight to Seerr**, it goes to Seerr;
-- otherwise it lands in **Admin area → Requests** and you get a notification. You can **send it to Seerr**, **mark it available** or **decline** it: the member is notified.
+- otherwise it lands in **Profile → Admin → Requests** and you get a notification. You can **send it to Seerr**, **mark it available** or **decline** it: the member is notified.
 
-## 5. Plex dashboard
+## 5. Media server dashboard
 
-**Admin area → Plex** (or **Profile → Admin settings → Plex server**): what's playing (who, bandwidth, transcoding), libraries with **Scan**, statistics for the last 30 days.
+**Profile → Admin → Server** (the tab is named after your server: Plex, Jellyfin or Emby): what's playing (who, bandwidth, transcoding), libraries with **Scan**, statistics for the last 30 days.
+
+When Plex **and** Jellyfin (or Emby) are both linked, a switcher at the top moves from one to the other; each server shows how many streams are playing on it. For Jellyfin and Emby, statistics count the last play of each title per account (these servers do not keep a full history).
 
 ## 6. Security checklist
 
 - [ ] Long, unique administrator password.
 - [ ] **Two-factor authentication** on (Profile → My account → Enable), recovery codes kept somewhere safe. If a member loses their phone: their account's **⋯** menu → **Reset two-factor authentication**.
 - [ ] Internet access only over **HTTPS** (reverse proxy or Tailscale), `PUBLIC_URL` set.
-- [ ] Automatic backups on (**Admin area → Backups**, on by default), and now and then a downloaded copy kept off the server: it holds the services' tokens.
+- [ ] Automatic backups on (**Profile → Admin → Backups**, on by default), and now and then a downloaded copy kept off the server: it holds the services' tokens.
 - [ ] Updates: `git pull && docker compose up -d --build`, or the published image.
 
 ---

@@ -98,7 +98,7 @@ export default function Availability({ data, active = [] }) {
                 <Tile
                   href={data.plex.url || undefined}
                   appRef={{ mediaType: data.media_type, id: data.id, watchUrl: data.plex.watch_url }}
-                  icon={<PlexBadge size="md" />}
+                  icon={<PlexBadge size="md" server={data.plex?.server} />}
                   name="Plex"
                   sub={t('Dans ta bibliothèque · lire maintenant')}
                   highlight="border-plex/50 bg-plex/10"

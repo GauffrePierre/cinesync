@@ -44,6 +44,17 @@ def _recent(i: dict) -> bool:
     return bool(d) and d >= (date.today() - timedelta(days=365)).isoformat()
 
 
+# Envies d'après la classification (âge minimum conseillé) : (âge max, genres familiaux requis ou non)
+AGE_MOODS = {
+    "petits": (6, True),   # 3-6 ans : animation, famille, jeunesse
+    "enfants": (10, True),  # 7-10 ans
+    "ados": (14, False),   # 11-14 ans
+}
+FAMILY_GENRES = {16, 10751, 10762, 12, 14, 35}  # animation, famille, jeunesse, aventure, fantastique, comédie
+
+# Envies de saison : mots-clés TMDB (Noël, Halloween)
+KEYWORD_MOODS = {"noel": {207317}, "halloween": {3335}}
+
 # Envies de cinéphile, sans genre : d'après la note, la notoriété ou l'âge du titre
 SPECIAL_MOODS = {
     "pepites": lambda i: (i.get("vote_average") or 0) >= 7.2 and 50 <= (i.get("vote_count") or 0) < 1500,  # méconnus mais très bien notés
@@ -159,14 +170,31 @@ async def tonight(
         except ServiceError:
             return []
 
+    async def themed():
+        """Envies de saison ou pour enfants : des titres de ce thème disponibles sur tes plateformes (TMDB)."""
+        if (mood not in KEYWORD_MOODS and mood not in AGE_MOODS) or not platforms or ctx.tmdb.is_mock:
+            return []
+        filters = {"watch_region": ctx.country, "with_watch_providers": "|".join(str(p) for p in platforms),
+                   "with_watch_monetization_types": "flatrate|free|ads", "sort_by": "popularity.desc"}
+        if mood in KEYWORD_MOODS:
+            filters["with_keywords"] = "|".join(str(k) for k in KEYWORD_MOODS[mood])
+        else:
+            filters["with_genres"] = "10751|16|10762"
+        types = [media_type] if media_type != "all" else ["movie", "tv"]
+        pages = await asyncio.gather(*(ctx.tmdb.discover(t, **filters) for t in types), return_exceptions=True)
+        items = [i for p in pages if isinstance(p, list) for i in p][:40]
+        return await enrich(ctx, items)
+
     unseen = seen != "seen"
-    deck, wl, gems, sugg, again = await asyncio.gather(
+    deck, wl, gems, sugg, again, theme = await asyncio.gather(
         _on_deck(ctx, index),
         watchlist_items() if unseen else asyncio.sleep(0, []),
         library_gems() if unseen else asyncio.sleep(0, []),
         for_you() if unseen else asyncio.sleep(0, []),
         rewatch_items(),
+        themed() if unseen else asyncio.sleep(0, []),
     )
+    sugg = theme + sugg  # titres du thème d'abord dans les suggestions
 
     mood_ids = MOODS.get(mood or "", set())
     special = SPECIAL_MOODS.get(mood or "")
@@ -185,6 +213,19 @@ async def tonight(
             if special and not special(i):
                 continue
             out.append(i)
+        if mood in AGE_MOODS and out and hasattr(ctx.tmdb, "min_age"):
+            max_age, family = AGE_MOODS[mood]
+            if family:
+                out = [i for i in out if set(i.get("genre_ids") or []) & FAMILY_GENRES]
+            out = out[:80]
+            ages = await asyncio.gather(*(ctx.tmdb.min_age(i["media_type"], i["id"]) for i in out))
+            out = [i for i, a in zip(out, ages) if a is not None and a <= max_age]  # classification inconnue : écarté
+        if mood in KEYWORD_MOODS and out and hasattr(ctx.tmdb, "keyword_ids"):
+            out = out[:80]
+            kws = await asyncio.gather(*(ctx.tmdb.keyword_ids(i["media_type"], i["id"]) for i in out))
+            out = [i for i, k in zip(out, kws) if k & KEYWORD_MOODS[mood]]
+            if mood == "noel":  # Noël en famille : pas de films d'horreur (même situés à Noël)
+                out = [i for i in out if 27 not in (i.get("genre_ids") or [])]
         if max_runtime:
             runtimes = await asyncio.gather(*(_runtime(ctx, i) for i in out))
             out = [i | {"runtime": r} for i, r in zip(out, runtimes) if r and r <= max_runtime]
@@ -222,4 +263,4 @@ async def tonight(
 
     pool = sections["watchlist"] + sections["suggestions"] + sections["library"] + sections["rewatch"]
     pick = random.choice(pool) if pool else None
-    return {"sections": sections, "pick": pick, "moods": list(MOODS) + list(SPECIAL_MOODS)}
+    return {"sections": sections, "pick": pick, "moods": list(MOODS) + list(SPECIAL_MOODS) + list(AGE_MOODS) + list(KEYWORD_MOODS)}

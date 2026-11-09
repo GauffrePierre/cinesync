@@ -72,3 +72,18 @@ def test_tonight_seen_filter(fresh):  # noqa: F811
         r = admin.get(f"/api/tonight?seen={seen}")
         assert r.status_code == 200 and "rewatch" in r.json()["sections"], seen
     assert admin.get("/api/tonight?seen=bogus").status_code == 422
+
+
+def test_certifications_become_ages():
+    from app.services.tmdb_client import TMDBClient
+
+    t = TMDBClient("k", "fr", "FR")
+    assert [t._age(c) for c in ("U", "TP", "10", "12", "16", "FSK 6", "PG-13", "TV-Y7", "TV-MA", "", "NR")] == [0, 0, 10, 12, 16, 6, 13, 7, 17, None, None]
+
+
+def test_tonight_new_moods(fresh):  # noqa: F811
+    admin = client()
+    setup_admin(admin)
+    for mood in ("petits", "enfants", "ados", "noel", "halloween"):
+        r = admin.get(f"/api/tonight?mood={mood}")
+        assert r.status_code == 200 and mood in r.json()["moods"], mood

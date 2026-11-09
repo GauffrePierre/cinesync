@@ -42,7 +42,9 @@ export default function WatchlistButton({ item, primary = false, size = 'md' }) 
       ) : (
         <>
           <Bookmark className="h-4 w-4 fill-accent text-accent" />
-          {t('Dans ta watchlist')}
+          {/* Petits écrans : libellé court, pour garder les boutons sur une ligne */}
+          <span className="sm:hidden">{t('Watchlist')}</span>
+          <span className="hidden sm:inline">{t('Dans ta watchlist')}</span>
           <CheckCircle2 className="h-4 w-4 fill-emerald-500 text-bg" />
         </>
       )}

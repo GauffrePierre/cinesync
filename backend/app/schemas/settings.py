@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.models import UserSettings
 
-SECRET_FIELDS = ("tmdb_api_key", "plex_token", "trakt_client_secret", "seerr_api_key", "youtube_api_key")
+SECRET_FIELDS = ("tmdb_api_key", "plex_token", "trakt_client_secret", "seerr_api_key", "youtube_api_key", "jellyfin_api_key")
 
 
 def _nav_order(raw: str) -> list[str]:
@@ -44,6 +44,8 @@ class SettingsOut(BaseModel):
     notify_availability: bool
     notify_new_episodes: bool
     notify_services: bool
+    notify_episode_via: list[str]
+    notify_movie_via: list[str]
     country_code: str
     active_platforms: list[int]
     theme: str
@@ -76,6 +78,8 @@ class SettingsOut(BaseModel):
             notify_availability=s.notify_availability,
             notify_new_episodes=s.notify_new_episodes,
             notify_services=s.notify_services,
+            notify_episode_via=s.episode_via,
+            notify_movie_via=s.movie_via,
             country_code=s.country_code,
             active_platforms=s.platforms,
             theme=s.theme,
@@ -108,10 +112,12 @@ class SettingsUpdate(BaseModel):
     notify_availability: bool | None = None
     notify_new_episodes: bool | None = None
     notify_services: bool | None = None
+    notify_episode_via: list[Literal["air", "platforms", "plex"]] | None = Field(default=None, max_length=3)
+    notify_movie_via: list[Literal["platforms", "plex"]] | None = Field(default=None, max_length=2)
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
     active_platforms: list[int] | None = None
     theme: Literal["auto", "light", "dark"] | None = None
-    ui_language: Literal["fr", "en"] | None = None
+    ui_language: Literal["fr", "en", "it", "de", "es"] | None = None
     youtube_api_key: str | None = None
 
 

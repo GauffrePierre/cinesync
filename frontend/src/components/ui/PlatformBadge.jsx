@@ -26,16 +26,33 @@ export default function PlatformBadge({ provider, size = 'sm', className = '', r
   )
 }
 
-export function PlexBadge({ size = 'sm', className = '' }) {
-  const t = useT()
+// Serveur de la bibliothèque : Plex, Jellyfin ou Emby (couleur et pictogramme de chacun)
+export const SERVER_LABELS = { plex: 'Plex', jellyfin: 'Jellyfin', emby: 'Emby' }
+const SERVER_STYLE = {
+  plex: { cls: 'bg-plex text-black', path: 'M8 3h5l6 9-6 9H8l6-9z' },
+  jellyfin: { cls: 'bg-gradient-to-br from-[#aa5cc3] to-[#00a4dc] text-white', path: 'M12 3 3 19h18L12 3zm0 6 4.2 8H7.8L12 9z' },
+  emby: { cls: 'bg-[#52b54b] text-white', path: 'M9 6v12l9-6-9-6z' },
+}
+
+// Pictogramme du serveur (Plex, Jellyfin ou Emby) dans un rond ou un carré arrondi de sa couleur
+export function ServerLogo({ server = 'plex', className = '', title }) {
+  const st = SERVER_STYLE[server] || SERVER_STYLE.plex
   return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-plex font-semibold text-black ring-2 ring-black/30 ${SIZES[size]} ${className}`}
-      title={t('Dans ta bibliothèque Plex')}
-    >
+    <span className={`inline-flex shrink-0 items-center justify-center font-semibold ${st.cls} ${className}`} title={title}>
       <svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="currentColor" aria-hidden="true">
-        <path d="M8 3h5l6 9-6 9H8l6-9z" />
+        <path d={st.path} />
       </svg>
     </span>
+  )
+}
+
+export function PlexBadge({ size = 'sm', className = '', server = 'plex' }) {
+  const t = useT()
+  return (
+    <ServerLogo
+      server={server}
+      className={`rounded-full ring-2 ring-black/30 ${SIZES[size]} ${className}`}
+      title={t('Dans ta bibliothèque {server}', { server: SERVER_LABELS[server] || 'Plex' })}
+    />
   )
 }

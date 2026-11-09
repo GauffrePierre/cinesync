@@ -1,6 +1,6 @@
 import { api } from './api'
 
-// Espace administrateur : comptes, comptes Plex autorisés, tableau de bord du serveur Plex
+// Espace administrateur : comptes, comptes Plex autorisés, tableau de bord des serveurs (Plex, Jellyfin / Emby)
 export const admin = {
   users: () => api.get('/admin/users'),
   createUser: (body) => api.post('/admin/users', body),
@@ -8,9 +8,12 @@ export const admin = {
   deleteUser: (id) => api.del(`/admin/users/${id}`),
   plexAccounts: () => api.get('/admin/plex/accounts'),
   allowPlex: (body) => api.post('/admin/plex/accounts', body),
-  dashboard: () => api.get('/admin/plex/dashboard'),
-  scan: (sectionId) => api.post(`/admin/plex/scan${sectionId ? `?section_id=${encodeURIComponent(sectionId)}` : ''}`),
-  stats: (days = 30) => api.get(`/admin/plex/stats?days=${days}`),
+  allowJellyfin: (body) => api.post('/admin/jellyfin/accounts', body),
+  // srv = 'plex' ou 'jellyfin' (Jellyfin et Emby)
+  servers: () => api.get('/admin/servers'),
+  dashboard: (srv) => api.get(`/admin/${srv}/dashboard`),
+  scan: (srv, sectionId) => api.post(`/admin/${srv}/scan${sectionId ? `?section_id=${encodeURIComponent(sectionId)}` : ''}`),
+  stats: (srv, days = 30) => api.get(`/admin/${srv}/stats?days=${days}`),
   // Sauvegardes de la base
   backups: () => api.get('/admin/backups'),
   backupNow: () => api.post('/admin/backups'),

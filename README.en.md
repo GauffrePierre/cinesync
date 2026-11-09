@@ -5,8 +5,8 @@
 <h1 align="center">SynCiné</h1>
 
 <p align="center">
-  <b>Your self-hosted film-lover's companion.</b><br />
-  Streaming, local cinemas, watchlist and recommendations, together in one app.
+  <b>The film lover's companion, self-hosted.</b><br />
+  Streaming, cinemas, watchlist and recommendations, all in one app.
 </p>
 
 <p align="center">
@@ -21,13 +21,13 @@
 
 Discover, track and find all your films and series, **whatever streaming service they are on**, and never miss what's showing **at the cinemas in your town**.
 
-SynCiné brings **Trakt**, **TMDB** and **JustWatch** streaming availability together and keeps them in sync, in a single interface with **recommendations made for you**. Optional extras: your **Letterboxd** diary, your **Plex** library and add requests through **Seerr**.
+SynCiné brings **Trakt**, **TMDB** and **JustWatch** streaming availability together and keeps them in sync, in a single interface with **recommendations made for you**. Optional extras: your **Letterboxd** diary, your **Plex**, **Jellyfin** or **Emby** library and add requests through **Seerr**.
 
-Two editions: **personal**, just for you, or **server**, with an administrator and **family accounts**. Once online, SynCiné installs as an **app** on phones, tablets and computers (PWA), in French or English.
+Two editions: **personal**, just for you, or **server**, with an administrator and **family accounts**. Once online, SynCiné installs as an **app** on phones, tablets and computers (PWA), in French, English, Italian, German or Spanish.
 
 ## Support SynCiné
 
-SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the developer a coffee… and some kibble for Claude, his cat** 🐱☕
+SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the developer a coffee… and some kibble for Claude, the developer's cat** 🐱☕
 
 <a href="https://ko-fi.com/pierre_et_chat"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support SynCiné on Ko-fi" height="36" /></a>
 
@@ -64,26 +64,31 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 </table>
 
 <p align="center">
-  <img src="docs/screenshots/mobile-discover.webp" alt="Discover on a phone" width="230" />
+  <img src="docs/screenshots/mobile-discover.webp" alt="Discover on a phone" width="200" />
   &nbsp;
-  <img src="docs/screenshots/mobile-detail.webp" alt="Title page on a phone" width="230" />
+  <img src="docs/screenshots/mobile-detail.webp" alt="Title page on a phone" width="200" />
   &nbsp;
-  <img src="docs/screenshots/mobile-swipe.webp" alt="Swipe mode" width="230" />
+  <img src="docs/screenshots/mobile-swipe.webp" alt="Swipe mode" width="200" />
+  &nbsp;
+  <img src="docs/screenshots/mobile-onboarding.webp" alt="First-run assistant" width="200" />
 </p>
 
-<p align="center"><sub>Screenshots come from a demo account. The interface is shown in French; it is also available in English.</sub></p>
+<p align="center"><sub>Screenshots come from a demo account. The interface is shown in French; it is also available in English, Italian, German and Spanish.</sub></p>
 
 ## Features
 
 **Discover**
 - Trending titles, what's new on your services, films in cinemas, and personalised suggestions based on your taste, your ratings and Trakt recommendations.
 - Daily charts per streaming service; "Like / Not interested / Watched" right on the posters.
+- **Recent releases from your watchlist** highlighted for the period you choose (film out in cinemas or on streaming, new season, new episode).
+- **Seen / Not seen** filter on every tab, and an option to stop suggesting what you've already seen (a series with new episodes is still suggested).
 - **Swipe mode** to sort dozens of titles quickly: seen it, want to see it, not interested.
-- **Tonight**: a selection limited to what you can watch right now, filtered by length and mood.
+- **Tonight**: a selection limited to what you can watch right now, filtered by length and mood (18 moods, including *Hidden gems* and *Classics*), with a “Watch again” row.
 
 **At the cinema**
 - Showtimes at **your usual cinemas** (France, Germany, Spain, Turkey, Mexico), with a "films only" filter (no operas or concerts).
 - Cinema and streaming releases in your country, as a grid or a calendar.
+- For an announced film: its cinema release date in your country and its first streaming release worldwide.
 - Still in cinemas? SynCiné tells you, and can request it for the day it comes out digitally.
 
 **Film News**
@@ -98,18 +103,20 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 **Track**
 - **Watchlist, watched titles, ratings and favourites** gathered from Trakt, Plex and Letterboxd, and synced both ways (with a preview and safeguards).
 - Series tracking season by season, episode by episode.
-- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding.
+- Sort by release date, date added, overall rating, critics score, audience score, year or your own rating.
+- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding. You choose when to be told: as soon as it airs, when it's on your services, or when it lands on Plex.
 - Detailed **statistics** of your history: hours, films, episodes, genres, days and times you watch.
 
 **For the family (server edition)**
 - One administrator and an account for each member: everyone has their own watchlist, ratings, history and services.
-- Sign in with a password, or with a Plex account the administrator has allowed.
+- Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed.
 - **Add requests**: sent straight to Seerr for allowed members, otherwise queued for the administrator.
-- **Plex dashboard**: what's playing (bandwidth, transcoding), libraries and scans, server statistics.
+- **Server dashboard** (Plex, Jellyfin or Emby, or several at once): what's playing (bandwidth, transcoding), libraries and scans, statistics.
 
 **Everywhere**
-- Installable app (PWA) on iPhone, iPad, Android and desktop, light or dark theme.
-- Interface in **French** and **English**.
+- Installable app (PWA) on iPhone, iPad, Android and desktop, designed for every screen size, light or dark theme.
+- A **first-run assistant** for every new account, a **settings search**, and on desktop a menu you arrange as you like.
+- Interface in **French**, **English**, **Italian**, **German** and **Spanish**, notifications included.
 
 ## Data sources
 
@@ -122,6 +129,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 | [Letterboxd](https://letterboxd.com) | Your film diary (public RSS feed) | Optional |
 | Film websites and YouTube channels | Film News (public RSS feeds, chosen by each user) | Optional |
 | [Plex](https://www.plex.tv) | Your library, playback, history, family accounts | Optional |
+| [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Your library, playback, watched titles, family accounts | Optional |
 | [Seerr](https://github.com/seerr-team/seerr) | Requests to add titles to your library | Optional |
 
 SynCiné never downloads anything. It can only pass a request on to Seerr, which handles it according to your settings.
@@ -135,44 +143,68 @@ SynCiné runs in **a single Docker container** (interface and server) and keeps 
 | | **Server** edition | **Personal** edition |
 |---|---|---|
 | For | You and your family | Just you |
-| Sign-in | Yes: password or Plex account | No |
+| Sign-in | Yes: password, Plex, Jellyfin or Emby account | No |
 | Accounts, requests, admin area | Yes | — |
 | Where to use it | Local network, Tailscale, or the Internet behind an HTTPS proxy | Trusted networks only (local network, Tailscale) |
 | Setting | `CINESYNC_MODE=server` | `CINESYNC_MODE=personal` |
 
-### With Docker Compose
+### With Docker (any Linux machine, NAS, mini PC…)
 
-Requirements: Docker with the Compose plugin.
+Requirements: Docker with the Compose plugin. The image is published for PCs (amd64) and ARM (Raspberry Pi 4/5, ARM NAS).
+
+1. Create a `syncine` folder and, inside it, a `docker-compose.yml` file:
+
+   ```yaml
+   services:
+     syncine:
+       image: ghcr.io/gauffrepierre/syncine:latest
+       container_name: syncine
+       restart: unless-stopped
+       ports:
+         - "3000:8000"              # interface port on the machine: 3000
+       volumes:
+         - ./data:/app/data         # database (back it up)
+       environment:
+         - CINESYNC_MODE=server     # or personal (one person, no sign-in)
+         - PUBLIC_URL=              # SynCiné's HTTPS address, if you have one (see below)
+         - TZ=Europe/Paris
+         - PUID=1000                # data owner: output of the "id" command
+         - PGID=1000
+   ```
+
+2. Start it:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Open `http://<machine-address>:3000`. In the server edition, the first screen creates the **administrator account** and asks for a **setup code**, printed in the logs:
+
+   ```bash
+   docker logs syncine 2>&1 | grep "code pour créer"
+   ```
+
+An assistant then walks you through the rest (TMDB key, country, streaming services, cinemas, media server…). For the phone app and access away from home, switch to **HTTPS** (see [HTTPS access](#https-access-and-mobile-app)).
+
+> 📦 **Guides per system**: [Unraid](docs/guides/en/installation.md#unraid) · [TrueNAS](docs/guides/en/installation.md#truenas) · [Proxmox](docs/guides/en/installation.md#proxmox) · [OpenMediaVault](docs/guides/en/installation.md#openmediavault) · [Docker Compose](docs/guides/en/installation.md#docker-compose).
+
+<details>
+<summary>Build from source</summary>
 
 ```bash
 git clone https://github.com/GauffrePierre/syncine.git
 cd syncine
-cp .env.example .env     # then adjust: edition, data folder, port, PUBLIC_URL
+cp .env.example .env     # then adjust: edition, data folder, port, PUID/PGID, PUBLIC_URL
 docker compose up -d --build
 ```
 
-The interface is then at `http://<server-address>:3000`.
-
-In the server edition, the first screen creates the **administrator account**. It asks for a **setup code**, printed in the container logs:
-
-```bash
-docker logs cinesync 2>&1 | grep "code pour créer"
-```
-
-<details>
-<summary>Use the published image instead of building</summary>
-
-An image is published on GitHub with each release (x86 and ARM): `ghcr.io/gauffrepierre/syncine:latest`. In `docker-compose.yml`, remove the `build: .` line, then:
-
-```bash
-docker compose pull && docker compose up -d
-```
+The container is then called `cinesync` (`docker logs cinesync` for the setup code).
 
 </details>
 
 ### On Unraid
 
-**With the Unraid template**: copy [`unraid/cinesync.xml`](unraid/cinesync.xml) to `/boot/config/plugins/dockerMan/templates-user/` on your Unraid flash drive. Then go to **Docker → Add Container** and pick **SynCiné** from the template list. Data goes to `/mnt/user/appdata/cinesync`, and the container runs as `nobody:users`.
+**With the Unraid template**: download [`unraid/syncine.xml`](unraid/syncine.xml) to `/boot/config/plugins/dockerMan/templates-user/` (command in the [installation guide](docs/guides/en/installation.md#unraid)), then **Docker → Add Container** and pick **SynCiné** from the template list. Data goes to `/mnt/user/appdata/syncine`, and the container runs as `nobody:users`.
 
 <details>
 <summary>With Docker Compose on Unraid (no plugin)</summary>
@@ -185,7 +217,7 @@ V=v5.7.0; B=https://github.com/docker/compose/releases/download/$V
 cd bin && curl -fLO $B/docker-compose-linux-x86_64 && curl -fLO $B/docker-compose-linux-x86_64.sha256 \
   && sha256sum -c docker-compose-linux-x86_64.sha256 && mv docker-compose-linux-x86_64 docker-compose && chmod +x docker-compose
 cd .. && git clone https://github.com/GauffrePierre/syncine.git app && cd app
-cp .env.example .env     # DATA_PATH=/mnt/user/appdata/cinesync/data, a free CINESYNC_PORT, PUBLIC_URL
+cp .env.example .env     # DATA_PATH=/mnt/user/appdata/cinesync/data, PUID=99, PGID=100, a free CINESYNC_PORT, PUBLIC_URL
 ../bin/docker-compose -p cinesync up -d --build
 ```
 
@@ -210,6 +242,7 @@ In short, everything is set up in **Profile**, in this order:
    - **JustWatch**: one checkbox, for direct links and new arrivals.
    - **Letterboxd**: your username.
    - **Plex**: **Sign in with Plex**, then enter the code at plex.tv/link. SynCiné then finds the best connection to your server on its own.
+   - **Jellyfin / Emby**: the server address as seen from SynCiné (local IP, not `localhost` under Docker) and an API key (Jellyfin: Dashboard → API Keys; Emby: Settings → API Keys).
    - **Seerr**: its address and API key.
 
 **Automatic sync** (the same watchlist everywhere, watched titles and ratings copied where they're missing) is in Profile → Sync. A preview shows what will change before you turn it on.
@@ -217,13 +250,14 @@ In short, everything is set up in **Profile**, in this order:
 <details>
 <summary>Family accounts (server edition)</summary>
 
-In **Profile → Admin settings** or the **Admin area**:
+In **Profile → Admin** (or the **Admin area** menu entry):
 
 - **Local accounts**: you choose a username and a temporary password, which the person changes when they first sign in.
 - **Plex accounts**: SynCiné lists the people your Plex server is shared with. Once allowed, they use "Sign in with Plex". SynCiné checks it really is that account, and everyone gets their own watched titles and progress.
+- **Jellyfin / Emby accounts**: SynCiné lists the accounts on your server. Once allowed, they use "Sign in with Jellyfin" (or Emby) with their usual password, checked by your server.
 - **Direct Seerr requests**: enabled per account. Otherwise requests land in the administrator's Requests tab, with a notification.
 
-The TMDB key, Plex server, Seerr and JustWatch are set once by the administrator and shared by everyone. Trakt, Letterboxd, streaming services and cinemas are set per account.
+The TMDB key, media server (Plex, Jellyfin or Emby), Seerr and JustWatch are set once by the administrator and shared by everyone. Trakt, Letterboxd, streaming services and cinemas are set per account.
 
 </details>
 
@@ -291,12 +325,15 @@ The proxy then forwards to `http://172.17.0.1:3000`. Its address must be in `FOR
 ## Updates and backups
 
 ```bash
-cd syncine && git pull && docker compose up -d --build
+docker compose pull && docker compose up -d          # published image
+git pull && docker compose up -d --build             # built from source
 ```
+
+On Unraid: **Docker tab → Check for Updates**, then **Apply Update**.
 
 The database (`cinesync.db` in the data folder) is migrated automatically at startup.
 
-**Backups**: SynCiné backs up its database every day into `backups/` (in the data folder) and keeps the last 7. In **Admin area → Backups** you can change that number, turn automatic backups off, back up right away or download a copy. A backup holds the tokens of your connected services: keep copies somewhere safe, ideally off the server too.
+**Backups**: SynCiné backs up its database every day into `backups/` (in the data folder) and keeps the last 7. In **Profile → Admin → Backups** you can change that number, turn automatic backups off, back up right away or download a copy. A backup holds the tokens of your connected services: keep copies somewhere safe, ideally off the server too.
 
 **Restore** a backup:
 
@@ -319,7 +356,7 @@ In the `.env` file (see [`.env.example`](.env.example)). Service keys are entere
 | `CINESYNC_BIND` | `0.0.0.0` | `127.0.0.1` to allow access only through an HTTPS proxy on the server |
 | `PUBLIC_URL` | — | Public address (`https://…`): Trakt sign-in, secure cookies, origin check |
 | `TZ` | `Europe/Paris` | Time zone |
-| `PUID` / `PGID` | `99` / `100` | Owner of the data files |
+| `PUID` / `PGID` | `99` / `100` | Owner of the data files (Unraid 99/100, most Linux 1000/1000, TrueNAS 568/568) |
 | `HSTS_SECONDS` | `0` | Turns on HSTS (dedicated HTTPS-only domain) |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1,172.16.0.0/12` | Proxies whose visitor address is trusted |
 | `NOTIFICATION_INTERVAL_HOURS` | `24` | How often availability is checked |
@@ -373,7 +410,7 @@ backend/app/
 frontend/src/
   pages/           Discover, Upcoming, Tonight, Watchlist, title page, Profile, Statistics, Admin…
   components/      layout, posters, title page, admin, profile, swipe, notifications
-  i18n/            translations (French text is the key, English dictionaries per area)
+  i18n/            translations (French text is the key; English, Italian, German, Spanish dictionaries)
   hooks/ services/ store/
 ```
 

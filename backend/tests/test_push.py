@@ -96,7 +96,7 @@ def test_notifications_are_pushed_in_the_recipient_language(fresh, monkeypatch):
         link_plex(db.query(User).filter(User.username == "alice").one().id)
     assert alice.post("/api/requests", json={"tmdb_id": 603, "media_type": "movie", "title": "Matrix"}).status_code == 200
     push._executor.submit(lambda: None).result()  # attend l'envoi (fil séparé)
-    assert sent == [{"title": "SynCiné", "body": "Alice is requesting “Matrix”", "url": "/admin?tab=requests", "tag": sent[0]["tag"]}]
+    assert sent == [{"title": "SynCiné", "body": "Alice is requesting “Matrix”", "url": "/profile?tab=admin&section=requests", "tag": sent[0]["tag"]}]
     # Abonnement expiré côté service push : supprimé
     monkeypatch.setattr(push.httpx, "Client", lambda **kw: real_client(transport=httpx.MockTransport(lambda r: httpx.Response(410))))
     alice.post("/api/requests", json={"tmdb_id": 604, "media_type": "movie", "title": "Matrix Reloaded"})
@@ -111,3 +111,9 @@ def test_templates_are_translated_in_the_interface_too():
     for key in messages.TEMPLATES:
         assert key.replace("'", "\\'") in en or key in en, f"Traduction manquante dans l'interface : {key}"
     assert messages.render("{title} est maintenant disponible sur {platforms}", {"title": "Dune", "platforms": "Netflix"}, "en") == "Dune is now available on Netflix"
+
+
+def test_push_templates_exist_in_every_language():
+    for lang, table in messages.TRANSLATIONS.items():
+        assert set(table) == set(messages.TEMPLATES), f"modèles de notification manquants en {lang}"
+    assert messages.render("Nouvel épisode de {title} : {code}", {"title": "Dark", "code": "S01E01"}, "de") == "Neue Folge von Dark: S01E01"

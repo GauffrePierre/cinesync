@@ -73,28 +73,42 @@ async def check_new_episodes(user_ids: list[int] | None = None) -> dict:
     return await for_each_user(episodes_one, user_ids)
 
 
+PLEX_ID = 0  # « plateforme » Plex dans la liste des disponibilités déjà notifiées
+
+
 async def availability_one(ctx: Ctx) -> dict:
     db = ctx.db
     if ctx.tmdb.is_mock:
         return {"checked": 0, "created": 0, "skipped": "TMDB doit être configuré"}
     if not ctx.settings.notify_availability:
         return {"checked": 0, "created": 0, "skipped": "Notifications de disponibilité désactivées"}
-    platforms = set(ctx.platforms)
-    if not platforms:
+    via = set(ctx.settings.movie_via)
+    platforms = set(ctx.platforms) if "platforms" in via else set()
+    plex_index = {}
+    if "plex" in via and ctx.plex is not None:
+        try:
+            plex_index = await ctx.plex.index()  # titres de la watchlist arrivés sur Plex
+        except ServiceError:
+            plex_index = {}
+    if not platforms and not plex_index:
         return {"checked": 0, "created": 0, "skipped": "Aucune plateforme active"}
 
     rows = [r for r in db.execute(select(MediaState)).scalars() if r.in_watchlist]
     created = 0
     for r in rows:
         try:
-            prov = stream_providers(await ctx.tmdb.providers(r.media_type, r.tmdb_id, fresh=True))
+            prov = stream_providers(await ctx.tmdb.providers(r.media_type, r.tmdb_id, fresh=True)) if platforms else []
         except ServiceError:
             continue
         # Repère propre à cette vérification (la page Watchlist remplit aussi providers_checked_at)
         first_check = r.availability_checked_at is None
-        r.providers = json.dumps(prov)
-        r.providers_checked_at = r.availability_checked_at = datetime.utcnow()
+        if platforms:
+            r.providers = json.dumps(prov)
+            r.providers_checked_at = datetime.utcnow()
+        r.availability_checked_at = datetime.utcnow()
         available = {p["id"]: p for p in prov if p["id"] in platforms}
+        if (r.media_type, r.tmdb_id) in plex_index:
+            available[PLEX_ID] = {"id": PLEX_ID, "name": "Plex", "logo": None}  # Plex : identifiant réservé 0
         notified = {int(x) for x in json.loads(r.notified_platforms or "[]")}
         new_ids = set(available) - notified
         # Premier passage : on mémorise l'état sans notifier (le titre était peut-être déjà dispo)
@@ -133,27 +147,67 @@ async def episodes_one(ctx: Ctx) -> dict:
     recent = datetime.utcnow() - timedelta(days=180)
     shows |= {t for (t,) in db.execute(select(WatchEvent.tmdb_id).where(WatchEvent.kind == "episode", WatchEvent.watched_at >= recent, WatchEvent.tmdb_id.isnot(None)))}
     cutoff = (date.today() - timedelta(days=2)).isoformat()
+    via = set(ctx.settings.episode_via)
+    platforms = set(ctx.platforms)
     created = 0
-    for tmdb_id in list(shows)[:300]:
-        try:
-            raw = await ctx.tmdb._get(f"/tv/{tmdb_id}", ttl=21600)
-        except ServiceError:
-            continue
-        last = raw.get("last_episode_to_air") or {}
-        if not last.get("air_date") or last["air_date"] < cutoff:
-            continue
-        code = f"S{last.get('season_number', 0):02d}E{last.get('episode_number', 0):02d}"
-        title = raw.get("name") or ""
-        if last.get("name"):
-            text = messages.fields("Nouvel épisode de {title} : {code} · {name}", title=title, code=code, name=last["name"])
-        else:
-            text = messages.fields("Nouvel épisode de {title} : {code}", title=title, code=code)
+
+    def notify(tmdb_id: int, raw: dict, text: dict) -> None:
+        nonlocal created
         exists = db.execute(select(Notification.id).where(Notification.kind == "episode", Notification.tmdb_id == tmdb_id, Notification.message == text["message"])).first()
         if exists:
-            continue
+            return
         poster = f"https://image.tmdb.org/t/p/w342{raw['poster_path']}" if raw.get("poster_path") else None
-        db.add(Notification(kind="episode", tmdb_id=tmdb_id, media_type="tv", title=title, poster=poster, **text))
+        db.add(Notification(kind="episode", tmdb_id=tmdb_id, media_type="tv", title=raw.get("name") or "", poster=poster, **text))
         created += 1
+
+    # Dès la diffusion, ou seulement si la série est sur une de mes plateformes
+    if via & {"air", "platforms"}:
+        for tmdb_id in list(shows)[:300]:
+            try:
+                raw = await ctx.tmdb._get(f"/tv/{tmdb_id}", ttl=21600)
+            except ServiceError:
+                continue
+            last = raw.get("last_episode_to_air") or {}
+            if not last.get("air_date") or last["air_date"] < cutoff:
+                continue
+            code = f"S{last.get('season_number', 0):02d}E{last.get('episode_number', 0):02d}"
+            title = raw.get("name") or ""
+            names = []
+            if "platforms" in via and platforms:
+                try:
+                    names = [p["name"] for p in stream_providers(await ctx.tmdb.providers("tv", tmdb_id)) if p["id"] in platforms]
+                except ServiceError:
+                    names = []
+            if names:
+                text = messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=title, platforms=", ".join(names), code=code)
+            elif "air" not in via:
+                continue  # pas sur mes plateformes : rien (l'utilisateur ne veut que ce qu'il peut regarder)
+            elif last.get("name"):
+                text = messages.fields("Nouvel épisode de {title} : {code} · {name}", title=title, code=code, name=last["name"])
+            else:
+                text = messages.fields("Nouvel épisode de {title} : {code}", title=title, code=code)
+            notify(tmdb_id, raw, text)
+
+    # Ajouté sur Plex (épisodes arrivés sur le serveur ces 2 derniers jours)
+    if "plex" in via and ctx.plex is not None:
+        try:
+            index, recent = await ctx.plex.library(), await ctx.plex.recent_episodes(days=2)
+        except ServiceError:
+            index, recent = [], []
+        by_key = {str(i.get("rating_key")): i for i in index if i.get("media_type") == "tv" and i.get("id")}
+        # Une notification par série : une saison ajoutée d'un coup donne « S01E01 → S01E10 »
+        grouped: dict[str, list[tuple[int, int]]] = {}
+        for ep in recent:
+            show = by_key.get(ep["show_key"])
+            if show and show["id"] in shows:
+                grouped.setdefault(ep["show_key"], []).append((ep["season"] or 0, ep["episode"] or 0))
+        for key, eps in grouped.items():
+            show, eps = by_key[key], sorted(set(eps))
+            first, last = (f"S{s_:02d}E{e:02d}" for s_, e in (eps[0], eps[-1]))
+            code = first if len(eps) == 1 else f"{first} → {last}"
+            raw = {"name": show.get("title") or "", "poster_path": None}
+            notify(show["id"], raw, messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=raw["name"], platforms="Plex", code=code))
+
     db.commit()
     return {"checked": len(shows), "created": created}
 

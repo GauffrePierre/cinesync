@@ -13,4 +13,6 @@ export default {
   'Pas vus': 'Not seen',
   'Vus': 'Seen',
   'Filtrer : vus ou pas vus': 'Filter: seen or not seen',
+  '« Pas vus » d’après ton réglage : choisis Tous ou Vus pour cet onglet seulement.': '“Not seen” from your setting: pick All or Seen for this tab only.',
+  'Réglage « ne plus proposer les vus » ignoré dans cet onglet.': '“Stop suggesting seen titles” is ignored in this tab.',
 }

@@ -4,10 +4,10 @@ import HeroCarousel from '../components/media/HeroCarousel'
 import MediaRow from '../components/media/MediaRow'
 import PlatformFilter, { useMediaFilters } from '../components/media/PlatformFilter'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
-import SeenFilter, { useSeenFilterFn } from '../components/ui/SeenFilter'
+import SeenFilter, { usePageSeen, useSeenFilterFn } from '../components/ui/SeenFilter'
 import MockBanner from '../components/ui/MockBanner'
 import EmptyState from '../components/ui/EmptyState'
-import { useCharts, useNewOnPlatforms, useSeenFilter, useSettings, useStatus, useSuggestions, useTrending, useWatchlistReleases } from '../hooks/useMedia'
+import { useCharts, useNewOnPlatforms, useSettings, useStatus, useSuggestions, useTrending, useWatchlistReleases } from '../hooks/useMedia'
 import { useUiStore } from '../store/uiStore'
 import { useT } from '../i18n'
 
@@ -46,11 +46,9 @@ export default function Discover() {
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
   const mediaFilters = useMediaFilters()
-  const seenFilter = useUiStore((s) => s.seenFilter)
-  const bySeen = useSeenFilterFn()
-  // Réglage « ne plus proposer les vus » : sans effet quand on demande explicitement les titres vus
-  const hideSeenSetting = useSeenFilter()
-  const hideSeen = (items) => bySeen(seenFilter === 'seen' ? items : hideSeenSetting(items))
+  // Filtre vus / pas vus de cet onglet (par défaut « Pas vus » si le réglage « ne plus proposer les vus » est actif)
+  const { value: seenFilter } = usePageSeen('discover')
+  const hideSeen = useSeenFilterFn('discover')
   const filter = (items) => hideSeen(mediaFilters(items))
   const { data: settings } = useSettings()
   const { data: status } = useStatus()
@@ -68,7 +66,7 @@ export default function Discover() {
   const trendingItems = filter(trending.data?.results)
   const hero = trendingItems.find((i) => i.backdrop) || trendingItems[0]
   // Le titre du carrousel n'est pas répété dans Tendances, sauf avec un filtre vus / pas vus (liste réduite)
-  const rest = seenFilter === 'all' ? trendingItems.filter((i) => i !== hero) : trendingItems
+  const rest = seenFilter !== 'seen' ? trendingItems.filter((i) => i !== hero) : trendingItems
 
   return (
     <div>
@@ -79,7 +77,7 @@ export default function Discover() {
       <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center">
         <div className="flex items-center gap-2">
           <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
-          <SeenFilter />
+          <SeenFilter page="discover" />
         </div>
         <PlatformFilter />
       </div>
@@ -92,7 +90,7 @@ export default function Discover() {
         />
       )}
 
-      {trending.error && <EmptyState title={t('Impossible de charger les tendances')} message={trending.error.message} action={t('Vérifier le Profil')} to="/profile" />}
+      {trending.error && <EmptyState title={t('Impossible de charger les tendances')} message={trending.error.message} action={t('Vérifier le Profil')} to="/profile?tab=connections" />}
 
       <MediaRow
         title={t('Tendances')}

@@ -223,6 +223,51 @@ function TwoFactorStep({ ticket, onDone, onCancel }) {
   )
 }
 
+// Connexion avec un compte Jellyfin / Emby autorisé (identifiant + mot de passe vérifiés par le serveur)
+function JellyfinLogin({ kind, onDone }) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ username: '', password: '' })
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const label = kind === 'emby' ? 'Emby' : 'Jellyfin'
+  if (!open) {
+    return (
+      <Button className="w-full" variant="secondary" onClick={() => setOpen(true)}>
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#aa5cc3] to-[#00a4dc] text-white">
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="currentColor" aria-hidden="true">
+            <path d="M12 3 3 19h18L12 3z" />
+          </svg>
+        </span>
+        {t('Se connecter avec {server}', { server: label })}
+      </Button>
+    )
+  }
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        setBusy(true)
+        setError(null)
+        try {
+          onDone(await auth.jellyfinLogin(form.username, form.password))
+        } catch (err) {
+          setError(err.message)
+          setBusy(false)
+        }
+      }}
+    >
+      <Field label={t('Identifiant {server}', { server: label })} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} autoComplete="username" autoCapitalize="none" required />
+      <Field label={t('Mot de passe {server}', { server: label })} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="current-password" />
+      <ErrorLine error={error} />
+      <Button type="submit" variant="secondary" className="w-full" loading={busy}>
+        <LogIn className="h-4 w-4" /> {t('Se connecter avec {server}', { server: label })}
+      </Button>
+    </form>
+  )
+}
+
 export function Setup({ me }) {
   const t = useT()
   const reset = useResetSession()
@@ -324,9 +369,12 @@ export function Login({ me }) {
 
   return (
     <Shell title={t('Connexion')}>
-      {me.plex_login && (
+      {(me.plex_login || me.jellyfin_login) && (
         <>
-          <PlexLogin onDone={done} />
+          <div className="space-y-3">
+            {me.plex_login && <PlexLogin onDone={done} />}
+            {me.jellyfin_login && <JellyfinLogin kind={me.jellyfin_kind} onDone={done} />}
+          </div>
           <Divider />
         </>
       )}

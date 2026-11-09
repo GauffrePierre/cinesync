@@ -21,6 +21,10 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | PUT | `/api/admin/backups/settings` | `backup_settings` | admin | `{enabled?, keep? (1-60)}` (ligne 1). |
 | GET | `/api/admin/backups/{name}` | `download_backup` | admin | Téléchargement (nom validé par `NAME_RE`, `no-store`). |
 | DELETE | `/api/admin/backups/{name}` | `delete_backup` | admin |  |
+| GET | `/api/admin/servers` | `media_servers` | admin | Serveurs reliés dont l'admin voit le tableau de bord : `[{id: plex\|jellyfin, kind: plex\|jellyfin\|emby, name}]`. |
+| GET | `/api/admin/jellyfin/dashboard` | `jellyfin_dashboard` | admin | Comme `/admin/plex/dashboard` (mêmes clés) pour Jellyfin / Emby. |
+| POST | `/api/admin/jellyfin/scan` | `jellyfin_scan` | admin | Analyse d'une bibliothèque Jellyfin / Emby (`section_id` = ItemId du dossier) ou de toutes. |
+| GET | `/api/admin/jellyfin/stats` | `jellyfin_stats` | admin | Comme `/admin/plex/stats`, d'après la dernière lecture de chaque titre par compte (`approx: true`). |
 | GET | `/api/admin/plex/stats` | `plex_stats` | admin | Visionnages sur le serveur (historique Plex importé) : par compte, par jour, titres les plus vus. |
 
 ## `auth.py`
@@ -229,4 +233,17 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | POST | `/api/push/subscribe` | `subscribe` | session | `{endpoint, keys{p256dh, auth}}`. Services push en liste blanche (`push.PUSH_HOSTS`, https). Un endpoint n'appartient qu'à un compte (repris s'il était à un autre). 10 appareils max. |
 | POST | `/api/push/unsubscribe` | `unsubscribe` | session | `{endpoint}`. Appelé aussi à la déconnexion. |
 | POST | `/api/push/test` | `test` | session | Notification d'essai sur cet appareil. |
+
+## `jellyfin.py`
+
+| Method | Path | Handler | Access | Notes |
+|---|---|---|---|---|
+| POST | `/api/jellyfin/server` | `connect_server` | admin | `{url, public_url?, api_key}` ; vérifie `/System/Info/Public` + `/Users` (clé d'admin), enregistre nom / id / type (jellyfin\|emby). |
+| DELETE | `/api/jellyfin/server` | `disconnect_server` | admin | |
+| GET | `/api/jellyfin/users` | `server_users` | admin | Comptes du serveur + compte SynCiné relié. |
+| POST | `/api/jellyfin/link` | `link_account` | session | `{username, password}` vérifiés par le serveur ; un compte Jellyfin = un seul compte SynCiné. |
+| DELETE | `/api/jellyfin/link` | `unlink_account` | session | |
+| GET | `/api/jellyfin/image/{item_id}` | `image` | session | Image relayée (`kind` = Primary \| Backdrop). |
+
+Aussi : `POST /api/auth/jellyfin` (connexion avec un compte autorisé), `POST /api/admin/jellyfin/accounts` (autoriser un compte du serveur).
 

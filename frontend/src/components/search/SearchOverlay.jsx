@@ -22,7 +22,7 @@ function ResultRow({ item, onSelect }) {
         <p className="truncate text-sm font-medium">{item.title}</p>
         <p className="truncate text-xs text-text2">{[item.year, mediaLabel(item.media_type), item.section].filter(Boolean).join(' · ')}</p>
       </div>
-      {item.in_plex && <PlexBadge size="xs" />}
+      {item.in_plex && <PlexBadge server={item.server} size="xs" />}
     </button>
   )
 }

@@ -9,7 +9,7 @@ export default function MockBanner({ service = 'TMDB', show = true }) {
   const [before, after = ''] = t('Données de démonstration — configure {service} dans le Profil pour voir tes vraies données.').split('{service}')
   return (
     <Link
-      to="/profile"
+      to="/profile?tab=connections"
       className="mb-6 flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-text hover:bg-accent/15"
     >
       <Sparkles className="h-4 w-4 shrink-0 text-accent2" />

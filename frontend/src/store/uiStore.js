@@ -9,11 +9,15 @@ export const useUiStore = create(
       // Filtres persistés
       mediaFilter: 'all', // all | movie | tv
       platformFilter: [], // ids fournisseurs
-      seenFilter: 'all', // all | unseen | seen
+      seenFilters: {}, // filtre vus / pas vus choisi par onglet (discover, watchlist, library) ; absent = défaut
       upcomingView: 'grid', // grid | calendar
       swipeFilter: 'all',
       setMediaFilter: (mediaFilter) => set({ mediaFilter }),
-      setSeenFilter: (seenFilter) => set({ seenFilter }),
+      setSeenFilter: (page, value) => set({ seenFilters: { ...get().seenFilters, [page]: value } }),
+      resetSeenFilter: (page) => {
+        const { [page]: _, ...rest } = get().seenFilters
+        set({ seenFilters: rest })
+      },
       togglePlatform: (id) =>
         set({
           platformFilter: get().platformFilter.includes(id)
@@ -40,7 +44,7 @@ export const useUiStore = create(
       partialize: (s) => ({
         mediaFilter: s.mediaFilter,
         platformFilter: s.platformFilter,
-        seenFilter: s.seenFilter,
+        seenFilters: s.seenFilters,
         upcomingView: s.upcomingView,
         swipeFilter: s.swipeFilter,
       }),

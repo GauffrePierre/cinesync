@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>SynCiné</Name>
+  <Repository>ghcr.io/gauffrepierre/syncine:latest</Repository>
+  <Registry>https://github.com/GauffrePierre/syncine/pkgs/container/syncine</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/GauffrePierre/syncine/issues</Support>
+  <Project>https://github.com/GauffrePierre/syncine</Project>
+  <ReadMe>https://github.com/GauffrePierre/syncine/blob/main/README.en.md</ReadMe>
+  <TemplateURL>https://raw.githubusercontent.com/GauffrePierre/syncine/main/unraid/syncine.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/GauffrePierre/syncine/main/frontend/public/icons/icon-512.png</Icon>
+  <Overview>The film lover's companion, self-hosted. SynCiné brings your streaming services and your local cinemas together with your lists (watchlist, watched titles, ratings) and personalised recommendations. Family accounts, Plex / Jellyfin / Emby library and sign-in, Trakt and Letterboxd sync, Seerr requests, push notifications. Installable app (PWA) on phone, tablet and computer. Interface in English, French, Italian, German and Spanish.&#xD;
+&#xD;
+Le compagnon des cinéphiles, auto-hébergé : streaming, cinémas, watchlist et recommandations, réunis dans une seule appli.</Overview>
+  <Category>MediaApp:Video Tools:</Category>
+  <ExtraSearchTerms>cinesync movies films series watchlist trakt letterboxd plex jellyfin emby justwatch cinema showtimes recommendations</ExtraSearchTerms>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Config Name="Web UI" Target="8000" Default="3000" Mode="tcp" Description="Interface port (HTTP). For HTTPS access (phone app, push notifications), put SynCiné behind a proxy (Tailscale serve, Nginx Proxy Manager, SWAG)." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Data" Target="/app/data" Default="/mnt/user/appdata/syncine" Mode="rw" Description="SynCiné database and daily backups (back it up)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/syncine</Config>
+  <Config Name="Edition" Target="CINESYNC_MODE" Default="server|personal" Mode="" Description="server: an administrator and family accounts, with sign-in. personal: one person, no sign-in (trusted networks only)." Type="Variable" Display="always" Required="true" Mask="false">server</Config>
+  <Config Name="Public URL" Target="PUBLIC_URL" Default="" Mode="" Description="HTTPS address you open SynCiné with (e.g. https://syncine.example.org). Used for Trakt sign-in and secure cookies. Leave empty on the local network." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Time zone" Target="TZ" Default="Europe/Paris" Mode="" Description="Time zone (releases, showtimes, statistics)." Type="Variable" Display="always" Required="false" Mask="false">Europe/Paris</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Owner of the data files (99 = nobody on Unraid)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group of the data files (100 = users on Unraid)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+</Container>

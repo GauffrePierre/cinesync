@@ -9,7 +9,7 @@ import SeenFilter from '../components/ui/SeenFilter'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import PlatformBadge, { PlexBadge } from '../components/ui/PlatformBadge'
+import PlatformBadge, { PlexBadge, SERVER_LABELS } from '../components/ui/PlatformBadge'
 import { api, qs } from '../services/api'
 import { useSettings, useStatus } from '../hooks/useMedia'
 import { detailPath, formatRuntime, mediaLabel } from '../lib/format'
@@ -28,6 +28,11 @@ const MOODS = [
   { value: 'pepites', label: '💎 Pépites méconnues' },
   { value: 'classiques', label: '🎞️ Classiques' },
   { value: 'recents', label: '🆕 Sortis cette année' },
+  { value: 'noel', label: '🎄 Noël' },
+  { value: 'halloween', label: '🎃 Halloween' },
+  { value: 'petits', label: '🧸 Petits (3-6 ans)' },
+  { value: 'enfants', label: '🧒 Enfants (7-10 ans)' },
+  { value: 'ados', label: '🧑 Ados (11-14 ans)' },
   { value: 'rire', label: '😄 Rire' },
   { value: 'frissons', label: '😰 Suspense' },
   { value: 'peur', label: '😱 Peur' },
@@ -141,15 +146,16 @@ export default function Tonight() {
           <h1 className="text-2xl font-semibold md:text-3xl">{t('Pour ce soir')}</h1>
           <p className="mt-1 text-sm text-text2">
             {seen !== 'unseen'
-              ? t('Uniquement ce que tu peux lancer tout de suite, sur Plex ou tes plateformes.')
-              : status?.plex?.configured
-                ? t("Uniquement ce que tu peux lancer tout de suite, sur Plex ou tes plateformes, et que tu n'as pas encore vu.")
+              ? t('Uniquement ce que tu peux lancer tout de suite, sur {server} ou tes plateformes.', { server: SERVER_LABELS[status?.media?.server] || 'Plex' })
+              : status?.media?.configured
+                ? t("Uniquement ce que tu peux lancer tout de suite, sur {server} ou tes plateformes, et que tu n'as pas encore vu.", { server: SERVER_LABELS[status.media.server] })
                 : t("Uniquement ce que tu peux lancer tout de suite sur tes plateformes, et que tu n'as pas encore vu.")}
           </p>
         </div>
         <Button
           variant="primary"
           icon={Dices}
+          className="shrink-0"
           disabled={!pick}
           onClick={async () => {
             await refetch() // nouveau tirage à chaque fois
@@ -164,10 +170,13 @@ export default function Tonight() {
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={mediaType} onChange={setMediaType} options={MEDIA_OPTIONS} />
           <SeenFilter value={seen} onChange={setSeen} defaultValue="unseen" />
+        </div>
+        {/* Tri et durée côte à côte (une seule ligne sur téléphone) */}
+        <div className="flex gap-2">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="h-[42px] rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
+            className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent md:flex-none"
             aria-label={t('Trier par')}
           >
             {TONIGHT_SORTS.map((o) => (
@@ -176,8 +185,19 @@ export default function Tonight() {
               </option>
             ))}
           </select>
+          <select
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent md:flex-none"
+            aria-label={t('Durée')}
+          >
+            {DURATIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.value ? t('Durée : {label}', { label: t(o.label) }) : t('Toutes les durées')}
+              </option>
+            ))}
+          </select>
         </div>
-        <Chips value={duration} onChange={setDuration} options={DURATIONS} />
         <Chips value={mood} onChange={setMood} options={MOODS} />
       </div>
 
@@ -205,7 +225,7 @@ export default function Tonight() {
               <p className="text-lg font-semibold leading-tight">{pick.title}</p>
               <p className="mt-1 text-xs text-text2">{[pick.year, mediaLabel(pick.media_type), pick.runtime && formatRuntime(pick.runtime)].filter(Boolean).join(' · ')}</p>
               <div className="mt-2 flex items-center gap-1.5">
-                {pick.in_plex && <PlexBadge size="sm" />}
+                {pick.in_plex && <PlexBadge server={pick.server} size="sm" />}
                 {pick.providers?.filter((p) => active.includes(p.id)).slice(0, 4).map((p) => <PlatformBadge key={p.id} provider={p} size="sm" ring={false} />)}
               </div>
               {pick.overview && <p className="mt-2 line-clamp-3 text-xs text-text2">{pick.overview}</p>}
@@ -213,7 +233,7 @@ export default function Tonight() {
                 {pick.in_plex && pick.plex_url ? (
                   <WatchLink href={pick.plex_url} appRef={{ mediaType: pick.media_type, id: pick.id }}>
                     <Button size="sm" variant="primary" icon={Play} className="!bg-plex !text-black">
-                      {t('Lire sur Plex')}
+                      {t('Lire sur {server}', { server: SERVER_LABELS[pick.server] || 'Plex' })}
                     </Button>
                   </WatchLink>
                 ) : (

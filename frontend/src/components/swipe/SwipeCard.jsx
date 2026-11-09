@@ -71,7 +71,7 @@ export default function SwipeCard({ item, isTop, onSwipe, active = [] }) {
 
         <div className="absolute inset-x-0 bottom-0 scrim-card p-5 pt-24 text-white">
           <div className="mb-2 flex items-center gap-2">
-            {item.in_plex && <PlexBadge size="sm" />}
+            {item.in_plex && <PlexBadge server={item.server} size="sm" />}
             {providers.map((p) => (
               <PlatformBadge key={p.id} provider={p} size="sm" />
             ))}

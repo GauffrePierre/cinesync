@@ -35,7 +35,7 @@ export default function MediaCard({ item, fluid = false, meta = 'default', foote
           </span>
         )}
         <div className="absolute left-2 top-2 flex -space-x-1.5">
-          {item.in_plex && <PlexBadge size="xs" />}
+          {item.in_plex && <PlexBadge server={item.server} size="xs" />}
           {shown.map((p) => (
             <PlatformBadge key={p.id} provider={p} size="xs" />
           ))}
@@ -81,7 +81,7 @@ export default function MediaCard({ item, fluid = false, meta = 'default', foote
     </>
   )
 
-  const cls = `group block ${fluid ? 'w-full' : 'w-[132px] shrink-0 md:w-[156px]'}`
+  const cls = `group block ${fluid ? 'w-full' : 'w-[calc((100vw-3.5rem)/3)] max-w-[132px] shrink-0 sm:w-[132px] md:w-[156px]'}`
   return item.id ? (
     <Link to={detailPath(item)} className={cls}>
       {card}

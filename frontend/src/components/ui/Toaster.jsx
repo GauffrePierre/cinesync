@@ -9,7 +9,7 @@ export default function Toaster() {
   const toasts = useUiStore((s) => s.toasts)
   const dismiss = useUiStore((s) => s.dismissToast)
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex flex-col items-center gap-2 px-4 md:bottom-6">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex flex-col items-center gap-2 px-4 lg:bottom-6">
       <AnimatePresence>
         {toasts.map((t) => {
           const Icon = ICONS[t.kind] || Info

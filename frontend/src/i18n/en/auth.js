@@ -106,4 +106,10 @@ export default {
   'Site introuvable ou non public : refusé': 'Site not found or not public: refused',
   'Encodage de réponse non pris en charge': 'Unsupported response encoding',
   'Le site met trop de temps à répondre': 'The site takes too long to respond',
+  'Identifiant ou mot de passe Jellyfin incorrect': 'Incorrect Jellyfin username or password',
+  'Ce compte Jellyfin est déjà relié à un autre compte SynCiné': 'This Jellyfin account is already linked to another SynCiné account',
+  "Serveur Jellyfin non relié par l'administrateur": 'Jellyfin server not linked by the administrator',
+  "La connexion avec Jellyfin n'est pas activée sur ce SynCiné": 'Jellyfin sign-in is not enabled on this SynCiné',
+  "Ce compte Jellyfin n'est pas autorisé sur ce SynCiné — demande à l'administrateur": "This Jellyfin account isn't allowed on this SynCiné — ask the administrator",
+  'Adresse invalide : elle doit commencer par http:// ou https://': 'Invalid address: it must start with http:// or https://',
 }

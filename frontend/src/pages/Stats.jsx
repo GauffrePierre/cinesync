@@ -44,7 +44,7 @@ function nextStart(period, iso) {
 
 function Card({ title, sub, children, right }) {
   return (
-    <section className="rounded-2xl border border-line bg-bg2 p-4 md:p-5">
+    <section className="min-w-0 rounded-2xl border border-line bg-bg2 p-4 md:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="font-semibold">{title}</h2>
@@ -183,7 +183,7 @@ export default function Stats() {
           title={metric === 'count' ? t('Visionnages') : t('Heures de visionnage')}
           sub={t('Clique sur une colonne pour voir ce que tu as regardé')}
           right={
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {metric === 'count' && <Legend items={[...series].reverse()} />}
               <Tabs size="sm" value={metric} onChange={setMetric} options={[{ value: 'count', label: 'Nombre' }, { value: 'hours', label: 'Heures' }]} />
             </div>

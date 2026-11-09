@@ -18,7 +18,7 @@ function Opinion({ item }) {
   const unlike = useUnlike()
   const dislike = useDislike()
   const ref = { mediaType: item.media_type, id: item.id, title: item.title }
-  const cls = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border backdrop-blur-md transition hover:-translate-y-0.5 active:scale-95'
+  const cls = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border backdrop-blur-md transition hover:-translate-y-0.5 active:scale-95 sm:h-12 sm:w-12'
   const toggleWatched = () => {
     if (!st.watched) return watched.mutate(ref)
     if (window.confirm(t("Retirer « {title} » de tes titres vus (et de l'historique Trakt / Plex) ?", { title: item.title }))) unwatch.mutate(ref)
@@ -76,7 +76,7 @@ export default function HeroSection({ item, loading, label, children }) {
       <div className="fade-left absolute inset-0" />
 
       <div className="text-halo absolute inset-x-0 bottom-0 p-4 pb-6 md:p-8 md:pb-10">
-        <div className="max-w-xl">
+        <div className="max-w-xl md:pr-28 lg:pr-0 xl:max-w-2xl">
           <p className="mb-2 text-xs font-medium tracking-wide text-text2">{label ?? t('Tendance n°1 cette semaine')}</p>
           <h1 className="text-3xl font-semibold leading-tight text-text drop-shadow md:text-5xl">{item.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-text2">
@@ -90,7 +90,7 @@ export default function HeroSection({ item, loading, label, children }) {
             <span>· {mediaLabel(item.media_type)}</span>
             {(item.in_plex || item.providers?.length > 0) && (
               <span className="ml-1 flex -space-x-1.5">
-                {item.in_plex && <PlexBadge size="sm" />}
+                {item.in_plex && <PlexBadge server={item.server} size="sm" />}
                 {item.providers?.slice(0, 4).map((p) => (
                   <PlatformBadge key={p.id} provider={p} size="sm" />
                 ))}

@@ -4,7 +4,8 @@ import { Bookmark, Check, Heart, RefreshCw, Star, Trash2 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import Poster from '../components/media/Poster'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
-import SeenFilter from '../components/ui/SeenFilter'
+import MediaGrid from '../components/media/MediaGrid'
+import SeenFilter, { usePageSeen } from '../components/ui/SeenFilter'
 import Modal from '../components/ui/Modal'
 import StarRating from '../components/ui/StarRating'
 import Button from '../components/ui/Button'
@@ -38,6 +39,18 @@ export function SourceChips({ sources = [] }) {
   )
 }
 
+// Sous l'affiche (grille sur téléphone) : où regarder, en une ligne
+function AvailabilityLine({ item, active }) {
+  const t = useT()
+  const providers = sortProviders(item.providers, active)
+  const mine = item.in_plex || providers.some((p) => active.includes(p.id))
+  return (
+    <p className={`mt-0.5 truncate text-[11px] ${mine ? 'text-emerald-500' : 'text-text3'}`}>
+      {mine ? t('dispo pour toi') : providers.length ? t('Ailleurs en streaming') : t('Pas disponible en streaming')}
+    </p>
+  )
+}
+
 function Row({ item, active, onRate }) {
   const remove = useRemoveFromWatchlist()
   const watched = useMarkWatched()
@@ -47,7 +60,7 @@ function Row({ item, active, onRate }) {
   const ref = { mediaType: item.media_type, id: item.id, title: item.title }
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-line bg-bg2 p-3 md:gap-4">
+    <div className="flex min-w-0 gap-3 rounded-2xl border border-line bg-bg2 p-3 md:gap-4">
       <Link to={detailPath(item)} className="w-16 shrink-0 md:w-20">
         <Poster src={item.poster} title={item.title} mediaType={item.media_type} rounded="rounded-xl" />
       </Link>
@@ -66,7 +79,7 @@ function Row({ item, active, onRate }) {
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {item.in_plex && <PlexBadge size="sm" />}
+          {item.in_plex && <PlexBadge server={item.server} size="sm" />}
           {providers.slice(0, 5).map((p) => (
             <PlatformBadge key={p.id} provider={p} size="sm" ring={false} className={active.length && !active.includes(p.id) ? 'opacity-40' : ''} />
           ))}
@@ -100,7 +113,7 @@ export default function Watchlist() {
   const qc = useQueryClient()
   const mediaFilter = useUiStore((s) => s.mediaFilter)
   const setMediaFilter = useUiStore((s) => s.setMediaFilter)
-  const seenFilter = useUiStore((s) => s.seenFilter)
+  const { value: seenFilter } = usePageSeen('watchlist')
   const [availability, setAvailability] = useState('all')
   const [sort, setSort] = useState('added')
   const [rating, setRating] = useState(null)
@@ -143,29 +156,32 @@ export default function Watchlist() {
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
         <div className="flex items-center gap-2">
           <Tabs value={mediaFilter} onChange={setMediaFilter} options={MEDIA_OPTIONS} />
-          <SeenFilter />
+          <SeenFilter page="watchlist" />
         </div>
-        <Tabs
-          value={availability}
-          onChange={setAvailability}
-          options={[
-            { value: 'all', label: 'Tous' },
-            { value: 'mine', label: 'Dispo pour moi' },
-            { value: 'none', label: 'Introuvables' },
-          ]}
-        />
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="h-10 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent"
-          aria-label={t('Trier par')}
-        >
-          {SORT_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {t('Tri : {label}', { label: t(s.label) })}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent md:flex-none"
+            aria-label={t('Trier par')}
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {t('Tri : {label}', { label: t(s.label) })}
+              </option>
+            ))}
+          </select>
+          <select
+            value={availability}
+            onChange={(e) => setAvailability(e.target.value)}
+            className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-bg2 px-3 text-sm outline-none focus:border-accent md:flex-none"
+            aria-label={t('Disponibilité')}
+          >
+            <option value="all">{t('Tous les titres')}</option>
+            <option value="mine">{t('Dispo pour moi')}</option>
+            <option value="none">{t('Introuvables')}</option>
+          </select>
+        </div>
       </div>
 
       {first?.pending_scores > 0 && (
@@ -177,7 +193,7 @@ export default function Watchlist() {
       )}
 
       {wl.error ? (
-        <EmptyState title={t('Watchlist indisponible')} message={wl.error.message} action={t('Vérifier le Profil')} to="/profile" />
+        <EmptyState title={t('Watchlist indisponible')} message={wl.error.message} action={t('Vérifier le Profil')} to="/profile?tab=connections" />
       ) : wl.isLoading ? (
         <div className="grid gap-3 lg:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -187,11 +203,16 @@ export default function Watchlist() {
       ) : items.length === 0 ? (
         <EmptyState icon={Bookmark} title={t('Rien ici')} message={t('Ajoute des titres depuis Découvrir, une fiche ou le mode swipe.')} action={t('Découvrir')} to="/" />
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {items.map((i) => (
-            <Row key={`${i.media_type}-${i.id}`} item={i} active={active} onRate={setRating} />
-          ))}
-        </div>
+        <>
+          <div className="md:hidden">
+            <MediaGrid items={items} renderFooter={(i) => <AvailabilityLine item={i} active={active} />} />
+          </div>
+          <div className="hidden gap-3 md:grid lg:grid-cols-2">
+            {items.map((i) => (
+              <Row key={`${i.media_type}-${i.id}`} item={i} active={active} onRate={setRating} />
+            ))}
+          </div>
+        </>
       )}
 
       {wl.hasNextPage && (

@@ -59,18 +59,20 @@ Updating is `git pull && docker compose up -d --build` (or `docker compose pull 
 
 ### Unraid template
 
-`unraid/cinesync.xml` is a Docker template for Unraid's Docker manager. It points at `ghcr.io/gauffrepierre/syncine:latest` and exposes:
+`unraid/syncine.xml` is a Docker template for Unraid's Docker manager. It points at `ghcr.io/gauffrepierre/syncine:latest` and exposes:
 
 | Setting | Target | Default |
 |---|---|---|
 | Web interface port | container `8000` | host `3000` |
-| Data | `/app/data` | `/mnt/user/appdata/cinesync` |
+| Data | `/app/data` | `/mnt/user/appdata/syncine` |
 | `CINESYNC_MODE` | variable | `server` |
 | `PUBLIC_URL` | variable | empty |
 | `TZ` | variable | `Europe/Paris` |
 | `PUID` / `PGID` (advanced) | variables | `99` / `100` (`nobody:users`) |
 
-Users copy the file into `/boot/config/plugins/dockerMan/templates-user/` and add the container from the template list. If you add an environment variable that users may need to set, add it to the template too.
+Users download the file into `/boot/config/plugins/dockerMan/templates-user/` and add the container from the template list. Its `TemplateURL` (raw GitHub URL of the file in the public repo) lets Unraid refresh installed templates. If you add an environment variable that users may need to set, add it to the template too.
+
+`ca_profile.xml` at the repository root is the repository profile required by Unraid Community Applications (submission at https://ca.unraid.net/submit: an Unraid account, the public repo URL, an automatic scan, then the next catalog build).
 
 ### Behind a reverse proxy (HTTPS)
 

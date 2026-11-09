@@ -226,8 +226,11 @@ async def full_detail(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx
     plex_hit = index.get((media_type, tmdb_id))
     # Lien que l'app Plex iOS ouvre sur la bonne fiche (seulement pour un titre présent sur le serveur)
     plex_watch = None
-    if plex_hit and ctx.plex_account:
+    if plex_hit and ctx.plex and ctx.plex_account:  # lien watch.plex.tv : seulement pour une bibliothèque Plex
         plex_watch = await safe("plex_watch", ctx.plex_account.watch_url(media_type, tmdb_id))
+    release = None
+    if media_type == "movie" and hasattr(ctx.tmdb, "release_overview"):
+        release = await safe("release", ctx.tmdb.release_overview(tmdb_id))
     theater = {"in_theaters": False, "digital_date": None}
     if media_type == "movie" and not stream_providers(providers or {}):
         from app.services.enrich import theater_status
@@ -246,8 +249,10 @@ async def full_detail(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx
         "availability": merge_availability(providers or {}, jw),
         "country": ctx.country,
         **theater,  # in_theaters, digital_date
+        "release": release or None,  # sortie en salles (pays choisi) et première sortie streaming (monde)
         "plex": {
-            "configured": ctx.plex is not None,
+            "configured": ctx.media is not None,
+            "server": ("plex" if ctx.plex else ctx.settings.jellyfin_kind) if ctx.media else None,
             "available": plex_hit is not None,
             "url": plex_hit.get("plex_url") if plex_hit else None,
             "watch_url": plex_watch,

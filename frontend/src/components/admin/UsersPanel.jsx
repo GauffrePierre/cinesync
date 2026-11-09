@@ -5,7 +5,9 @@ import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 import Skeleton from '../ui/Skeleton'
 import { admin } from '../../services/admin'
+import { jellyfin } from '../../services/jellyfin'
 import { useCurrentUser } from '../../hooks/useAuth'
+import { useStatus } from '../../hooks/useMedia'
 import { relativeTime } from '../../lib/format'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
@@ -197,6 +199,7 @@ function UserRow({ user, me, onReset, onDelete }) {
           {self && <span className="text-xs font-normal text-text3">({t('toi')})</span>}
           {user.is_admin && <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent2">{t('Admin')}</span>}
           {user.plex && <span className="rounded-md bg-plex/15 px-1.5 py-0.5 text-[10px] font-medium text-plex">Plex</span>}
+          {user.jellyfin && <span className="rounded-md bg-[#aa5cc3]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#c287d6]">Jellyfin</span>}
           {user.two_factor && <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">2FA</span>}
           {!user.active && <span className="rounded-md bg-bg3 px-1.5 py-0.5 text-[10px] font-medium text-text2">{t('Désactivé')}</span>}
         </p>
@@ -337,8 +340,53 @@ function PlexAccounts() {
   )
 }
 
+// Comptes du serveur Jellyfin / Emby : autoriser ceux qui peuvent se connecter avec leur compte
+function JellyfinAccounts() {
+  const t = useT()
+  const refresh = useRefresh()
+  const qc = useQueryClient()
+  const { data, error, isLoading } = useQuery({ queryKey: ['admin', 'jellyfin-accounts'], queryFn: jellyfin.users, staleTime: 60_000, retry: false })
+  const allow = useMutation({
+    mutationFn: (a) => admin.allowJellyfin({ jellyfin_user_id: a.id, display_name: a.name }),
+    onSuccess: (u) => {
+      toast(t('{name} peut se connecter avec Jellyfin', { name: u.name }), 'success')
+      refresh()
+      qc.invalidateQueries({ queryKey: ['admin', 'jellyfin-accounts'] })
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  if (isLoading) return <Skeleton className="h-24" />
+  if (error) return <p className="rounded-xl bg-bg3/60 p-3 text-sm text-text2">{error.message}</p>
+  return (
+    <ul className="divide-y divide-line">
+      {(data?.results || []).map((a) => (
+        <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+          <Avatar user={{ name: a.name }} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{a.name}</p>
+            <p className="truncate text-xs text-text3">
+              {a.admin ? t('Administrateur du serveur') : t('Utilisateur du serveur')}
+              {a.account_name ? ` · ${t('relié à {name}', { name: a.account_name })}` : ''}
+            </p>
+          </div>
+          {a.account_id ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-emerald-500">
+              <Check className="h-4 w-4" /> {t('Autorisé')}
+            </span>
+          ) : (
+            <Button size="sm" onClick={() => allow.mutate(a)} loading={allow.isPending && allow.variables?.id === a.id}>
+              {t('Autoriser')}
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function UsersPanel() {
   const t = useT()
+  const { data: status } = useStatus()
   const me = useCurrentUser()
   const [adding, setAdding] = useState(false)
   const [resetting, setResetting] = useState(null)
@@ -371,6 +419,14 @@ export default function UsersPanel() {
         <p className="mb-4 mt-1 text-xs text-text2">{t('Les personnes avec qui ton serveur est partagé. Autorise celles qui peuvent se connecter à SynCiné avec leur compte Plex.')}</p>
         <PlexAccounts />
       </section>
+
+      {status?.jellyfin?.server_linked && (
+        <section className="rounded-2xl border border-line bg-bg2 p-4 md:p-5">
+          <h2 className="font-semibold">{t('Comptes {server} du serveur', { server: status.jellyfin.kind === 'emby' ? 'Emby' : 'Jellyfin' })}</h2>
+          <p className="mb-4 mt-1 text-xs text-text2">{t('Autorise les comptes qui peuvent se connecter à SynCiné avec leur identifiant Jellyfin ; leur mot de passe est vérifié par ton serveur.')}</p>
+          <JellyfinAccounts />
+        </section>
+      )}
 
       <AddUserModal open={adding} onClose={() => setAdding(false)} />
       {resetting && <ResetPasswordModal user={resetting} onClose={() => setResetting(null)} />}

@@ -74,6 +74,9 @@ def _me(db: Session, user: User | None) -> dict:
         "setup_required": database.setup_required(db),
         # Connexion Plex proposée dès que l'admin a relié son serveur (version serveur seulement)
         "plex_login": config.cinesync_mode == "server" and bool(shared.plex_machine_id and shared.plex_client_id),
+        # Connexion Jellyfin / Emby proposée dès que l'admin a relié son serveur
+        "jellyfin_login": config.cinesync_mode == "server" and bool(shared.jellyfin_url),
+        "jellyfin_kind": shared.jellyfin_kind or "jellyfin",
         "mode": config.cinesync_mode,
     }
 
@@ -293,6 +296,45 @@ def two_factor_new_codes(body: CodeIn, request: Request, user: User = Depends(cu
     user.recovery_codes = json.dumps([totp.hash_recovery(c) for c in codes])
     db.commit()
     return {"recovery_codes": codes}
+
+
+class JellyfinLoginIn(BaseModel):
+    username: str = Field(max_length=100)
+    password: str = Field("", max_length=256)
+
+
+@router.post("/jellyfin", dependencies=server_only)
+async def login_jellyfin(body: JellyfinLoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Connexion avec un compte Jellyfin / Emby autorisé par l'administrateur (mot de passe vérifié par le serveur)."""
+    from app.models import UserSettings
+    from app.services.errors import ServiceError
+    from app.services.jellyfin_client import JellyfinClient
+
+    shared = settings_for(db, SHARED_ID).shared
+    if not shared.jellyfin_url:
+        raise HTTPException(404, "La connexion avec Jellyfin n'est pas activée sur ce SynCiné")
+    username = body.username.strip()
+    keys = guard_attempts(request, f"jellyfin:{username.lower()}")
+    client = JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind)
+    try:
+        info = await client.authenticate(username, body.password)
+    except ServiceError as e:
+        if e.status == 401:
+            login_limiter.fail(*keys)
+            raise HTTPException(401, "Identifiant ou mot de passe incorrect") from e
+        raise
+    own = db.query(UserSettings).filter(UserSettings.jellyfin_user_id == info["user_id"]).first()
+    user = db.get(User, own.id) if own else None
+    if user is None or not user.active:
+        login_limiter.fail(*keys)
+        raise HTTPException(403, "Ce compte Jellyfin n'est pas autorisé sur ce SynCiné — demande à l'administrateur")
+    own.jellyfin_token, own.jellyfin_username = info["token"], info["name"]  # jeton du compte : sa bibliothèque, ses vus
+    db.commit()
+    login_limiter.reset(*keys)
+    if user.totp_secret:
+        return _two_factor_ticket(user)
+    auth.open_session(db, user, request, response)
+    return _me(db, user)
 
 
 @router.post("/logout")

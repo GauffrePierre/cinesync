@@ -135,4 +135,5 @@ export default {
   'Ta demande « {title} » a été refusée': 'Your request “{title}” was declined',
   "Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe.": "Several incorrect two-factor codes: if it wasn't you, change your password.",
   'Notifications activées sur cet appareil': 'Notifications enabled on this device',
+  'Nouvel épisode de {title} sur {platforms} : {code}': 'New episode of {title} on {platforms}: {code}',
 }

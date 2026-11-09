@@ -9,7 +9,7 @@ The frontend is a React 18 single-page app in `frontend/src`, built with Vite an
 | `main.jsx` | Entry: `QueryClient`, `BrowserRouter`, fonts, CSS, service worker registration |
 | `App.jsx` | Auth gate and routes |
 | `index.css` | Tailwind import, design tokens, light/dark themes |
-| `pages/` | One component per route: `Discover`, `Upcoming`, `News`, `Library` (Plex), `Tonight`, `Watchlist`, `MediaDetail`, `Profile`, `Stats`, `Admin`, `Swipe`, `Login` (also exports `Setup`, `ForcePasswordChange`, `Splash`) |
+| `pages/` | One component per route: `Discover`, `Upcoming`, `News`, `Library` (Plex), `Tonight`, `Watchlist`, `MediaDetail`, `Profile` (tabs `?tab=account|connections|prefs|admin`; the admin tab has `&section=server|users|requests|backups`), `Stats`, `Admin` (redirects the old /admin address), `Swipe`, `Login` (also exports `Setup`, `ForcePasswordChange`, `Splash`) |
 | `components/` | `layout/`, `media/` (+ `media/detail/`), `profile/`, `admin/`, `swipe/`, `notifications/`, `search/`, `stats/`, `upcoming/`, `ui/` |
 | `hooks/` | `useAuth.js`, `useMedia.js` (most data hooks), `useSyncOnOpen.js`, `useTheme.js`, `useDebounce.js`, `useSwipeGesture.js` |
 | `services/` | `api.js` (fetch wrapper) and one module per API area: `auth`, `admin`, `library`, `tmdb` (also `media`, `justwatch`), `trakt`, `plex`, `user`, `requests`, `search`, `swipe`, `news`, `notifications` |

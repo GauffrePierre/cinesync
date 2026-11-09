@@ -23,12 +23,13 @@ def stream_providers(prov: dict) -> list[dict]:
 
 
 async def plex_keys(ctx: Ctx) -> dict[tuple[str, int], dict]:
-    if ctx.plex is None:
+    """Titres de la bibliothèque du compte (Plex, sinon Jellyfin / Emby), par (type, id TMDB)."""
+    if ctx.media is None:
         return {}
     try:
-        return await ctx.plex.index()
+        return await ctx.media.index()
     except ServiceError as e:
-        log.warning("Index Plex indisponible : %s", e.message)
+        log.warning("Index de la bibliothèque indisponible : %s", e.message)
         return {}
 
 
@@ -73,6 +74,7 @@ async def enrich(ctx: Ctx, items: list[dict], providers: bool = True, plex: bool
             i["in_plex"] = hit is not None
             if hit:
                 i["plex_url"] = hit.get("plex_url")
+                i["server"] = hit.get("server", "plex")  # plex | jellyfin | emby
     return items
 
 

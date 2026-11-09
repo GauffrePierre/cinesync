@@ -1,5 +1,6 @@
 import { EyeOff, Sparkles } from 'lucide-react'
 import { useUpdateSettings } from '../../hooks/useMedia'
+import { useUiStore } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
 // Réglages de ce que SynCiné propose (Découvrir, recommandations des fiches). D'autres viendront s'ajouter ici.
@@ -18,6 +19,7 @@ const RECENT = [0, 7, 14, 30, 60, 90]
 export default function DiscoverySettings({ settings }) {
   const t = useT()
   const update = useUpdateSettings()
+  const resetSeen = useUiStore((s) => s.resetSeenFilter)
   return (
     <div className="space-y-2">
       {OPTIONS.map(({ key, icon: Icon, label, hint, fallback }) => (
@@ -30,7 +32,10 @@ export default function DiscoverySettings({ settings }) {
           <input
             type="checkbox"
             checked={settings?.[key] ?? fallback}
-            onChange={(e) => update.mutate({ [key]: e.target.checked })}
+            onChange={(e) => {
+              update.mutate({ [key]: e.target.checked })
+              if (key === 'hide_seen') resetSeen('discover') // le réglage reprend la main dans Découvrir
+            }}
             className="h-5 w-5 shrink-0 accent-[var(--accent)]"
           />
         </label>

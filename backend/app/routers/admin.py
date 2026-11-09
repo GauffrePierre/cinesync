@@ -18,6 +18,7 @@ from app.services.auth import require_admin, require_server_mode
 from app.services.context import SHARED_ID, Ctx, get_ctx, settings_for
 from app.services.errors import NotConfigured, ServiceError
 from app.services.history import OWNER_ACCOUNT, assign_plex_events
+from app.services.jellyfin_client import ITEM_ID, LIBRARY_TYPES, folder_id, session_summary
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -72,7 +73,8 @@ def _unique_username(ctx: Ctx, base: str) -> str:
 @router.get("/users")
 def list_users(ctx: Ctx = Depends(get_ctx)):
     users = ctx.db.query(User).order_by(User.role != "admin", User.id).all()
-    return {"results": [u.to_dict() for u in users]}
+    jf = {st.id: st.jellyfin_username for st in ctx.db.query(UserSettings).filter(UserSettings.jellyfin_user_id != "")}
+    return {"results": [{**u.to_dict(), "jellyfin": jf.get(u.id) or None} for u in users]}
 
 
 @router.post("/users", dependencies=[Depends(require_server_mode)])
@@ -212,6 +214,78 @@ async def allow_plex_account(body: PlexAllow, ctx: Ctx = Depends(get_ctx)):
     return u.to_dict()
 
 
+class JellyfinAllow(BaseModel):
+    jellyfin_user_id: str = Field(max_length=64)
+    display_name: str = Field("", max_length=60)
+    can_request_direct: bool = False
+
+
+@router.post("/jellyfin/accounts", dependencies=[Depends(require_server_mode)])
+async def allow_jellyfin_account(body: JellyfinAllow, ctx: Ctx = Depends(get_ctx)):
+    """Autorise un compte Jellyfin / Emby du serveur à se connecter (crée son compte SynCiné)."""
+    if not ctx.jellyfin_admin:
+        raise HTTPException(409, "Serveur Jellyfin non relié")
+    account = next((u for u in await ctx.jellyfin_admin.users() if u["id"] == body.jellyfin_user_id and not u["disabled"]), None)
+    if account is None:
+        raise HTTPException(404, "Compte Jellyfin introuvable sur le serveur")
+    existing = ctx.db.query(UserSettings).filter(UserSettings.jellyfin_user_id == account["id"]).first()
+    if existing:
+        u = ctx.db.get(User, existing.id)
+        u.active = True
+        ctx.db.commit()
+        return u.to_dict()
+    u = User(username=_unique_username(ctx, account["name"]), display_name=body.display_name.strip() or account["name"],
+             role="member", can_request_direct=body.can_request_direct)
+    ctx.db.add(u)
+    ctx.db.flush()
+    ctx.db.add(UserSettings(id=u.id, country_code=ctx.settings.country_code, language=ctx.settings.language, onboarding="pending",
+                            jellyfin_user_id=account["id"], jellyfin_username=account["name"]))
+    ctx.db.commit()
+    return u.to_dict()
+
+
+# --- Serveurs multimédias reliés (Plex, Jellyfin / Emby) -------------------------------------
+
+
+@router.get("/servers")
+def media_servers(ctx: Ctx = Depends(get_ctx)):
+    """Serveurs dont l'administrateur peut voir le tableau de bord (aucune requête réseau)."""
+    s = ctx.settings
+    out = []
+    if ctx.plex_admin:
+        out.append({"id": "plex", "kind": "plex", "name": s.plex_server_name or "Plex"})
+    if ctx.jellyfin_admin:
+        kind = s.jellyfin_kind or "jellyfin"
+        out.append({"id": "jellyfin", "kind": kind, "name": s.jellyfin_server_name or kind.capitalize()})
+    return {"results": out}
+
+
+async def _safe(coro, default):
+    try:
+        return await coro
+    except ServiceError:
+        return default
+
+
+def _stats(days: int, since: datetime, rows: list[tuple[str, str, str, datetime, int]], approx: bool = False) -> dict:
+    """Statistiques de visionnage : rows = (compte, film|épisode, titre, date, durée en minutes)."""
+    by_user = Counter(r[0] for r in rows)
+    by_day = Counter(r[3].date().isoformat() for r in rows)
+    titles = Counter(r[2] for r in rows if r[2])
+    dates = [(since + timedelta(days=i + 1)).date().isoformat() for i in range(days)]
+    return {
+        "days": days,
+        "approx": approx,
+        "plays": len(rows),
+        "hours": round(sum(r[4] or 0 for r in rows) / 60),
+        "movies": sum(1 for r in rows if r[1] == "movie"),
+        "episodes": sum(1 for r in rows if r[1] == "episode"),
+        "by_user": [{"name": n, "plays": c} for n, c in by_user.most_common()],
+        "by_day": [{"date": d, "plays": by_day.get(d, 0)} for d in dates],
+        "top": [{"title": t, "plays": c} for t, c in titles.most_common(10)],
+    }
+
+
 # --- Tableau de bord du serveur Plex ----------------------------------------------------
 
 
@@ -292,13 +366,7 @@ def _totals(sessions: list[dict]) -> dict:
 async def plex_dashboard(ctx: Ctx = Depends(get_ctx)):
     """Lectures en cours, bibliothèques (nombre de titres, analyse en cours) et état du serveur."""
     p = _plex(ctx)
-
-    async def safe(coro, default):
-        try:
-            return await coro
-        except ServiceError:
-            return default
-
+    safe = _safe
     root, sessions, sections, activities = await asyncio.gather(
         safe(p._get("/"), {}), safe(p._get("/status/sessions"), {}), safe(p._get("/library/sections"), {}), safe(p._get("/activities"), {})
     )
@@ -316,6 +384,7 @@ async def plex_dashboard(ctx: Ctx = Depends(get_ctx)):
     scanning = {str(a.get("Context", {}).get("librarySectionID")) for a in running if a.get("type", "").startswith("library")}
     return {
         "server": {
+            "kind": "plex",
             "name": root.get("friendlyName") or ctx.settings.plex_server_name,
             "version": root.get("version"),
             "platform": " ".join(x for x in (root.get("platform"), root.get("platformVersion")) if x),
@@ -352,20 +421,81 @@ def plex_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
         select(WatchEvent).where(WatchEvent.source == "plex", WatchEvent.watched_at >= since).execution_options(all_users=True)
     ).scalars().all()
     names = {u.id: u.name for u in ctx.db.query(User).all()}
-    by_user = Counter(names.get(r.user_id) or f"Plex #{r.plex_account_id}" for r in rows)
-    by_day = Counter(r.watched_at.date().isoformat() for r in rows)
-    titles = Counter((r.show_title or r.title) for r in rows if (r.show_title or r.title))
-    minutes = sum(r.runtime_min or 0 for r in rows)
+    return _stats(days, since, [
+        (names.get(r.user_id) or f"Plex #{r.plex_account_id}", r.kind, r.show_title or r.title or "", r.watched_at, r.runtime_min or 0) for r in rows
+    ])
+
+
+# --- Tableau de bord du serveur Jellyfin / Emby -------------------------------------------
+
+
+def _jellyfin(ctx: Ctx):
+    if not ctx.jellyfin_admin:
+        raise NotConfigured("jellyfin")
+    return ctx.jellyfin_admin
+
+
+@router.get("/jellyfin/dashboard")
+async def jellyfin_dashboard(ctx: Ctx = Depends(get_ctx)):
+    """Lectures en cours, bibliothèques, tâches en cours et état du serveur (mêmes clés que pour Plex)."""
+    j = _jellyfin(ctx)
+    info, sessions, folders, tasks = await asyncio.gather(
+        _safe(j.system_info(), {}), _safe(j.sessions(), []), _safe(j.virtual_folders(), []), _safe(j.running_tasks(), [])
+    )
+    if not info:
+        raise ServiceError(j.kind, f"Serveur {j.label} injoignable", 502)
+    counts = await asyncio.gather(*(_safe(j.count(f), None) for f in folders))
+    scanning = any(t.get("Key") == "RefreshLibrary" for t in tasks)
+    parsed = [session_summary(x) for x in sessions]
     return {
-        "days": days,
-        "plays": len(rows),
-        "hours": round(minutes / 60),
-        "movies": sum(1 for r in rows if r.kind == "movie"),
-        "episodes": sum(1 for r in rows if r.kind == "episode"),
-        "by_user": [{"name": n, "plays": c} for n, c in by_user.most_common()],
-        "by_day": [{"date": (since + timedelta(days=i + 1)).date().isoformat(), "plays": by_day.get((since + timedelta(days=i + 1)).date().isoformat(), 0)} for i in range(days)],
-        "top": [{"title": t, "plays": c} for t, c in titles.most_common(10)],
+        "server": {
+            "kind": j.kind,
+            "name": info.get("ServerName") or ctx.settings.jellyfin_server_name,
+            "version": info.get("Version"),
+            "platform": info.get("OperatingSystemDisplayName") or info.get("OperatingSystem") or "",
+        },
+        "sessions": parsed,
+        "totals": _totals(parsed),
+        "libraries": [
+            {
+                "id": folder_id(f), "title": f.get("Name"), "type": LIBRARY_TYPES.get(f.get("CollectionType") or ""), "count": c,
+                "scanned_at": None, "refreshing": scanning or f.get("RefreshStatus") == "Active",
+            }
+            for f, c in zip(folders, counts)
+        ],
+        "activities": [
+            {"title": t.get("Name"), "subtitle": t.get("Category"),
+             "progress": round(t["CurrentProgressPercentage"]) if t.get("CurrentProgressPercentage") is not None else None}
+            for t in tasks
+        ],
     }
+
+
+@router.post("/jellyfin/scan")
+async def jellyfin_scan(section_id: str | None = None, ctx: Ctx = Depends(get_ctx)):
+    """Analyse une bibliothèque (ou toutes) pour détecter les nouveaux fichiers."""
+    if section_id is not None and not ITEM_ID.match(section_id):
+        raise HTTPException(404, "Bibliothèque introuvable")
+    await _jellyfin(ctx).refresh(section_id)
+    return {"ok": True}
+
+
+@router.get("/jellyfin/stats")
+async def jellyfin_stats(days: int = 30, ctx: Ctx = Depends(get_ctx)):
+    """Visionnages sur le serveur, d'après la dernière lecture de chaque titre par compte (le serveur ne garde
+    pas d'historique complet)."""
+    j = _jellyfin(ctx)
+    days = max(1, min(days, 365))
+    since = datetime.utcnow() - timedelta(days=days)
+    accounts = [u for u in await j.users() if not u["disabled"]]
+    linked = {st.jellyfin_user_id: st.id for st in ctx.db.execute(select(UserSettings).where(UserSettings.jellyfin_user_id != "")).scalars()}
+    names = {u.id: u.name for u in ctx.db.query(User).all()}
+    played = await asyncio.gather(*(_safe(j.played_since(u["id"], since), []) for u in accounts))
+    rows = [
+        (names.get(linked.get(u["id"])) or u["name"], p["kind"], p["title"], p["watched_at"], p["runtime_min"])
+        for u, items in zip(accounts, played) for p in items
+    ]
+    return _stats(days, since, rows, approx=True)
 
 
 # --- Sauvegardes de la base ----------------------------------------------------------------

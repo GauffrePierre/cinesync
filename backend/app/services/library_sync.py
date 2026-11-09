@@ -114,6 +114,16 @@ async def _collect(ctx: Ctx) -> dict[str, dict]:
                 out["info"].setdefault(k, {"title": i.get("title"), "year": i.get("year")})
         return out
 
+    async def jellyfin():
+        # Jellyfin / Emby : titres vus du compte relié (films ; séries entièrement vues). Pas de watchlist ni de notes.
+        out = {"watchlist": None, "watched": {}, "ratings": {}, "info": {}}
+        for i in await ctx.jellyfin.library():
+            if i.get("id") and i.get("view_count"):
+                k = (i["media_type"], i["id"])
+                out["watched"][k] = i.get("last_viewed_at")
+                out["info"][k] = {"title": i.get("title"), "year": i.get("year")}
+        return out
+
     async def letterboxd():
         diary = await ctx.letterboxd.diary()
         entries = [d for d in diary if d.get("tmdb_id")]
@@ -129,6 +139,9 @@ async def _collect(ctx: Ctx) -> dict[str, dict]:
         jobs["trakt"] = trakt()
     if ctx.plex_account or ctx.plex_own:
         jobs["plex"] = plex()
+    jf = getattr(ctx, "jellyfin", None)
+    if jf is not None and jf.user_id:  # compte Jellyfin relié (l'état « vu » est propre au compte)
+        jobs["jellyfin"] = jellyfin()
     if ctx.letterboxd:
         jobs["letterboxd"] = letterboxd()
 
@@ -260,11 +273,26 @@ async def _plex_library_key(ctx: Ctx, media_type: str, tmdb_id: int) -> str | No
     return hit.get("rating_key") if hit else None
 
 
+async def _jellyfin_item(ctx: Ctx, media_type: str, tmdb_id: int) -> str | None:
+    """Identifiant Jellyfin / Emby du titre, si le compte relié l'a dans sa bibliothèque."""
+    jf = getattr(ctx, "jellyfin", None)
+    if jf is None or not jf.user_id:
+        return None
+    try:
+        hit = (await jf.index()).get((media_type, tmdb_id))
+    except ServiceError:
+        return None
+    return hit.get("rating_key") if hit else None
+
+
 async def act(ctx: Ctx, action: str, media_type: str, tmdb_id: int, rating10: int | None = None, title: str = "") -> dict:
     """action : watchlist_add | watchlist_remove | watched | unwatched | rate | like | unlike | dislike | undislike.
     Renvoie {"services": {nom: "ok" | message d'erreur}, "state": {...}}."""
     tasks: dict[str, asyncio.Future] = {}
     lib_key = await _plex_library_key(ctx, media_type, tmdb_id) if action in ("watched", "unwatched", "rate") else None
+    jf_item = await _jellyfin_item(ctx, media_type, tmdb_id) if action in ("watched", "unwatched") else None
+    if jf_item:  # vu / pas vu aussi sur Jellyfin / Emby (titre de la bibliothèque du compte)
+        tasks["jellyfin"] = ctx.jellyfin.set_played(jf_item, action == "watched")
 
     if action == "watchlist_add":
         if ctx.trakt:

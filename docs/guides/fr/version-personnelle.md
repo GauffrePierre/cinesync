@@ -1,6 +1,6 @@
 # Démarrer avec la version personnelle
 
-> Au premier démarrage, un **assistant** te guide en quelques écrans : langue et pays, plateformes, cinémas, comptes (Plex, Trakt, Letterboxd) et notifications. Tu peux le passer et le relancer plus tard (Profil → Apparence → Revoir l’assistant de démarrage).
+> Au premier démarrage, un **assistant** te guide en quelques écrans : langue et pays, plateformes, cinémas, comptes (Plex, Jellyfin, Trakt, Letterboxd) et notifications. Tu peux le passer et le relancer plus tard (Profil → Apparence → Revoir l’assistant de démarrage).
 
 Pour une seule personne : pas de comptes, pas de connexion obligatoire. Compte 10 minutes.
 
@@ -29,7 +29,7 @@ Sans elle, SynCiné affiche des données de démonstration.
 
 ## 4. Ton pays, tes plateformes, tes cinémas
 
-- **Région & Langue** : ton **pays** (disponibilités et sorties), la **langue des contenus** (titres, résumés) et la **langue de l'interface** (français ou anglais).
+- **Région & Langue** : ton **pays** (disponibilités et sorties), la **langue des contenus** (titres, résumés) et la **langue de l'interface** (français, anglais, italien, allemand ou espagnol).
 - **Plateformes** : coche tes abonnements. Ils servent aux badges, aux filtres, au bouton « Regarder sur… » et aux notifications.
 - **Cinémas** : cherche tes salles habituelles (France, Allemagne, Espagne, Turquie, Mexique). Leurs séances apparaissent dans **À venir → Sorties cinéma** et dans Découvrir.
 
@@ -43,6 +43,7 @@ Ajoute-les depuis **Profil → Connexions**, avec le bouton **+** (« Ajouter un
 | **Letterboxd** | Ton journal de films | Ton nom d'utilisateur Letterboxd (profil public) |
 | **JustWatch** | Liens directs vers chaque plateforme, nouveautés, classements | Coche **Activer JustWatch** (source non officielle) |
 | **Plex** | Ta bibliothèque, « Lire sur Plex », historique | **Se connecter avec Plex**, saisis le code sur plex.tv/link ; SynCiné trouve ton serveur |
+| **Jellyfin / Emby** | Ta bibliothèque, « Lire », titres vus | Adresse du serveur (IP locale, pas `localhost` en Docker) et clé API (Jellyfin : Tableau de bord → Clés API), puis **Relier le serveur** et **Relier mon compte** pour tes vus |
 | **Seerr** | Demander l'ajout d'un titre à ta bibliothèque | Adresse de Seerr + clé API (Seerr → Paramètres → Général) |
 
 ## 6. Synchroniser tes listes

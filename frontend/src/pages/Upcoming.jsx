@@ -136,7 +136,7 @@ export default function Upcoming() {
           </>
         )
       ) : upcoming.error ? (
-        <EmptyState title={t('Impossible de charger les sorties')} message={upcoming.error.message} action={t('Vérifier le Profil')} to="/profile" />
+        <EmptyState title={t('Impossible de charger les sorties')} message={upcoming.error.message} action={t('Vérifier le Profil')} to="/profile?tab=connections" />
       ) : view === 'calendar' ? (
         <CalendarView items={tab === 'all' ? [...items, ...filter(fresh)] : items} />
       ) : (

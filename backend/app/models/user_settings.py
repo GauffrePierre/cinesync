@@ -23,6 +23,16 @@ class UserSettings(Base):
     language: Mapped[str] = mapped_column(String, default="fr-FR")
 
     # Plex : URL + token du serveur choisi (saisis à la main, ou obtenus via le compte plex.tv)
+    # Jellyfin / Emby : serveur (ligne de l'admin) et compte relié (ligne de chaque compte)
+    jellyfin_url: Mapped[str] = mapped_column(String, default="")  # adresse vue depuis SynCiné
+    jellyfin_public_url: Mapped[str] = mapped_column(String, default="")  # adresse des liens « Lire » (vue des utilisateurs)
+    jellyfin_api_key: Mapped[str] = mapped_column(String, default="")
+    jellyfin_server_id: Mapped[str] = mapped_column(String, default="")
+    jellyfin_server_name: Mapped[str] = mapped_column(String, default="")
+    jellyfin_kind: Mapped[str] = mapped_column(String(8), default="jellyfin")  # jellyfin | emby
+    jellyfin_user_id: Mapped[str] = mapped_column(String, default="")
+    jellyfin_username: Mapped[str] = mapped_column(String, default="")
+    jellyfin_token: Mapped[str] = mapped_column(String, default="")
     plex_url: Mapped[str] = mapped_column(String, default="")
     plex_token: Mapped[str] = mapped_column(String, default="")
     plex_client_id: Mapped[str] = mapped_column(String, default="")  # identifiant de SynCiné auprès de plex.tv
@@ -59,6 +69,11 @@ class UserSettings(Base):
     notify_availability: Mapped[bool] = mapped_column(Boolean, default=True)  # watchlist dispo sur tes plateformes
     notify_new_episodes: Mapped[bool] = mapped_column(Boolean, default=True)  # nouvel épisode d'une série suivie
     notify_services: Mapped[bool] = mapped_column(Boolean, default=True)  # service en panne
+    # Quand prévenir (listes JSON, plusieurs choix possibles) :
+    # nouvel épisode -> "air" (dès la diffusion), "platforms" (sur mes plateformes), "plex" (ajouté sur Plex) ;
+    # titre de la watchlist -> "platforms" (arrivé sur mes plateformes), "plex" (ajouté sur Plex)
+    notify_episode_via: Mapped[str] = mapped_column(Text, default='["air"]')
+    notify_movie_via: Mapped[str] = mapped_column(Text, default='["platforms"]')
 
     # Synchronisation automatique des watchlists / vus / notes entre services
     auto_sync: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -104,3 +119,18 @@ class UserSettings(Base):
     @platforms.setter
     def platforms(self, value: list[int]) -> None:
         self.active_platforms = json.dumps(sorted({int(v) for v in value}))
+
+    def _via(self, raw: str, default: list[str]) -> list[str]:
+        try:
+            value = json.loads(raw or "null")
+        except ValueError:
+            value = None
+        return [v for v in value if isinstance(v, str)] if isinstance(value, list) else default
+
+    @property
+    def episode_via(self) -> list[str]:
+        return self._via(self.notify_episode_via, ["air"])
+
+    @property
+    def movie_via(self) -> list[str]:
+        return self._via(self.notify_movie_via, ["platforms"])

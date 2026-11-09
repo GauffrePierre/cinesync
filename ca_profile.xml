@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>SynCiné is a self-hosted companion app for film lovers: streaming availability, local cinema showtimes, watchlist and ratings synced across Trakt, Plex, Jellyfin and Letterboxd, and recommendations. Questions and bug reports: GitHub issues.</Profile>
+  <Icon>https://raw.githubusercontent.com/GauffrePierre/syncine/main/frontend/public/icons/icon-512.png</Icon>
+  <WebPage>https://github.com/GauffrePierre/syncine</WebPage>
+  <DonateLink>https://ko-fi.com/pierre_et_chat</DonateLink>
+  <DonateText>Support SynCiné on Ko-fi</DonateText>
+</CommunityApplications>

@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from app.models import SwipeHistory
 from app.schemas.settings import SECRET_FIELDS, SettingsOut, SettingsUpdate, TestResult
 from app.services.cache import cache
+from app.routers.jellyfin import status_for as jellyfin_status
 from app.services.context import GLOBAL_FIELDS, SHARED_ID, Ctx, get_ctx
 from app.services import health, history
 from app.services.errors import ServiceError
@@ -53,6 +54,8 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
             s.cinemas = json.dumps([{k: c.get(k) for k in ("id", "name", "city", "country")} for c in value if c.get("id")])
         elif field == "country_code":
             s.country_code = value.upper()
+        elif field in ("notify_episode_via", "notify_movie_via"):
+            setattr(s, field, json.dumps(sorted(set(value))))
         elif field == "nav_order":
             s.nav_order = json.dumps(list(dict.fromkeys(value)))  # sans doublons
         elif isinstance(value, str):
@@ -80,6 +83,9 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
         # Rien du Plex du serveur pour un membre qui n'y est pas relié (ni le nom du serveur)
         "plex": {"configured": ctx.plex is not None, "server": (s.plex_server_name or None) if ctx.plex else None,
                  "account": bool(s.plex_account_token), "own": ctx.plex_own is not None},
+        "jellyfin": jellyfin_status(ctx),
+        # Bibliothèque du compte (Plex, sinon Jellyfin / Emby) : onglet Bibliothèque, badges, liens « Lire »
+        "media": {"configured": ctx.media is not None, "server": ("plex" if ctx.plex else (s.jellyfin_kind or "jellyfin")) if ctx.media else None},
         "trakt": {"configured": bool(s.trakt_client_id), "connected": bool(s.trakt_access_token), "username": s.trakt_username or None},
         "seerr": {"configured": bool(s.seerr_url and s.seerr_api_key)},
         "letterboxd": {"configured": bool(s.letterboxd_username), "username": s.letterboxd_username or None},
@@ -178,11 +184,13 @@ async def stats(ctx: Ctx = Depends(get_ctx)):
         }
 
     async def plex_stats():
-        if not ctx.plex:
+        # Bibliothèque du serveur multimédia (Plex, sinon Jellyfin / Emby) ; clé « plex » gardée pour l'interface
+        if not ctx.media:
             return
-        lib = await ctx.plex.library()
+        lib = await ctx.media.library()
         c = Counter(i["media_type"] for i in lib)
-        out["plex"] = {"movies": c.get("movie", 0), "shows": c.get("tv", 0), "watched_movies": sum(1 for i in lib if i["media_type"] == "movie" and i.get("view_count"))}
+        out["plex"] = {"movies": c.get("movie", 0), "shows": c.get("tv", 0), "server": "plex" if ctx.plex else ctx.media.kind,
+                       "watched_movies": sum(1 for i in lib if i["media_type"] == "movie" and i.get("view_count"))}
 
     async def lb_stats():
         if not ctx.letterboxd:

@@ -42,7 +42,7 @@ export default function NotificationPanel({ items, onClose }) {
     notifications.read(n.id).then(refresh)
     onClose()
     navigate(
-      n.kind === 'service' ? '/profile' : n.kind === 'request' && isAdmin ? '/admin?tab=requests' : `/${n.media_type}/${n.tmdb_id}`,
+      n.kind === 'service' ? '/profile?tab=connections' : n.kind === 'request' && isAdmin ? '/profile?tab=admin&section=requests' : `/${n.media_type}/${n.tmdb_id}`,
     )
   }
 

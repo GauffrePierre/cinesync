@@ -19,6 +19,7 @@ from app.services.errors import NotConfigured
 from app.services.justwatch_client import JustWatchClient
 from app.services.letterboxd_client import LetterboxdClient
 from app.services.mock_data import MockPlex, MockTMDB, MockTrakt
+from app.services.jellyfin_client import JellyfinClient
 from app.services.plex_account import PlexAccount
 from app.services.plex_client import PlexClient
 from app.services.seerr_client import SeerrClient
@@ -30,6 +31,7 @@ from app.services.trakt_client import TraktClient
 GLOBAL_FIELDS = frozenset({
     "tmdb_api_key", "plex_url", "plex_server_name", "plex_machine_id", "plex_client_id",
     "seerr_url", "seerr_api_key", "justwatch_enabled", "trakt_client_id", "trakt_client_secret", "youtube_api_key",
+    "jellyfin_url", "jellyfin_public_url", "jellyfin_api_key", "jellyfin_server_id", "jellyfin_server_name", "jellyfin_kind",
 })
 SHARED_ID = 1
 
@@ -142,8 +144,8 @@ class Ctx:
 
     @cached_property
     def seerr(self) -> SeerrClient | None:
-        # Seerr renseigne sur la bibliothèque Plex : rien pour un membre sans Plex
-        if not (self.is_admin or self.plex is not None):
+        # Seerr renseigne sur la bibliothèque du serveur : rien pour un membre qui n'y est pas relié
+        if not (self.is_admin or self.media is not None):
             return None
         if self.settings.seerr_url and self.settings.seerr_api_key:
             return SeerrClient(self.settings.seerr_url, self.settings.seerr_api_key)
@@ -161,14 +163,44 @@ class Ctx:
             return JustWatchClient(self.country, self.settings.language)
         return None
 
+    @cached_property
+    def jellyfin(self) -> JellyfinClient | None:
+        """Serveur Jellyfin / Emby, avec le compte relié de cet utilisateur (ses vus).
+        L'administrateur sans compte relié utilise la clé API (bibliothèque, sans état « vu »). Un membre sans
+        compte Jellyfin relié n'a aucun accès, comme pour Plex."""
+        s = self.settings
+        if not s.jellyfin_url:
+            return None
+        own_token, own_user = s.own.jellyfin_token, s.own.jellyfin_user_id
+        if own_token and own_user:
+            token, user = own_token, own_user
+        elif self.user.is_admin and s.jellyfin_api_key:
+            token, user = s.jellyfin_api_key, ""
+        else:
+            return None
+        return JellyfinClient(s.jellyfin_url, token, user, s.jellyfin_server_id, s.jellyfin_public_url, s.jellyfin_kind)
+
+    @cached_property
+    def jellyfin_admin(self) -> JellyfinClient | None:
+        """Serveur Jellyfin / Emby avec la clé API de l'administrateur (comptes, lectures en cours)."""
+        s = self.settings
+        if s.jellyfin_url and s.jellyfin_api_key:
+            return JellyfinClient(s.jellyfin_url, s.jellyfin_api_key, "", s.jellyfin_server_id, s.jellyfin_public_url, s.jellyfin_kind)
+        return None
+
+    @property
+    def media(self) -> "PlexClient | JellyfinClient | None":
+        """Serveur multimédia de la bibliothèque : Plex s'il est relié, sinon Jellyfin / Emby."""
+        return self.plex or self.jellyfin
+
     # Versions « toujours disponibles » pour les pages dédiées (données factices sinon)
     @property
     def plex_or_mock(self) -> PlexClient | MockPlex:
         """Bibliothèque Plex, ou démonstration pour l'admin tant que Plex n'est pas relié.
         Un membre sans Plex n'a ni l'une ni l'autre."""
-        if self.plex is None and not self.user.is_admin:
+        if self.media is None and not self.user.is_admin:
             raise NotConfigured("plex", "Ce compte n'est pas relié à Plex")
-        return self.plex or MockPlex()
+        return self.media or MockPlex()
 
     @property
     def trakt_or_mock(self) -> TraktClient | MockTrakt:

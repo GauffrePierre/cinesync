@@ -16,9 +16,19 @@ The administrator allowed your Plex account.
 
 If you were also given a temporary password, or want to sign in without Plex: **Profile → My account → Create a password**.
 
+## With a Jellyfin or Emby account
+
+The administrator allowed your Jellyfin (or Emby) account.
+
+1. On the **Sign in** screen, choose **Sign in with Jellyfin** (or Emby).
+2. Enter your Jellyfin username and password: they are checked by the server, SynCiné does not keep the password.
+3. Your watched titles on Jellyfin are your own, and "Play" opens the title in Jellyfin.
+
+Already have a SynCiné account? Link your Jellyfin account in **Profile → Connections → + → Jellyfin / Emby → Link my account**.
+
 ## Without a Plex account
 
-The administrator gave you a **username** and a **temporary password**. You get all of SynCiné (discovery, cinemas, streaming, watchlist, Trakt, Letterboxd…) except what concerns the Plex server: its library and add requests.
+The administrator gave you a **username** and a **temporary password**. You get all of SynCiné (discovery, cinemas, streaming, watchlist, Trakt, Letterboxd…) except what concerns the media server (Plex, Jellyfin or Emby): its library and add requests.
 
 1. On the **Sign in** screen, enter them and choose **Sign in**.
 2. Choose your own password (at least 8 characters): you're asked on first sign-in.
@@ -35,12 +45,12 @@ In **Profile**:
 6. **Notifications**: choose what shows under the bell.
 7. **My account → Two-factor authentication** (recommended): scan the QR code with an authenticator app (Aegis, Google Authenticator, Bitwarden…) and keep the recovery codes. Lost phone? Use a recovery code, or ask the administrator to reset it.
 
-### Request a film or series (Plex accounts)
-Requests add a title to the Plex server, so they are offered to accounts linked to Plex. On the page of a title that isn't in the library: **Request it**. Depending on the administrator's settings, the request goes straight through, or they receive and handle it; you're notified either way. Track your requests in **Profile → My requests**.
+### Request a film or series (Plex, Jellyfin or Emby accounts)
+Requests add a title to the server, so they are offered to accounts linked to the media server. On the page of a title that isn't in the library: **Request it**. Depending on the administrator's settings, the request goes straight through, or they receive and handle it; you're notified either way. Track your requests in **Profile → My requests**.
 
 ### Install the app on your phone
 - **iPhone / iPad**: Safari → **Share → Add to Home Screen**. "Play on Plex" will offer to open the Plex app.
 - **Android**: Chrome offers to install it; "Watch on…" links open the installed apps directly.
 
 ---
-Can't sign in? Ask the administrator to check your account (Admin area → Users).
+Can't sign in? Ask the administrator to check your account (Profile → Admin → Accounts).

@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { Check, ChevronDown, Eye, EyeOff, ListFilter } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
-import { useLibraryKeys } from '../../hooks/useMedia'
+import { useLibraryKeys, useSeenKeys, useSettings } from '../../hooks/useMedia'
 import { keyOf } from '../../services/library'
 import { useT } from '../../i18n'
+
+/**
+ * Filtre vus / pas vus d'un onglet. Chaque onglet a le sien. Par défaut : « Tous », sauf Découvrir quand le
+ * réglage « Ne plus proposer les titres déjà vus » est actif (« Pas vus ») ; choisir « Tous » ou « Vus » ne
+ * change le réglage que pour cet onglet.
+ */
+export function usePageSeen(page) {
+  const { data: settings } = useSettings()
+  const stored = useUiStore((s) => s.seenFilters?.[page])
+  const set = useUiStore((s) => s.setSeenFilter)
+  const fromSetting = page === 'discover' && !!settings?.hide_seen
+  const defaultValue = fromSetting ? 'unseen' : 'all'
+  return { value: stored ?? defaultValue, setValue: (v) => set(page, v), defaultValue, fromSetting }
+}
 
 const OPTIONS = [
   { value: 'all', label: 'Tous', icon: ListFilter },
@@ -12,17 +26,17 @@ const OPTIONS = [
 ]
 
 // Petit menu à côté de Tout / Films / Séries : tous les titres, seulement ceux pas vus, ou seulement ceux vus.
-// Par défaut, choix commun mémorisé ; une page peut avoir le sien (value / onChange) et sa valeur par défaut.
-export default function SeenFilter({ value: own, onChange, defaultValue = 'all' }) {
+// Soit l'onglet (page) avec son choix mémorisé, soit une valeur gérée par la page (value / onChange).
+export default function SeenFilter({ page, value: own, onChange, defaultValue: ownDefault = 'all' }) {
   const t = useT()
-  const stored = useUiStore((s) => s.seenFilter)
-  const setStored = useUiStore((s) => s.setSeenFilter)
-  const value = own ?? stored
-  const setValue = onChange ?? setStored
+  const pageSeen = usePageSeen(page || 'none')
+  const value = own ?? pageSeen.value
+  const setValue = onChange ?? pageSeen.setValue
+  const defaultValue = page ? pageSeen.defaultValue : ownDefault
   const [open, setOpen] = useState(false)
   const current = OPTIONS.find((o) => o.value === value) || OPTIONS[0]
   const Icon = current.icon
-  const active = current.value !== defaultValue
+  const active = current.value !== 'all'
   return (
     <div className="relative">
       <button
@@ -42,7 +56,7 @@ export default function SeenFilter({ value: own, onChange, defaultValue = 'all' 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div role="menu" className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-bg2 p-1 shadow-xl">
+          <div role="menu" className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-line bg-bg2 p-1 shadow-xl">
             {OPTIONS.map((o) => (
               <button
                 key={o.value}
@@ -59,6 +73,13 @@ export default function SeenFilter({ value: own, onChange, defaultValue = 'all' 
                 {o.value === value && <Check className="h-4 w-4 text-accent2" />}
               </button>
             ))}
+            {page && pageSeen.fromSetting && (
+              <p className="border-t border-line px-3 py-2 text-[11px] text-text3">
+                {value === defaultValue
+                  ? t('« Pas vus » d’après ton réglage : choisis Tous ou Vus pour cet onglet seulement.')
+                  : t('Réglage « ne plus proposer les vus » ignoré dans cet onglet.')}
+              </p>
+            )}
           </div>
         </>
       )}
@@ -66,11 +87,17 @@ export default function SeenFilter({ value: own, onChange, defaultValue = 'all' 
   )
 }
 
-/** Filtre côté interface (listes déjà chargées, ex. Découvrir), d'après l'état personnel. */
-export function useSeenFilterFn() {
-  const value = useUiStore((s) => s.seenFilter)
+/**
+ * Filtre côté interface (listes déjà chargées, ex. Découvrir). « Pas vus » : films vus et séries à jour
+ * retirés (une série avec de nouveaux épisodes reste) ; « Vus » : titres vus ou commencés.
+ */
+export function useSeenFilterFn(page) {
+  const { value } = usePageSeen(page)
   const { data: keys } = useLibraryKeys()
+  const smart = useSeenKeys(value === 'unseen')
   if (value === 'all' || !keys) return (items) => items
   const watched = new Set(keys.watched || [])
-  return (items) => items?.filter((i) => watched.has(keyOf(i.media_type, i.id)) === (value === 'seen'))
+  if (value === 'seen') return (items) => items?.filter((i) => watched.has(keyOf(i.media_type, i.id)))
+  const hidden = smart || watched
+  return (items) => items?.filter((i) => !hidden.has(keyOf(i.media_type, i.id)))
 }

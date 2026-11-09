@@ -16,7 +16,7 @@ import StarRating from '../components/ui/StarRating'
 import Skeleton from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import MockBanner from '../components/ui/MockBanner'
-import PlatformBadge, { PlexBadge } from '../components/ui/PlatformBadge'
+import PlatformBadge, { PlexBadge, SERVER_LABELS } from '../components/ui/PlatformBadge'
 import {
   useDislike,
   useItemState,
@@ -30,7 +30,7 @@ import {
   useSeenFilter,
 } from '../hooks/useMedia'
 import { formatDate, formatMoney, formatRuntime, safeUrl } from '../lib/format'
-import { fmtNumber, useT } from '../i18n'
+import { currentLocale, fmtNumber, useT } from '../i18n'
 import WatchlistButton from '../components/ui/WatchlistButton'
 import { SourceChips } from './Watchlist'
 import WatchLink from '../components/ui/WatchLink'
@@ -124,6 +124,16 @@ function DetailSkeleton() {
   )
 }
 
+// Nom du pays dans la langue de l'interface (FR -> « France », US -> « États-Unis »)
+function countryName(code) {
+  if (!code) return ''
+  try {
+    return new Intl.DisplayNames([currentLocale()], { type: 'region' }).of(code) || code
+  } catch {
+    return code
+  }
+}
+
 export default function MediaDetail({ mediaType }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -160,6 +170,16 @@ export default function MediaDetail({ mediaType }) {
     .filter(Boolean)
     .join(' · ')
   const isTv = mediaType === 'tv'
+  // Film annoncé : date de sortie en salles (pays choisi) et première sortie en streaming (n'importe où)
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = [
+    d.release?.cinema > today && { key: 'cinema', icon: Clapperboard, text: t('Au cinéma le {date}', { date: formatDate(d.release.cinema) }) },
+    d.release?.streaming > today && {
+      key: 'streaming',
+      icon: Play,
+      text: t('En streaming le {date} ({country})', { date: formatDate(d.release.streaming), country: countryName(d.release.streaming_country) }),
+    },
+  ].filter(Boolean)
   const meta = [
     d.year,
     d.runtime && (isTv ? t('{n} min / épisode', { n: d.runtime }) : formatRuntime(d.runtime)),
@@ -173,7 +193,7 @@ export default function MediaDetail({ mediaType }) {
   return (
     <div>
       {/* Backdrop */}
-      <section className="relative -mx-4 -mt-4 h-[46vh] min-h-[300px] overflow-hidden md:-mx-8 md:-mt-6 md:h-[62vh]">
+      <section className="relative -mx-4 -mt-4 h-[38vh] min-h-[240px] overflow-hidden sm:h-[46vh] sm:min-h-[300px] md:-mx-8 md:-mt-6 md:h-[62vh]">
         {d.backdrop ? (
           <img src={d.backdrop} alt="" className="fade-bottom absolute inset-0 h-full w-full object-cover object-top" />
         ) : (
@@ -190,12 +210,12 @@ export default function MediaDetail({ mediaType }) {
       </section>
 
       {/* En-tête */}
-      <div className="relative -mt-36 flex flex-col gap-6 md:-mt-60 md:flex-row md:items-end">
-        <div className="w-36 shrink-0 md:w-56">
+      <div className="relative -mt-28 flex flex-col gap-5 sm:-mt-36 sm:gap-6 md:-mt-60 md:flex-row md:items-end">
+        <div className="w-28 shrink-0 sm:w-36 md:w-56">
           <Poster src={d.poster} title={d.title} mediaType={mediaType} className="shadow-2xl shadow-black/50" />
         </div>
         <div className="text-halo min-w-0 flex-1 pb-1">
-          <h1 className="text-3xl font-semibold leading-tight md:text-5xl">{d.title}</h1>
+          <h1 className="text-2xl font-semibold leading-tight sm:text-3xl md:text-5xl">{d.title}</h1>
           {d.original_title && d.original_title !== d.title && <p className="mt-1 text-sm text-text2">{d.original_title}</p>}
           <p className="mt-2 text-sm text-text2">{meta.join(' · ')}</p>
           {d.genres?.length > 0 && (
@@ -223,6 +243,12 @@ export default function MediaDetail({ mediaType }) {
             <RatingPill label={t('Public · TMDB')} value={d.vote_average ? d.vote_average.toFixed(1) : '–'} sub={d.vote_count ? t('{n} votes', { n: fmtNumber(d.vote_count) }) : null} color="#01b4e4" />
             {trakt.rating != null && <RatingPill label={t('Public · Trakt')} value={trakt.rating ? `${Math.round(trakt.rating * 10)} %` : '–'} sub={trakt.votes ? t('{n} votes', { n: fmtNumber(trakt.votes) }) : null} color="var(--trakt)" />}
             <RatingPill label={t('Ta note')} value={userStars ? `${userStars}/5` : '–'} sub={ratingSub} color="var(--accent2)" />
+            {upcoming.map((u) => (
+              <div key={u.key} className="flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
+                <u.icon className="h-4 w-4 text-accent2" />
+                <span className="text-xs">{u.text}</span>
+              </div>
+            ))}
             {d.in_theaters && (
               <div className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2" title={t('Sorti en salles, pas encore en streaming')}>
                 <Clapperboard className="h-4 w-4 text-amber-500" />
@@ -233,8 +259,8 @@ export default function MediaDetail({ mediaType }) {
             )}
             {d.plex?.configured && (
               <div className="flex items-center gap-2 rounded-xl border border-line bg-bg2/80 px-3 py-2 backdrop-blur-md">
-                <PlexBadge size="sm" />
-                <span className="text-xs">{d.plex.available ? t('Dans ta bibliothèque') : t('Pas dans Plex')}</span>
+                <PlexBadge size="sm" server={d.plex.server} />
+                <span className="text-xs">{d.plex.available ? t('Dans ta bibliothèque') : t('Pas dans {server}', { server: SERVER_LABELS[d.plex.server] || 'Plex' })}</span>
                 {!d.plex.available && <RequestButton d={d} />}
               </div>
             )}
@@ -251,7 +277,7 @@ export default function MediaDetail({ mediaType }) {
         {d.plex?.available && d.plex.url ? (
           <WatchLink href={d.plex.url} appRef={{ mediaType, id: d.id, watchUrl: d.plex.watch_url }}>
             <Button variant="primary" icon={Play} className="!bg-plex !text-black">
-              {t('Lire sur Plex')}
+              {t('Lire sur {server}', { server: SERVER_LABELS[d.plex.server] || 'Plex' })}
             </Button>
           </WatchLink>
         ) : (
@@ -320,7 +346,16 @@ export default function MediaDetail({ mediaType }) {
           <InfoRow label={t('Titre original')}>{d.original_title}</InfoRow>
           <InfoRow label={t('Langue originale')}>{d.original_language}</InfoRow>
           <InfoRow label={t('Pays')}>{d.countries?.join(', ')}</InfoRow>
-          <InfoRow label={isTv ? t('Première diffusion') : t('Sortie')}>{formatDate(d.release_date)}</InfoRow>
+          {isTv || !d.release ? (
+            <InfoRow label={isTv ? t('Première diffusion') : t('Sortie')}>{formatDate(d.release_date)}</InfoRow>
+          ) : (
+            <>
+              <InfoRow label={t('Sortie cinéma ({country})', { country: countryName(d.release.cinema_country) })}>{formatDate(d.release.cinema) || t('Pas de date')}</InfoRow>
+              <InfoRow label={t('Sortie en streaming')}>
+                {d.release.streaming ? `${formatDate(d.release.streaming)} · ${countryName(d.release.streaming_country)}` : t('Pas encore annoncée')}
+              </InfoRow>
+            </>
+          )}
           <InfoRow label={t('Statut')}>{d.status}</InfoRow>
           {isTv && <InfoRow label={t('Diffuseur')}>{d.networks?.map((n) => n.name).join(', ')}</InfoRow>}
           <InfoRow label={t('Budget')}>{formatMoney(d.budget)}</InfoRow>

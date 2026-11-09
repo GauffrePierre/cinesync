@@ -7,7 +7,7 @@ export const NAV_ITEMS = [
   { key: 'discover', to: '/', label: 'Découvrir', icon: Compass, end: true },
   { key: 'upcoming', to: '/upcoming', label: 'À venir', icon: CalendarDays },
   { key: 'news', to: '/news', label: 'Actu Ciné', short: 'Actu', icon: Newspaper },
-  { key: 'library', to: '/library', label: 'Bibliothèque', icon: Library, needs: 'plex' }, // bibliothèque Plex
+  { key: 'library', to: '/library', label: 'Bibliothèque', icon: Library, needs: 'media' }, // bibliothèque Plex, Jellyfin ou Emby
   { key: 'tonight', to: '/tonight', label: 'Pour ce soir', icon: Popcorn },
   { key: 'watchlist', to: '/watchlist', label: 'Watchlist', icon: Bookmark },
   { key: 'profile', to: '/profile', label: 'Profil', icon: User },
@@ -18,8 +18,8 @@ export const SIDEBAR_ITEMS = [
   ...NAV_ITEMS,
   { key: 'swipe', to: '/swipe', label: 'Mode swipe', icon: Layers },
   { key: 'stats', to: '/stats', label: 'Statistiques', icon: BarChart3 },
-  { key: 'requests', to: '/admin?tab=requests', label: 'Demandes', icon: Inbox, admin: true, needs: 'plex' }, // file des demandes
-  { key: 'admin', to: '/admin', label: 'Espace admin', icon: ShieldCheck, admin: true },
+  { key: 'requests', to: '/profile?tab=admin&section=requests', label: 'Demandes', icon: Inbox, admin: true, needs: 'media' }, // file des demandes
+  { key: 'admin', to: '/profile?tab=admin', label: 'Espace admin', icon: ShieldCheck, admin: true },
 ]
 
 // Onglets visibles : ceux qui dépendent d'un service optionnel (Plex) n'apparaissent que s'il est relié
@@ -44,13 +44,15 @@ export function useSidebarItems() {
   return orderItems(visible, settings?.nav_order || [])
 }
 
-/** Onglet actif, en tenant compte de l'onglet de l'espace admin (Demandes = /admin?tab=requests). */
+/** Onglet actif, en tenant compte de l'onglet Admin du Profil (Demandes = /profile?tab=admin&section=requests). */
 export function useIsActive() {
   const { pathname, search } = useLocation()
-  const tab = new URLSearchParams(search).get('tab')
+  const q = new URLSearchParams(search)
+  const admin = pathname === '/profile' && q.get('tab') === 'admin'
   return (item) => {
-    if (item.key === 'requests') return pathname === '/admin' && tab === 'requests'
-    if (item.key === 'admin') return pathname === '/admin' && tab !== 'requests'
+    if (item.key === 'requests') return admin && q.get('section') === 'requests'
+    if (item.key === 'admin') return admin && q.get('section') !== 'requests'
+    if (item.key === 'profile') return pathname === '/profile' && !admin
     return item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`)
   }
 }

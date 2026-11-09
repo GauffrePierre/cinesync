@@ -176,4 +176,10 @@ export default {
   "Toujours ouvrir l'app {app} sans demander": 'Always open the {app} app without asking',
   "Ce titre n'a pas été trouvé dans le catalogue de l'app : ouvre-le dans le navigateur.": 'This title was not found in the app catalogue: open it in the browser.',
   "Dans l'app Plex, choisis ensuite ton serveur pour lancer la lecture.": 'In the Plex app, then pick your server to start playback.',
+  'Au cinéma le {date}': 'In cinemas on {date}',
+  'En streaming le {date} ({country})': 'Streaming from {date} ({country})',
+  'Sortie cinéma ({country})': 'Cinema release ({country})',
+  'Pas de date': 'No date',
+  'Sortie en streaming': 'Streaming release',
+  'Pas encore annoncée': 'Not announced yet',
 }

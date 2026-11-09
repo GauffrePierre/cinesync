@@ -138,6 +138,26 @@ class PlexClient:
             cache.set(key, items, 600)
             return items
 
+    async def recent_episodes(self, days: int = 2, limit: int = 100) -> list[dict]:
+        """Épisodes ajoutés sur le serveur ces derniers jours : {show_key, season, episode, added_at}."""
+        since = datetime.now(timezone.utc).timestamp() - days * 86400
+        out = []
+        for s in await self.sections():
+            if s.get("type") != "tv":
+                continue
+            data = await self._get(
+                f"/library/sections/{s['id']}/all", type=4, sort="addedAt:desc",
+                **{"X-Plex-Container-Start": 0, "X-Plex-Container-Size": limit},
+            )
+            for m in data.get("Metadata", []) or []:
+                if (m.get("addedAt") or 0) < since:
+                    break  # triés du plus récent au plus ancien
+                out.append({
+                    "show_key": str(m.get("grandparentRatingKey") or ""), "season": m.get("parentIndex"),
+                    "episode": m.get("index"), "added_at": m.get("addedAt"),
+                })
+        return out
+
     async def index(self) -> dict[tuple[str, int], dict]:
         return {(i["media_type"], i["id"]): i for i in await self.library() if i["id"]}
 

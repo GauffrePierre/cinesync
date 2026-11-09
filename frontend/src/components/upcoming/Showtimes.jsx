@@ -31,7 +31,7 @@ export default function Showtimes({ cinemas }) {
         title={t('Aucun cinéma suivi')}
         message={t('Choisis tes cinémas dans le Profil pour voir les séances ici.')}
         action={t('Choisir mes cinémas')}
-        to="/profile"
+        to="/profile?tab=prefs"
       />
     )
   }
@@ -90,7 +90,7 @@ export default function Showtimes({ cinemas }) {
                   ) : (
                     <p className="min-w-0 flex-1 truncate font-medium">{f.title}</p>
                   )}
-                  {f.in_plex && <PlexBadge size="xs" />}
+                  {f.in_plex && <PlexBadge server={f.server} size="xs" />}
                 </div>
                 <p className="flex items-center gap-2 text-xs text-text2">
                   {f.year}
