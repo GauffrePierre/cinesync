@@ -7,6 +7,7 @@ import { resolveDrag } from '../../hooks/useSwipeGesture'
 import { detailPath, mediaLabel } from '../../lib/format'
 import { sortProviders } from '../../lib/platforms'
 import { useT } from '../../i18n'
+import { reasonText } from '../../lib/reasons'
 
 const variants = {
   enter: { scale: 0.94, y: 18, opacity: 0 },
@@ -20,11 +21,6 @@ const variants = {
   }),
 }
 
-// Motif de suggestion envoyé par le serveur (en français) -> traduit
-const reasonLabel = (r, t) => {
-  const m = r.match(/^Parce que tu as aimé (.+)$/)
-  return m ? t('Parce que tu as aimé {title}', { title: m[1] }) : t(r)
-}
 
 // Carte plein écran : poster, titre, synopsis court, note, plateformes
 export default function SwipeCard({ item, isTop, onSwipe, active = [] }) {
@@ -98,7 +94,7 @@ export default function SwipeCard({ item, isTop, onSwipe, active = [] }) {
               <Info className="h-5 w-5" />
             </Link>
           </div>
-          {item.reason && <p className="mt-2 text-xs font-medium text-accent2">{reasonLabel(item.reason, t)}</p>}
+          {item.reason && <p className="mt-2 text-xs font-medium text-accent2">{reasonText(item, t)}</p>}
           {item.overview && <p className="mt-2 line-clamp-3 text-sm text-white/80">{item.overview}</p>}
         </div>
       </div>

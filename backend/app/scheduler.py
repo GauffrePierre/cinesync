@@ -142,6 +142,38 @@ async def availability_one(ctx: Ctx) -> dict:
     return {"checked": len(rows), "created": created}
 
 
+def _episode_roles(raw: dict, season: int, episodes: list[int], cutoff: str, finale: bool = False) -> set[str]:
+    """Rôle des épisodes sortis d'une saison : first (premier épisode, ou saison sortie d'un coup ces derniers jours),
+    last / season (dernier épisode : la saison est complète)."""
+    info = next((s for s in raw.get("seasons") or [] if s.get("season_number") == season), {})
+    count = info.get("episode_count") or 0
+    roles = {"each"}
+    if 1 in episodes or (info.get("air_date") or "") >= cutoff:
+        roles.add("first")
+    if finale or (count and max(episodes) >= count):
+        roles |= {"last", "season"}
+    return roles
+
+
+def _episode_text(when: set[str], roles: set[str], title: str, season: int, last_ep: int, count: int, where: str, each: dict) -> dict | None:
+    """Texte de la notification selon les épisodes choisis (Profil → Notifications) ; None : rien à signaler.
+    where : plateformes ou serveur (vide : diffusion) ; each : texte habituel « nouvel épisode »."""
+    matched = when & roles
+    if not matched:
+        return None
+    on = " sur {platforms}" if where else ""
+    if "season" in matched:
+        return messages.fields(f"Saison {{season}} de {{title}} complète{on} : {{count}} épisodes", title=title, season=season, count=count or last_ep,
+                               **({"platforms": where} if where else {}))
+    if "last" in matched:
+        return messages.fields(f"Dernier épisode de la saison {{season}} de {{title}}{on} : {{code}}", title=title, season=season,
+                               code=f"S{season:02d}E{last_ep:02d}", **({"platforms": where} if where else {}))
+    if "first" in matched:
+        return messages.fields(f"Premier épisode de la saison {{season}} de {{title}}{on} : {{code}}", title=title, season=season,
+                               code=f"S{season:02d}E01", **({"platforms": where} if where else {}))
+    return each
+
+
 async def episodes_one(ctx: Ctx) -> dict:
     """Nouvel épisode diffusé (2 derniers jours) d'une série suivie : en watchlist, vue ou regardée récemment."""
     from datetime import date
@@ -156,6 +188,7 @@ async def episodes_one(ctx: Ctx) -> dict:
     shows |= {t for (t,) in db.execute(select(WatchEvent.tmdb_id).where(WatchEvent.kind == "episode", WatchEvent.watched_at >= recent, WatchEvent.tmdb_id.isnot(None)))}
     cutoff = (date.today() - timedelta(days=2)).isoformat()
     via = set(ctx.settings.episode_via)
+    when = set(ctx.settings.episode_when)
     platforms = set(ctx.platforms)
     created = 0
 
@@ -194,7 +227,12 @@ async def episodes_one(ctx: Ctx) -> dict:
                 text = messages.fields("Nouvel épisode de {title} : {code} · {name}", title=title, code=code, name=last["name"])
             else:
                 text = messages.fields("Nouvel épisode de {title} : {code}", title=title, code=code)
-            notify(tmdb_id, raw, text)
+            season, number = last.get("season_number") or 0, last.get("episode_number") or 0
+            roles = _episode_roles(raw, season, [number], cutoff, finale=last.get("episode_type") == "finale")
+            count = next((s.get("episode_count") or 0 for s in raw.get("seasons") or [] if s.get("season_number") == season), 0)
+            text = _episode_text(when, roles, title, season, number, count, ", ".join(names), text)
+            if text:
+                notify(tmdb_id, raw, text)
 
     # Ajouté sur le serveur multimédia (épisodes arrivés ces 2 derniers jours)
     media, server = _media(ctx)
@@ -215,7 +253,18 @@ async def episodes_one(ctx: Ctx) -> dict:
             first, last = (f"S{s_:02d}E{e:02d}" for s_, e in (eps[0], eps[-1]))
             code = first if len(eps) == 1 else f"{first} → {last}"
             raw = {"name": show.get("title") or "", "poster_path": None}
-            notify(show["id"], raw, messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=raw["name"], platforms=server, code=code))
+            text = messages.fields("Nouvel épisode de {title} sur {platforms} : {code}", title=raw["name"], platforms=server, code=code)
+            if when != {"each"}:  # premier / dernier épisode, saison complète : nombre d'épisodes de la saison selon TMDB
+                try:
+                    info = await ctx.tmdb._get(f"/tv/{show['id']}", ttl=21600)
+                except ServiceError:
+                    info = {}
+                season = eps[-1][0]
+                numbers = [e for s_, e in eps if s_ == season]
+                count = next((s.get("episode_count") or 0 for s in info.get("seasons") or [] if s.get("season_number") == season), 0)
+                text = _episode_text(when, _episode_roles(info, season, numbers, "9999"), raw["name"], season, max(numbers), count, server, text)
+            if text:
+                notify(show["id"], raw, text)
 
     db.commit()
     return {"checked": len(shows), "created": created}
@@ -230,6 +279,11 @@ s'affichent sans attendre TMDB ni plex.tv."""
 
     async def one(ctx: Ctx):
         n = len(await watchlist_releases(ctx, ctx.settings.recent_days or 0) or [])
+        if not ctx.tmdb.is_mock:  # profil de goûts préparé d'avance : les suggestions s'affichent sans attendre
+            from app.services import taste
+            from app.services.suggestions import signals
+
+            await taste.profile(ctx, *signals(ctx, ["movie", "tv"]))
         # Infos de tri de la watchlist (sortie, notes TMDB, critique et public), par lots de 150
         rows = [r for r in ctx.db.execute(select(MediaState)).scalars() if r.in_watchlist]
         return {"releases": n, "info": await fill_info(ctx, rows)}

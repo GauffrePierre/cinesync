@@ -27,7 +27,7 @@ class Ref(BaseModel):
 
 
 class RatingIn(Ref):
-    rating: int = Field(ge=1, le=5)  # étoiles
+    rating: float = Field(ge=0.5, le=5, multiple_of=0.5)  # étoiles, par demi-étoile (4,5 = 9/10)
 
 
 def _k(mt: str, tid: int) -> str:
@@ -153,7 +153,7 @@ async def mark_watched(body: Ref, ctx: Ctx = Depends(get_ctx)):
 
 @router.post("/rating")
 async def rate(body: RatingIn, ctx: Ctx = Depends(get_ctx)):
-    return await _act(ctx, "rate", body, body.rating * 2)
+    return await _act(ctx, "rate", body, round(body.rating * 2))
 
 
 @router.post("/like")

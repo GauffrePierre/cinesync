@@ -22,6 +22,12 @@ TEMPLATES: dict[str, str] = {
         "Several incorrect two-factor codes: if it wasn't you, change your password."
     ),
     "Notifications activées sur cet appareil": "Notifications enabled on this device",
+    'Saison {season} de {title} complète : {count} épisodes': 'Season {season} of {title} is complete: {count} episodes',
+    'Saison {season} de {title} complète sur {platforms} : {count} épisodes': 'Season {season} of {title} is complete on {platforms}: {count} episodes',
+    'Dernier épisode de la saison {season} de {title} : {code}': 'Last episode of season {season} of {title}: {code}',
+    'Dernier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Last episode of season {season} of {title} on {platforms}: {code}',
+    'Premier épisode de la saison {season} de {title} : {code}': 'First episode of season {season} of {title}: {code}',
+    'Premier épisode de la saison {season} de {title} sur {platforms} : {code}': 'First episode of season {season} of {title} on {platforms}: {code}',
     "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": "The {server} account “{name}” was linked to your SynCiné account. If it wasn't you, change your password.",
     'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Signing in with your {server} account “{name}” is now enabled on SynCiné.',
 }
@@ -46,6 +52,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "Notifications activées sur cet appareil": "Notifiche attivate su questo dispositivo",
         "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": "L'account {server} “{name}” è stato collegato al tuo account SynCiné. Se non sei stato tu, cambia la password.",
         'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': "L'accesso con il tuo account {server} “{name}” è ora attivo su SynCiné.",
+        'Saison {season} de {title} complète : {count} épisodes': 'Stagione {season} di {title} completa: {count} episodi',
+        'Saison {season} de {title} complète sur {platforms} : {count} épisodes': 'Stagione {season} di {title} completa su {platforms}: {count} episodi',
+        'Dernier épisode de la saison {season} de {title} : {code}': 'Ultimo episodio della stagione {season} di {title}: {code}',
+        'Dernier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Ultimo episodio della stagione {season} di {title} su {platforms}: {code}',
+        'Premier épisode de la saison {season} de {title} : {code}': 'Primo episodio della stagione {season} di {title}: {code}',
+        'Premier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Primo episodio della stagione {season} di {title} su {platforms}: {code}',
     },
     "de": {
         "{title} est maintenant disponible sur {platforms}": "{title} ist jetzt auf {platforms} verfügbar",
@@ -64,6 +76,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "Notifications activées sur cet appareil": "Benachrichtigungen auf diesem Gerät aktiviert",
         "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": 'Das {server}-Konto „{name}“ wurde mit deinem SynCiné-Konto verbunden. Warst du das nicht, ändere dein Passwort.',
         'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Die Anmeldung mit deinem {server}-Konto „{name}“ ist jetzt auf SynCiné aktiviert.',
+        'Saison {season} de {title} complète : {count} épisodes': 'Staffel {season} von {title} ist komplett: {count} Folgen',
+        'Saison {season} de {title} complète sur {platforms} : {count} épisodes': 'Staffel {season} von {title} ist auf {platforms} komplett: {count} Folgen',
+        'Dernier épisode de la saison {season} de {title} : {code}': 'Letzte Folge von Staffel {season} von {title}: {code}',
+        'Dernier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Letzte Folge von Staffel {season} von {title} auf {platforms}: {code}',
+        'Premier épisode de la saison {season} de {title} : {code}': 'Erste Folge von Staffel {season} von {title}: {code}',
+        'Premier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Erste Folge von Staffel {season} von {title} auf {platforms}: {code}',
     },
     "es": {
         "{title} est maintenant disponible sur {platforms}": "{title} ya está disponible en {platforms}",
@@ -82,6 +100,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "Notifications activées sur cet appareil": "Notificaciones activadas en este dispositivo",
         "Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n'était pas toi, change ton mot de passe.": 'La cuenta de {server} «{name}» se ha vinculado a tu cuenta de SynCiné. Si no has sido tú, cambia tu contraseña.',
         'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'El inicio de sesión con tu cuenta de {server} «{name}» está activado en SynCiné.',
+        'Saison {season} de {title} complète : {count} épisodes': 'Temporada {season} de {title} completa: {count} episodios',
+        'Saison {season} de {title} complète sur {platforms} : {count} épisodes': 'Temporada {season} de {title} completa en {platforms}: {count} episodios',
+        'Dernier épisode de la saison {season} de {title} : {code}': 'Último episodio de la temporada {season} de {title}: {code}',
+        'Dernier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Último episodio de la temporada {season} de {title} en {platforms}: {code}',
+        'Premier épisode de la saison {season} de {title} : {code}': 'Primer episodio de la temporada {season} de {title}: {code}',
+        'Premier épisode de la saison {season} de {title} sur {platforms} : {code}': 'Primer episodio de la temporada {season} de {title} en {platforms}: {code}',
     },
 }
 

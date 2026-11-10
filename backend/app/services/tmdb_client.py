@@ -164,6 +164,7 @@ def normalize_detail(raw: dict, media_type: str, lang: str = "fr", country: str 
         "status": raw.get("status"),
         "homepage": raw.get("homepage") or None,
         "imdb_id": raw.get("imdb_id") or raw.get("external_ids", {}).get("imdb_id"),
+        "tvdb_id": raw.get("external_ids", {}).get("tvdb_id"),
         "runtime": runtime,
         "countries": countries,
         "original_language": spoken.get(orig_lang, (orig_lang or "").upper()) if orig_lang else None,

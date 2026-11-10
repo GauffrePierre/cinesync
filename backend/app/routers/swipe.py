@@ -71,7 +71,8 @@ async def swipe(body: SwipeIn, ctx: Ctx = Depends(get_ctx)):
     if row is None:
         row = SwipeHistory(tmdb_id=body.tmdb_id, media_type=body.media_type)
         ctx.db.add(row)
-    row.action, row.rating, row.title = body.action, body.rating, body.title
+    # Mémoire du swipe : étoiles entières (4,5 -> 4) ; la note exacte (sur 10) part dans la bibliothèque
+    row.action, row.rating, row.title = body.action, int(body.rating) if body.rating else None, body.title
     ctx.db.commit()
 
     if body.action == "skip":
@@ -81,7 +82,7 @@ async def swipe(body: SwipeIn, ctx: Ctx = Depends(get_ctx)):
     steps = {"seen": ["watched"] + (["rate"] if body.rating else []), "watchlist": ["watchlist_add"], "like": ["watchlist_add", "like"]}[body.action]
     services: dict[str, str] = {}
     for step in steps:
-        res = await library_sync.act(ctx, step, body.media_type, body.tmdb_id, (body.rating or 0) * 2 or None, body.title)
+        res = await library_sync.act(ctx, step, body.media_type, body.tmdb_id, round((body.rating or 0) * 2) or None, body.title)
         for name, v in res["services"].items():
             if services.get(name, "ok") == "ok":
                 services[name] = v

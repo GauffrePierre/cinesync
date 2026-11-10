@@ -14,7 +14,9 @@ export const media = {
   full: (mediaType, id) => api.get(`/media/${mediaType}/${id}`),
   highlights: () => api.get('/media/highlights'),
   watchlistReleases: () => api.get('/media/watchlist-releases'),
-  suggestions: (mediaType = 'all', limit = 20) => api.get(`/media/suggestions${qs({ media_type: mediaType, limit })}`),
+  // « Plus comme ça » (1), « Moins comme ça » (-1), retirer (0)
+  suggestionFeedback: (item, value) => api.post('/media/suggestions/feedback', { media_type: item.media_type, tmdb_id: item.id, title: item.title || '', value }),
+  suggestions: (mediaType = 'all', limit = 20, available = false) => api.get(`/media/suggestions${qs({ media_type: mediaType, limit, ...(available ? { available: true } : {}) })}`),
 }
 
 export const justwatch = {

@@ -68,6 +68,9 @@ def test_settings_round_trip(fresh):  # noqa: F811
     s = admin.put("/api/settings", json={"notify_episode_via": ["plex", "platforms"], "notify_movie_via": ["plex"]}).json()
     assert s["notify_episode_via"] == ["platforms", "plex"] and s["notify_movie_via"] == ["plex"]
     assert admin.put("/api/settings", json={"notify_episode_via": ["sms"]}).status_code == 422
+    assert s["notify_episode_when"] == ["each"]
+    assert admin.put("/api/settings", json={"notify_episode_when": ["last", "first"]}).json()["notify_episode_when"] == ["first", "last"]
+    assert admin.put("/api/settings", json={"notify_episode_when": ["parfois"]}).status_code == 422
 
 
 def test_episode_triggers(db, monkeypatch):
@@ -125,3 +128,58 @@ def test_jellyfin_recent_episodes(monkeypatch):
     monkeypatch.setattr(JellyfinClient, "_req", fake_req)
     eps = asyncio.run(JellyfinClient("http://jf.test", "k", "u1").recent_episodes(days=2))
     assert [(e["show_key"], e["season"], e["episode"]) for e in eps] == [("s1", 1, 4)]
+
+
+class SeasonTMDB(FakeTMDB):
+    """Dernier épisode diffusé aujourd'hui : numéro, nombre d'épisodes de la saison, date de sortie de la saison."""
+
+    def __init__(self, episode, count, season_air="2026-01-01", episode_type="standard"):
+        super().__init__()
+        self.episode, self.count, self.season_air, self.episode_type = episode, count, season_air, episode_type
+
+    async def _get(self, path, ttl=0, **params):
+        return {"name": "Breaking Bad", "poster_path": None,
+                "seasons": [{"season_number": 1, "episode_count": self.count, "air_date": self.season_air}],
+                "last_episode_to_air": {"air_date": TODAY, "season_number": 1, "episode_number": self.episode, "name": "", "episode_type": self.episode_type}}
+
+
+def _when(db, when, tmdb, via=("air",), plex=None):
+    from app.models import Notification as N
+
+    db.query(N).delete()
+    db.commit()
+    s = db.get(UserSettings, 1)
+    s.notify_episode_when = __import__("json").dumps(when)
+    db.commit()
+    asyncio.run(scheduler.episodes_one(_ctx(db, list(via), tmdb=tmdb, plex=plex)))
+    return _messages(db)
+
+
+def test_which_episodes_to_notify(db):
+    db.add(MediaState(tmdb_id=1396, media_type="tv", watchlist_sources='["local"]'))
+    db.commit()
+    assert db.get(UserSettings, 1).episode_when == ["each"]  # par défaut : chaque épisode
+    middle = SeasonTMDB(episode=2, count=8)
+    assert _when(db, ["each"], middle) == ["Nouvel épisode de Breaking Bad : S01E02"]
+    assert _when(db, ["first"], middle) == [] and _when(db, ["last"], middle) == [] and _when(db, ["season"], middle) == []
+    assert _when(db, ["first"], SeasonTMDB(episode=1, count=8)) == ["Premier épisode de la saison 1 de Breaking Bad : S01E01"]
+    finale = SeasonTMDB(episode=8, count=8)
+    assert _when(db, ["last"], finale) == ["Dernier épisode de la saison 1 de Breaking Bad : S01E08"]
+    assert _when(db, ["season"], finale) == ["Saison 1 de Breaking Bad complète : 8 épisodes"]
+    assert _when(db, ["first", "last"], finale) == ["Dernier épisode de la saison 1 de Breaking Bad : S01E08"]
+    # Finale annoncée par TMDB même si le nombre d'épisodes n'est pas à jour
+    assert _when(db, ["last"], SeasonTMDB(episode=6, count=10, episode_type="finale")) == ["Dernier épisode de la saison 1 de Breaking Bad : S01E06"]
+    # Saison sortie d'un coup (tous les épisodes le même jour) : c'est à la fois son premier et son dernier épisode
+    binge = SeasonTMDB(episode=10, count=10, season_air=TODAY)
+    assert _when(db, ["first"], binge) == ["Premier épisode de la saison 1 de Breaking Bad : S01E01"]
+    assert _when(db, ["season"], binge) == ["Saison 1 de Breaking Bad complète : 10 épisodes"]
+
+
+def test_which_episodes_added_on_the_server(db):
+    db.add(MediaState(tmdb_id=1396, media_type="tv", watchlist_sources='["local"]'))
+    db.commit()
+    plex = FakePlex()  # épisodes 3, 4 et 5 ajoutés
+    assert _when(db, ["first"], SeasonTMDB(episode=5, count=5), via=("plex",), plex=plex) == []
+    assert _when(db, ["last"], SeasonTMDB(episode=5, count=5), via=("plex",), plex=plex) == ["Dernier épisode de la saison 1 de Breaking Bad sur Plex : S01E05"]
+    assert _when(db, ["season"], SeasonTMDB(episode=5, count=5), via=("plex",), plex=plex) == ["Saison 1 de Breaking Bad complète sur Plex : 5 épisodes"]
+    assert _when(db, ["last"], SeasonTMDB(episode=5, count=10), via=("plex",), plex=plex) == []

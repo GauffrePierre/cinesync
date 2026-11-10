@@ -77,13 +77,26 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 
 ## Features
 
+**Recommendations that know you**
+
+This is the heart of SynCiné: suggestions built from **everything you do**, whatever the service, and meant to be watched tonight rather than left in a list.
+
+- **All your history counts**: ratings (down to half stars), favourites, watchlist, titles watched on Trakt, Plex, Jellyfin, Emby or Letterboxd, swipe-mode choices. What you loved recently weighs more than what you watched five years ago; what you rated low or dismissed pushes similar titles down.
+- **Your taste profile**: genres, directors, series creators and actors who keep showing up in your favourites bring their other titles forward ("Directed by Denis Villeneuve, whom you like").
+- **Every suggestion says why**: "Because you liked Dune", "With Florence Pugh, often in your favourites"…
+- **"More like this / Less like this"** on every card: the list adjusts at once, and your choices shape the next ones.
+- **Variety**: never a whole list drawn from one film, one title per franchise, films and series mixed, and references that change every day. A title suggested several times without catching your interest makes way for others.
+- **Available first, without losing discovery**: what you can start on your services or in your library comes first, but at least a third of the list stays discovery. Obscure or poorly rated titles are left out.
+- **Tonight** learns your habits (a series on Tuesdays, a film on Saturdays), offers to **finish** series you've almost completed and to **resume** what you've started.
+- **For the family** (server edition, if each person wants to): "The family loved", the favourites of relatives whose tastes are close to yours, and a **group evening**: pick who's watching and SynCiné looks for what everyone will like and nobody has seen. **With the kids**, it keeps only titles for their age.
+
 **Discover**
-- Trending titles, what's new on your services, films in cinemas, and personalised suggestions based on your taste, your ratings and Trakt recommendations.
+- Trending titles, what's new on your services, films in cinemas, and your **personalised suggestions** (see above), with a "Only what I can watch" filter.
 - Daily charts per streaming service; "Like / Not interested / Watched" right on the posters.
 - **Recent releases from your watchlist** highlighted for the period you choose (film out in cinemas or on streaming, new season, new episode).
 - **Seen / Not seen** filter on every tab, and an option to stop suggesting what you've already seen (a series with new episodes is still suggested).
 - **Swipe mode** to sort dozens of titles quickly: seen it, want to see it, not interested.
-- **Tonight**: a selection limited to what you can watch right now, filtered by length and mood (18 moods, including *Hidden gems* and *Classics*), with a “Watch again” row.
+- **Tonight**: a selection limited to what you can watch right now, filtered by length and mood (18 moods, including *Hidden gems* and *Classics*), with a “Finish up” row (series you started and almost finished), a “Watch again” row, and your habits for the day (a series on weekdays, a film at the weekend…).
 
 **At the cinema**
 - Showtimes at **your usual cinemas** (France, Germany, Spain, Turkey, Mexico), with a "films only" filter (no operas or concerts).
@@ -102,15 +115,17 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 
 **Track**
 - **Watchlist, watched titles, ratings and favourites** gathered from Trakt, Plex and Letterboxd, and synced both ways (with a preview and safeguards).
-- Series tracking season by season, episode by episode.
+- Series tracking season by season, episode by episode, with the **next episode** of a running series: day and time in your local time, and which of your services it comes out on.
 - Sort by release date, date added, overall rating, critics score, audience score, year or your own rating.
-- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding. You choose when to be told: as soon as it airs, when it's on your services, or when it lands on your Plex, Jellyfin or Emby server.
+- **Notifications**, under the bell and as push notifications on your phone or computer: a watchlist title lands on one of your services, a new episode of a show you follow is out, a service stops responding. You choose when to be told (as soon as it airs, when it's on your services, or when it lands on your Plex, Jellyfin or Emby server) and for which episodes (each one, the first or last of the season, or the full season).
 - Detailed **statistics** of your history: hours, films, episodes, genres, days and times you watch.
 
 **For the family (server edition)**
 - One administrator and an account for each member: everyone has their own watchlist, ratings, history and services.
 - Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed (with Jellyfin, through a **Quick Connect** code, without typing the Jellyfin password).
 - **Add requests**: sent straight to Seerr for allowed members, otherwise queued for the administrator.
+- **Family** (if each person wants to): “The family loved” in Discover, filterable by member, and a **group evening** in Tonight: pick who's watching (your common watchlists, then what you'd all like).
+- **With the kids**: set the ages of the household's children in Preferences (3-6, 7-10, 11-14); “With the kids” in Tonight keeps only titles for their age.
 - **Shared watchlists** (if each person wants to): the administrator sees what the family wants to watch but can't find on their services or in the library.
 - **Server dashboard** (Plex, Jellyfin or Emby, or several at once): what's playing (bandwidth, transcoding), libraries and scans, statistics.
 
@@ -131,6 +146,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 | Film websites and YouTube channels | Film News (public RSS feeds, chosen by each user) | Optional |
 | [Plex](https://www.plex.tv) | Your library, playback, history, family accounts | Optional |
 | [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Your library, playback, watched titles, history, family accounts | Optional |
+| [TVmaze](https://www.tvmaze.com) | Exact day and time of a series' next episode (CC BY-SA data) | Automatic, no key |
 | [Seerr](https://github.com/seerr-team/seerr) | Requests to add titles to your library | Optional |
 
 SynCiné never downloads anything. It can only pass a request on to Seerr, which handles it according to your settings.

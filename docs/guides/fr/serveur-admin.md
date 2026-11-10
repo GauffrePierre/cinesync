@@ -71,7 +71,7 @@ Quand un membre demande l'ajout d'un titre :
 - sinon elle arrive dans **Profil → Admin → Demandes** et tu reçois une notification. Tu peux l'**envoyer à Seerr**, la **marquer disponible** ou la **refuser** : le membre est prévenu.
 
 ### Ce que la famille aimerait voir
-**Profil → Admin → Demandes → Watchlists** : pour les membres qui l'ont choisi (Profil → Préférences → Partage avec l'administrateur), les titres de leur watchlist qu'ils ne peuvent regarder ni sur leurs plateformes, ni dans la bibliothèque du serveur. Les titres voulus par plusieurs personnes sont en tête. Rien d'autre de leur compte n'est visible.
+**Profil → Admin → Demandes → Watchlists** : pour les membres qui l'ont choisi (Profil → Préférences → Partage), les titres de leur watchlist qu'ils ne peuvent regarder ni sur leurs plateformes, ni dans la bibliothèque du serveur. Les titres voulus par plusieurs personnes sont en tête. Rien d'autre de leur compte n'est visible.
 
 ## 5. Le tableau de bord du serveur multimédia
 

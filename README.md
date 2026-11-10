@@ -77,13 +77,26 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 
 ## Fonctionnalités
 
+**Des recommandations qui te connaissent**
+
+C'est le cœur de SynCiné : des suggestions construites à partir de **tout ce que tu fais**, quel que soit le service, et pensées pour être regardées ce soir plutôt que de rester dans une liste.
+
+- **Tout ton historique compte** : notes (même à la demi-étoile), coups de cœur, watchlist, titres vus sur Trakt, Plex, Jellyfin, Emby ou Letterboxd, choix du mode swipe. Ce que tu as aimé récemment pèse plus que ce que tu as vu il y a cinq ans ; ce que tu as mal noté ou écarté fait reculer les titres qui lui ressemblent.
+- **Ton profil de goûts** : genres, réalisateurs, créateurs de séries et acteurs qui reviennent dans tes coups de cœur font remonter leurs autres titres (« Réalisé par Denis Villeneuve, que tu aimes »).
+- **Chaque suggestion dit pourquoi** : « Parce que tu as aimé Dune », « Avec Florence Pugh, souvent dans tes coups de cœur »…
+- **« Plus comme ça / Moins comme ça »** sur chaque carte : la liste s'ajuste aussitôt, et tes choix servent aux suivantes.
+- **De la variété** : jamais toute une liste tirée d'un seul film, un seul titre par saga, films et séries mélangés, et des références qui changent chaque jour. Un titre proposé plusieurs fois sans que tu t'y intéresses laisse sa place.
+- **Disponible d'abord, sans perdre la découverte** : ce que tu peux lancer sur tes plateformes ou dans ta bibliothèque passe devant, mais au moins un tiers de la liste reste de la découverte. Les titres trop confidentiels ou mal notés sont écartés.
+- **Pour ce soir** apprend tes habitudes (plutôt une série le mardi, plutôt un film le samedi), te propose de **finir** les séries presque terminées et de **reprendre** ce que tu as commencé.
+- **En famille** (version serveur, si chacun le veut) : « La famille a aimé », les coups de cœur des proches dont les goûts ressemblent aux tiens, et une **soirée à plusieurs** : tu choisis avec qui tu regardes, SynCiné cherche ce qui plaira à tout le monde et que personne n'a vu. **Avec les enfants**, il ne garde que des titres de leur âge.
+
 **Découvrir**
-- Tendances, nouveautés sur tes plateformes, films à l'affiche et suggestions personnalisées, à partir de tes goûts, de tes notes et des recommandations Trakt.
+- Tendances, nouveautés sur tes plateformes, films à l'affiche et tes **suggestions personnalisées** (voir ci-dessus), avec un filtre « Seulement ce que je peux regarder ».
 - Classements du jour par plateforme, tuiles « J'aime / Pas intéressé / Vu » directement sur les affiches.
 - **Les sorties récentes de ta watchlist** mises en avant pendant la période que tu choisis (film arrivé en salles ou en streaming, nouvelle saison, nouvel épisode).
 - Filtre **Vus / Pas vus** sur chaque onglet, et option pour ne plus te proposer ce que tu as déjà vu (une série qui a de nouveaux épisodes reste proposée).
 - **Mode swipe** pour trier rapidement des dizaines de titres : déjà vu, à voir, pas intéressé.
-- **Pour ce soir** : une sélection limitée à ce que tu peux regarder tout de suite, filtrable par durée et par envie (18 envies, dont *Pépites méconnues* et *Classiques*), avec une rangée « À revoir ».
+- **Pour ce soir** : une sélection limitée à ce que tu peux regarder tout de suite, filtrable par durée et par envie (18 envies, dont *Pépites méconnues* et *Classiques*), avec une rangée « À finir » (séries commencées presque terminées), une rangée « À revoir », et tes habitudes du jour (plutôt une série en semaine, plutôt un film le week-end…).
 
 **Au cinéma**
 - Les séances de **tes salles habituelles** (France, Allemagne, Espagne, Turquie, Mexique), avec un filtre « films uniquement » (sans opéras ni concerts).
@@ -102,15 +115,17 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 
 **Suivre**
 - **Watchlist, titres vus, notes et coups de cœur** réunis depuis Trakt, Plex et Letterboxd, et synchronisés dans les deux sens (avec aperçu et garde-fous).
-- Suivi des séries saison par saison, épisode par épisode.
+- Suivi des séries saison par saison, épisode par épisode, avec le **prochain épisode** d'une série en cours : jour et heure à ton heure locale, et sur laquelle de tes plateformes il sort.
 - Tris par date de sortie, date d'ajout, note globale, note de la critique, note du public, année ou ta propre note.
-- **Notifications**, sous la cloche et en push sur ton téléphone ou ton ordinateur : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus. Tu choisis quand être prévenu : dès la diffusion, quand c'est sur tes plateformes, ou quand c'est ajouté sur ton serveur Plex, Jellyfin ou Emby.
+- **Notifications**, sous la cloche et en push sur ton téléphone ou ton ordinateur : un titre de ta watchlist arrive sur une de tes plateformes, un nouvel épisode d'une série que tu suis est sorti, un service ne répond plus. Tu choisis quand être prévenu (dès la diffusion, quand c'est sur tes plateformes, ou quand c'est ajouté sur ton serveur Plex, Jellyfin ou Emby) et pour quels épisodes (chacun, le premier ou le dernier de la saison, ou la saison complète).
 - **Statistiques** détaillées de ton historique : heures, films, épisodes, genres, jours et heures de visionnage.
 
 **En famille (version serveur)**
 - Un administrateur et des comptes pour chaque membre : chacun a sa watchlist, ses notes, son historique, ses services.
 - Connexion par mot de passe, ou avec un compte Plex ou Jellyfin / Emby autorisé par l'administrateur (avec Jellyfin, par un code **Quick Connect**, sans saisir le mot de passe Jellyfin).
 - **Demandes d'ajout** : envoyées directement à Seerr pour les membres autorisés, sinon placées dans une file que l'administrateur traite.
+- **En famille** (si chacun le veut) : « La famille a aimé » dans Découvrir, filtrable par membre, et une soirée **à plusieurs** dans Pour ce soir : choisis avec qui tu regardes (vos watchlists en commun, puis ce qui vous plairait à tous).
+- **Avec les enfants** : indique l’âge des enfants du foyer dans Préférences (3-6, 7-10, 11-14 ans) ; « Avec les enfants » dans Pour ce soir ne garde que des titres de leur âge.
 - **Watchlists partagées** (si chacun le veut) : l'administrateur voit ce que la famille veut regarder mais ne trouve ni sur ses plateformes, ni dans la bibliothèque.
 - **Tableau de bord du serveur** (Plex, Jellyfin ou Emby, ou plusieurs à la fois) : lectures en cours (débit, transcodage), bibliothèques et analyses, statistiques.
 
@@ -131,6 +146,7 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 | Sites de cinéma et chaînes YouTube | Actu Ciné (flux RSS publics, choisis par chacun) | Option |
 | [Plex](https://www.plex.tv) | Ta bibliothèque, lecture, historique, comptes de la famille | Option |
 | [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Ta bibliothèque, lecture, titres vus, historique, comptes de la famille | Option |
+| [TVmaze](https://www.tvmaze.com) | Jour et heure exacts du prochain épisode d'une série (données CC BY-SA) | Automatique, sans clé |
 | [Seerr](https://github.com/seerr-team/seerr) | Demandes d'ajout à ta bibliothèque | Option |
 
 SynCiné ne télécharge rien. Il peut seulement transmettre une demande à Seerr, qui la traite ensuite selon tes réglages.

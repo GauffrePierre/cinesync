@@ -26,7 +26,7 @@ export default function FamilyWatchlists() {
         <EmptyState
           icon={Bookmark}
           title={t('Aucune watchlist partagée pour le moment')}
-          message={t('Chaque membre peut partager la sienne avec toi : Profil → Préférences → Partage avec l’administrateur.')}
+          message={t('Chaque membre peut partager la sienne avec toi : Profil → Préférences → Partage.')}
         />
         {note}
       </div>

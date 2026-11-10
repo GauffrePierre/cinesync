@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 
 from app.database import UserScoped
-from app.models import AuthSession, MediaRequest, MediaState, Notification, SwipeHistory, User, UserSettings, WatchEvent
+from app.models import AuthSession, MediaRequest, MediaState, Notification, SuggestionFeedback, SuggestionShown, SwipeHistory, User, UserSettings, WatchEvent
 from app.services import auth, backup, messages, plex_auth
 from app.services.auth import require_admin, require_server_mode
 from app.services.context import SHARED_ID, Ctx, get_ctx, settings_for
@@ -146,7 +146,7 @@ def delete_user(user_id: int, ctx: Ctx = Depends(get_ctx)):
         update(WatchEvent).where(WatchEvent.user_id == u.id, WatchEvent.source == "plex").values(user_id=0)
         .execution_options(all_users=True, synchronize_session=False)
     )
-    for model in (MediaState, SwipeHistory, Notification, MediaRequest, WatchEvent):
+    for model in (MediaState, SwipeHistory, Notification, MediaRequest, WatchEvent, SuggestionShown, SuggestionFeedback):
         assert issubclass(model, UserScoped)
         db.execute(delete(model).where(model.user_id == u.id).execution_options(all_users=True, synchronize_session=False))
     db.query(AuthSession).filter(AuthSession.user_id == u.id).delete()

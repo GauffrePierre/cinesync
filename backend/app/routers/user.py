@@ -54,7 +54,7 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
             s.cinemas = json.dumps([{k: c.get(k) for k in ("id", "name", "city", "country")} for c in value if c.get("id")])
         elif field == "country_code":
             s.country_code = value.upper()
-        elif field in ("notify_episode_via", "notify_movie_via"):
+        elif field in ("notify_episode_via", "notify_movie_via", "notify_episode_when", "family_kids"):
             setattr(s, field, json.dumps(sorted(set(value))))
         elif field == "nav_order":
             s.nav_order = json.dumps(list(dict.fromkeys(value)))  # sans doublons
@@ -168,20 +168,28 @@ async def stats_import(ctx: Ctx = Depends(get_ctx)):
 @router.get("/stats")
 async def stats(ctx: Ctx = Depends(get_ctx)):
     swipes = dict(ctx.db.execute(select(SwipeHistory.action, func.count()).group_by(SwipeHistory.action)).all())
-    out: dict = {"swipe": swipes, "trakt": None, "plex": None, "letterboxd": None}
+    out: dict = {"swipe": swipes, "watched": None, "plex": None, "letterboxd": None}
 
-    async def trakt_stats():
-        if not ctx.trakt:
-            return
-        st = await ctx.trakt.stats()
-        minutes = (st.get("movies", {}).get("minutes") or 0) + (st.get("episodes", {}).get("minutes") or 0)
-        out["trakt"] = {
-            "movies_watched": st.get("movies", {}).get("watched", 0),
-            "shows_watched": st.get("shows", {}).get("watched", 0),
-            "episodes_watched": st.get("episodes", {}).get("watched", 0),
-            "hours": round(minutes / 60),
-            "ratings": st.get("ratings", {}).get("total", 0),
-        }
+    def watched_totals():
+        """Films vus, séries suivies, épisodes et heures, d'après tout ce que SynCiné garde (historique de toutes les
+        sources : Trakt, Plex, Jellyfin, Letterboxd, et titres marqués vus) : les mêmes chiffres que la page Statistiques."""
+        from app.models import MediaState, WatchEvent
+
+        movies, shows, episodes, minutes = set(), set(), set(), 0
+        for kind, tid, title, show, season, episode, runtime in ctx.db.execute(
+            select(WatchEvent.kind, WatchEvent.tmdb_id, WatchEvent.title, WatchEvent.show_title, WatchEvent.season, WatchEvent.episode,
+                   WatchEvent.runtime_min)
+        ).all():
+            minutes += runtime or 0
+            if kind == "movie":
+                movies.add(tid or title)
+            else:
+                shows.add(tid or show)
+                episodes.add((tid or show, season, episode))
+        for mt, tid in ctx.db.execute(select(MediaState.media_type, MediaState.tmdb_id).where(MediaState.watched_sources != "[]")).all():
+            (movies if mt == "movie" else shows).add(tid)
+        out["watched"] = {"movies_watched": len(movies), "shows_watched": len(shows), "episodes_watched": len(episodes),
+                          "hours": round(minutes / 60)}
 
     async def plex_stats():
         # Bibliothèque du serveur multimédia (Plex, sinon Jellyfin / Emby) ; clé « plex » gardée pour l'interface
@@ -204,5 +212,6 @@ async def stats(ctx: Ctx = Depends(get_ctx)):
         except ServiceError:
             pass
 
-    await asyncio.gather(safe(trakt_stats()), safe(plex_stats()), safe(lb_stats()))
+    watched_totals()
+    await asyncio.gather(safe(plex_stats()), safe(lb_stats()))
     return out

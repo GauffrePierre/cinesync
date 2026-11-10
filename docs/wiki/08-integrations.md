@@ -113,3 +113,8 @@ One client for both servers (same API; Emby differs only in a few paths and in t
 - [Sync engine](07-sync-engine.md)
 - [Accounts and security](06-accounts-and-security.md)
 - [README data sources](../../README.en.md#data-sources)
+
+## TVmaze — `tvmaze.py`
+
+Public API without a key (https://api.tvmaze.com), used for one thing: the exact time of a series' next episode, which TMDB doesn't have (TMDB only gives a date). `GET /api/media/tv/{id}/airing` looks the show up by IMDb id (then TheTVDB id), cached 7 days, and reads its next episode (`/shows/{id}?embed=nextepisode`, cached 3 hours); the `airstamp` is UTC and the browser shows it in the device's time zone. TVmaze's episode replaces TMDB's when they are in the same season (TMDB's is sometimes the one that aired earlier that day); with a different numbering scheme (seasons by year), the time is used only when the date is the same. Failures return nothing and the TMDB date stays. Data is CC BY-SA: the interface credits TVmaze next to the time. Rate limit: 20 requests per 10 seconds per address, well above what the caches let through.
+

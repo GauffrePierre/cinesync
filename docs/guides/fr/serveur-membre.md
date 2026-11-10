@@ -43,7 +43,7 @@ Dans **Profil** :
 4. **Connexions → +** : relie **ton** compte Trakt (**Se connecter avec Trakt**, code sur trakt.tv/activate) et/ou ton Letterboxd, si tu en as.
 5. **Synchronisation** : **Synchroniser maintenant** rassemble ta watchlist, tes vus et tes notes.
 6. **Notifications** : choisis ce que tu veux voir sous la cloche.
-7. **Préférences → Partage avec l'administrateur** (facultatif) : l'administrateur voit les titres de ta watchlist que tu ne peux regarder nulle part, pour savoir quoi ajouter à la bibliothèque. Rien d'autre n'est partagé, et tu peux l'arrêter à tout moment.
+7. **Préférences → Partage** (facultatif) : l'administrateur voit les titres de ta watchlist que tu ne peux regarder nulle part, pour savoir quoi ajouter à la bibliothèque. Rien d'autre n'est partagé, et tu peux l'arrêter à tout moment.
 8. **Mon compte → Double authentification** (conseillé) : scanne le QR code avec une application d'authentification (Aegis, Google Authenticator, Bitwarden…) et garde les codes de secours. Téléphone perdu ? Utilise un code de secours, ou demande à l'administrateur de la réinitialiser.
 
 ### Demander un film ou une série (comptes Plex, Jellyfin ou Emby)

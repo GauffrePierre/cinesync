@@ -11,6 +11,8 @@ All data lives in one SQLite file, `cinesync.db`, in the data folder. The models
 | `UserSettings` (`user_settings.py`) | `user_settings` | no | One row per account, `id` = account id. Service keys and tokens, region, platforms, cinemas, notifications, theme, UI language, news sources |
 | `MediaState` (`media_state.py`) | `media_state` | yes | Merged personal state of a title: watchlist/watched sources, rating, like/dislike, dates, cached providers |
 | `SwipeHistory` (`swipe_history.py`) | `swipe_history` | yes | Swipe decisions (`skip`, `seen`, `watchlist`, `like`), so a title is never proposed twice |
+| `SuggestionShown` (`suggestion_shown.py`) | `suggestion_shown` | yes | Suggestions shown in Discover: `count` (at most once per 12 h) and `last_shown`; titles shown often without reaction step back |
+| `SuggestionFeedback` (`suggestion_feedback.py`) | `suggestion_feedback` | yes | "More like this" (+1) / "Less like this" (-1) on a suggestion: positive or negative seed, title no longer suggested |
 | `WatchEvent` (`watch_event.py`) | `watch_events` | yes | One dated viewing (movie or episode) from Plex, Trakt or Letterboxd, for statistics |
 | `Notification` (`notification.py`) | `notifications` | yes | Bell alerts; `kind` is `availability`, `episode`, `service` or `request` |
 | `MediaRequest` (`media_request.py`) | `media_requests` | yes | Add requests: `pending`, `sent`, `declined`, `available` |

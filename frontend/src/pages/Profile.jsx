@@ -24,6 +24,7 @@ import Tabs from '../components/ui/Tabs'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
 import { SERVER_LABELS } from '../components/ui/PlatformBadge'
+import { KID_LABELS } from '../lib/kids'
 import { useCountries, useSettings, useStats, useStatus, useUpdateSettings } from '../hooks/useMedia'
 import { useSettingsStore } from '../store/settingsStore'
 import { swipe } from '../services/swipe'
@@ -488,7 +489,7 @@ export default function Profile() {
     if (k === 'seerr' && status?.media?.configured && !both) return t("Demandes d'ajout à {server}", { server: SERVER_LABELS[status.media.server] || 'Plex' })
     return t(SERVICE_META[k].hint)
   }
-  const tr = stats?.trakt
+  const tr = stats?.watched // d'après tout l'historique gardé par SynCiné (toutes sources)
   const p = stats?.plex
   const noTmdb = !status?.tmdb?.configured
 
@@ -814,7 +815,8 @@ export default function Profile() {
           </Section>
 
           {!personal && (
-            <Section title={t('Partage avec l’administrateur')} keywords="partage share watchlist administrateur admin confidentialité privacy">
+            <Section title={t('Partage')} keywords="partage share watchlist administrateur admin confidentialité privacy famille family goûts taste à deux">
+              <div className="space-y-2">
               <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line bg-bg2 px-4 py-3">
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{t('Montrer ma watchlist à l’administrateur')}</span>
@@ -829,8 +831,46 @@ export default function Profile() {
                   className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
                 />
               </label>
+              <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line bg-bg2 px-4 py-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{t('Partager mes goûts avec la famille')}</span>
+                  <span className="mt-0.5 block text-xs text-text2">
+                    {t('Tes coups de cœur et tes bonnes notes servent aux suggestions « La famille a aimé » et « À deux » des membres qui partagent aussi les leurs. Rien d’autre n’est visible.')}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!!settings.share_taste}
+                  onChange={(e) => update.mutate({ share_taste: e.target.checked })}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
+                />
+              </label>
+              </div>
             </Section>
           )}
+
+          <Section
+            title={t('Enfants du foyer')}
+            keywords="enfants kids famille family âge age petits ados soirée"
+            description={t('Leurs tranches d’âge : « Avec les enfants » dans Pour ce soir ne garde que ce qui convient au plus jeune, en titres familiaux.')}
+          >
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(KID_LABELS).map(([key, label]) => {
+                const on = (settings.family_kids || []).includes(key)
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => update.mutate({ family_kids: on ? settings.family_kids.filter((k) => k !== key) : [...(settings.family_kids || []), key] })}
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${on ? 'border-accent bg-accent/15 text-accent2' : 'border-line text-text2 hover:text-text'}`}
+                  >
+                    {t(label)}
+                  </button>
+                )
+              })}
+            </div>
+          </Section>
 
           <Section title={t('Apparence')} keywords="apparence appearance thème theme sombre dark clair light assistant démarrage setup app plex netflix">
             <Tabs

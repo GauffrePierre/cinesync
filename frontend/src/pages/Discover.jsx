@@ -1,6 +1,11 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { ArrowRight, Heart, Layers, X } from 'lucide-react'
 import HeroCarousel from '../components/media/HeroCarousel'
+import SuggestionFeedback from '../components/media/SuggestionFeedback'
+import { reasonText } from '../lib/reasons'
+import { api } from '../services/api'
 import MediaRow from '../components/media/MediaRow'
 import PlatformFilter, { useMediaFilters } from '../components/media/PlatformFilter'
 import Tabs, { MEDIA_OPTIONS } from '../components/ui/Tabs'
@@ -55,7 +60,32 @@ export default function Discover() {
   const t = useT()
 
   const trending = useTrending(mediaFilter)
-  const suggestions = useSuggestions(mediaFilter)
+  // « Seulement ce que je peux regarder » : facultatif (désactivé par défaut, pour continuer à découvrir), retenu sur l'appareil
+  const [availableOnly, setAvailableOnly] = useState(() => {
+    try {
+      return localStorage.getItem('syncine.suggestionsAvailable') === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleAvailable = (on) => {
+    setAvailableOnly(on)
+    try {
+      localStorage.setItem('syncine.suggestionsAvailable', on ? '1' : '0')
+    } catch {
+      /* stockage indisponible : le choix vaut pour cette visite */
+    }
+  }
+  const suggestions = useSuggestions(mediaFilter, availableOnly)
+  // Membres qui partagent leurs goûts (comme toi) : leurs coups de cœur
+  const [familyOnly, setFamilyOnly] = useState([]) // membres choisis (aucun : tous ceux qui partagent)
+  const partners = useQuery({ queryKey: ['family-partners'], queryFn: () => api.get('/media/family/partners'), staleTime: 5 * 60_000 })
+  const family = useQuery({
+    queryKey: ['family', mediaFilter, familyOnly.join(',')],
+    queryFn: () => api.get(`/media/family?media_type=${mediaFilter}${familyOnly.length ? `&members=${familyOnly.join(',')}` : ''}`),
+    staleTime: 15 * 60_000,
+    enabled: partners.data?.results?.length > 0,
+  })
   const jwOn = !!settings?.justwatch_enabled
   const recentDays = settings?.recent_days ?? 0
   const releases = useWatchlistReleases(recentDays > 0)
@@ -111,9 +141,46 @@ export default function Discover() {
 
       <MediaRow
         title={t('Suggestions pour toi')}
-        subtitle={status?.trakt?.connected ? t('D’après ton historique Trakt et tes coups de cœur') : t('D’après tes coups de cœur — connecte Trakt pour affiner')}
-        items={filter(suggestions.data?.results)}
+        subtitle={t('D’après tes notes, tes coups de cœur et ce que tu as regardé')}
+        // Raison en entier sous l'affiche (au-dessus de « plus / moins comme ça ») plutôt que tronquée dans la ligne du titre
+        items={filter(suggestions.data?.results)?.map((i) => ({ ...i, why: reasonText(i, t), reason: undefined }))}
         loading={suggestions.isLoading}
+        empty={availableOnly ? t('Rien de disponible pour l’instant parmi tes suggestions') : undefined}
+        renderFooter={(item) => <SuggestionFeedback item={item} />}
+        action={
+          <label className="mr-1 flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-text2">
+            <input type="checkbox" checked={availableOnly} onChange={(e) => toggleAvailable(e.target.checked)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
+            {t('Seulement ce que je peux regarder')}
+          </label>
+        }
+      />
+
+      <MediaRow
+        title={t('La famille a aimé')}
+        subtitle={t('Les coups de cœur des membres qui partagent leurs goûts, pas encore vus par toi')}
+        items={filter(family.data?.results)?.map((i) => ({ ...i, why: reasonText(i, t), reason: undefined }))}
+        renderFooter={(i) => i.why && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-accent2">{i.why}</p>}
+        empty={familyOnly.length ? t('Rien de nouveau de leur côté pour l’instant') : undefined}
+        action={
+          partners.data?.results?.length > 1 && (
+            <div className="mr-1 flex gap-1">
+              {partners.data.results.map((p) => {
+                const on = familyOnly.includes(p.id)
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setFamilyOnly((m) => (on ? m.filter((x) => x !== p.id) : [...m, p.id]))}
+                    className={`rounded-full border px-2.5 py-1 text-xs transition ${on ? 'border-accent bg-accent/15 text-accent2' : 'border-line text-text2 hover:text-text'}`}
+                  >
+                    {p.name}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        }
       />
 
       {jwNew.data?.results?.length > 0 && (

@@ -44,8 +44,9 @@ export const useHighlights = () => useQuery({ queryKey: ['highlights'], queryFn:
 export const useWatchlistReleases = (enabled) =>
   useQuery({ queryKey: ['library-keys', 'releases'], queryFn: media.watchlistReleases, staleTime: 15 * 60_000, enabled })
 
-export const useSuggestions = (mediaType = 'all') =>
-  useQuery({ queryKey: ['suggestions', mediaType], queryFn: () => media.suggestions(mediaType), staleTime: 15 * 60_000 })
+// available : seulement ce que l'utilisateur peut regarder (sinon une part de découverte reste dans la liste)
+export const useSuggestions = (mediaType = 'all', available = false) =>
+  useQuery({ queryKey: ['suggestions', mediaType, available], queryFn: () => media.suggestions(mediaType, 20, available), staleTime: 15 * 60_000 })
 
 export const useUpcoming = (mediaType = 'all', kind = 'all', enabled = true) =>
   useInfiniteQuery({

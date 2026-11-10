@@ -33,17 +33,32 @@ const VIA = {
   },
 }
 
-function Via({ field, options, settings, update, server }) {
+// Quels épisodes signaler (nouveaux épisodes) : « chaque épisode » exclut les autres choix, qui peuvent se combiner
+const WHEN = {
+  field: 'notify_episode_when',
+  title: 'Quels épisodes',
+  exclusive: 'each',
+  options: [
+    { value: 'each', label: 'Chaque épisode', hint: 'Une notification à chaque nouvel épisode' },
+    { value: 'first', label: 'Le premier de la saison', hint: 'Le début d’une nouvelle saison' },
+    { value: 'last', label: 'Le dernier de la saison', hint: 'Le dernier épisode d’une saison' },
+    { value: 'season', label: 'La saison complète', hint: 'Une seule notification, quand tous les épisodes de la saison sont sortis' },
+  ],
+}
+
+function Via({ field, options, settings, update, server, title = 'Me prévenir', exclusive }) {
   const t = useT()
   const current = settings?.[field] || []
   const toggle = (value, on) => {
-    const next = on ? [...new Set([...current, value])] : current.filter((v) => v !== value)
+    let next = on ? [...new Set([...current, value])] : current.filter((v) => v !== value)
+    // Choix exclusif (« chaque épisode ») : le cocher retire les autres, en cocher un autre le retire
+    if (on && exclusive) next = value === exclusive ? [exclusive] : next.filter((v) => v !== exclusive)
     if (next.length) update.mutate({ [field]: next })
     else toast(t('Garde au moins un choix'), 'info')
   }
   return (
     <div className="space-y-1 border-t border-line px-3 py-2 pl-11">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-text3">{t('Me prévenir')}</p>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-text3">{t(title)}</p>
       {options.map((o) => (
         <label key={o.value} className="flex cursor-pointer items-start gap-2.5 py-1">
           <input
@@ -105,6 +120,9 @@ export default function NotificationSettings({ settings }) {
           </label>
           {VIA[key] && (settings?.[key] ?? true) && (
             <Via field={VIA[key].field} options={VIA[key].options.filter((o) => !o.server || server)} settings={settings} update={update} server={server} />
+          )}
+          {key === 'notify_new_episodes' && (settings?.[key] ?? true) && (
+            <Via field={WHEN.field} options={WHEN.options} settings={settings} update={update} title={WHEN.title} exclusive={WHEN.exclusive} />
           )}
         </div>
       ))}

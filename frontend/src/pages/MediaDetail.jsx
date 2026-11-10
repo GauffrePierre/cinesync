@@ -165,7 +165,7 @@ export default function MediaDetail({ mediaType }) {
   const liked = live.loaded ? live.liked : st.liked
   const disliked = live.loaded ? live.disliked : st.disliked
   const ratingTen = live.loaded ? live.rating : st.rating
-  const userStars = ratingTen ? Math.round(ratingTen / 2) : 0
+  const userStars = ratingTen ? ratingTen / 2 : 0 // demi-étoiles : 9/10 = 4,5
   const ratingSub = [watchedNow ? t('Vu') : t('Pas encore vu'), st.rating_source && { trakt: 'Trakt', plex: 'Plex', letterboxd: 'Letterboxd', local: 'SynCiné' }[st.rating_source]]
     .filter(Boolean)
     .join(' · ')
@@ -242,7 +242,7 @@ export default function MediaDetail({ mediaType }) {
             {sc.imdb != null && <RatingPill label={t('Public · IMDb')} value={sc.imdb.toFixed(1)} sub={t('sur 10')} color="#f5c518" />}
             <RatingPill label={t('Public · TMDB')} value={d.vote_average ? d.vote_average.toFixed(1) : '–'} sub={d.vote_count ? t('{n} votes', { n: fmtNumber(d.vote_count) }) : null} color="#01b4e4" />
             {trakt.rating != null && <RatingPill label={t('Public · Trakt')} value={trakt.rating ? `${Math.round(trakt.rating * 10)} %` : '–'} sub={trakt.votes ? t('{n} votes', { n: fmtNumber(trakt.votes) }) : null} color="var(--trakt)" />}
-            <RatingPill label={t('Ta note')} value={userStars ? `${userStars}/5` : '–'} sub={ratingSub} color="var(--accent2)" />
+            <RatingPill label={t('Ta note')} value={userStars ? `${fmtNumber(userStars)}/5` : '–'} sub={ratingSub} color="var(--accent2)" />
             {upcoming.map((u) => (
               <div key={u.key} className="flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
                 <u.icon className="h-4 w-4 text-accent2" />
@@ -295,7 +295,7 @@ export default function MediaDetail({ mediaType }) {
           {watchedNow ? t('Déjà vu') : t('Marquer vu')}
         </Button>
         <Button icon={Star} onClick={() => setRateOpen(true)} className={userStars ? '!text-amber-400' : ''}>
-          {userStars ? t('Noté {n}/5', { n: userStars }) : t('Noter')}
+          {userStars ? t('Noté {n}/5', { n: fmtNumber(userStars) }) : t('Noter')}
         </Button>
         <Button
           onClick={() => (liked ? unlike : like).mutate(ref)}

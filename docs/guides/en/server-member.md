@@ -43,7 +43,7 @@ In **Profile**:
 4. **Connections → +**: link **your** Trakt account (**Sign in with Trakt**, code at trakt.tv/activate) and/or your Letterboxd, if you have them.
 5. **Sync**: **Sync now** gathers your watchlist, watched titles and ratings.
 6. **Notifications**: choose what shows under the bell.
-7. **Preferences → Sharing with the administrator** (optional): the administrator sees the titles in your watchlist that you can't watch anywhere, to know what to add to the library. Nothing else is shared, and you can stop at any time.
+7. **Preferences → Sharing** (optional): the administrator sees the titles in your watchlist that you can't watch anywhere, to know what to add to the library. Nothing else is shared, and you can stop at any time.
 8. **My account → Two-factor authentication** (recommended): scan the QR code with an authenticator app (Aegis, Google Authenticator, Bitwarden…) and keep the recovery codes. Lost phone? Use a recovery code, or ask the administrator to reset it.
 
 ### Request a film or series (Plex, Jellyfin or Emby accounts)

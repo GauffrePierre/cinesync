@@ -54,7 +54,10 @@ All are mounted under `/api` in `main.py`.
 | `library_sync.py` | Pull, actions and two-way sync ([Sync engine](07-sync-engine.md)) |
 | `history.py` | Watch history import and statistics |
 | `enrich.py` | Adds streaming providers and Plex presence to lists |
-| `suggestions.py` | Suggestions from swipes, Trakt and TMDB recommendations |
+| `family.py` | Family suggestions between accounts that share their tastes (`share_taste`, both sides): "The family loved" (loved titles of sharing members weighted by taste similarity) and Tonight with chosen members (common watchlists, then recommendations from every account's seeds, titles that suit everyone first, nothing seen or rejected by anyone). Tonight's `kids` option applies the age range of the household's children (`family_kids`, Preferences) |
+| `habits.py` | Viewing habits for Tonight: per weekday, mostly episodes or films (one year of history, local time from the browser offset); series started and nearly finished (at most 8 aired episodes left) |
+| `taste.py` | Taste profile from loved / badly rated titles (genres, keywords, directors and creators, recurring actors, languages, decades; TMDB raw pages cached 6 h), affinity multiplier (0.5–1.8) and reason ("Directed by …") for suggestions; profile cached 6 h, prepared by the `warm_releases` job |
+| `suggestions.py` | Suggestions: seeds from every local signal (favourites, ratings from all sources, swipes, watchlist, viewing history; weighted by rating and age, part rotating daily; badly rated titles as negative seeds), TMDB and Trakt recommendations, variety (3 per seed, one per saga, films/series mixed), quality floor, titles shown often without reaction stepping back (`SuggestionShown`), "more / less like this" feedback (`SuggestionFeedback`) as seeds, taste-profile affinity (`taste.py`), available titles boosted while keeping 30 % discovery |
 | `health.py` | Connection tests, service health, outage notifications |
 | `safe_fetch.py` | SSRF-safe fetching of user-supplied URLs |
 | `secret.py` | Server secret (`data/secret.key`) |

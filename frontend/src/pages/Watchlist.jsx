@@ -18,7 +18,7 @@ import { toast, useUiStore } from '../store/uiStore'
 import { detailPath, mediaLabel, relativeTime } from '../lib/format'
 import { sortProviders } from '../lib/platforms'
 import { SORT_OPTIONS } from '../lib/sorts'
-import { useT } from '../i18n'
+import { fmtNumber, useT } from '../i18n'
 
 const SOURCE_STYLE = {
   trakt: 'bg-trakt/15 text-trakt',
@@ -72,7 +72,7 @@ function Row({ item, active, onRate }) {
           {item.liked && <Heart className="h-4 w-4 shrink-0 fill-pink-500 text-pink-500" aria-label={t('Coup de cœur')} />}
         </div>
         <p className="text-xs text-text2">
-          {[item.year, mediaLabel(item.media_type), item.watched && t('Vu'), item.rating && `${Math.round(item.rating / 2)}/5`].filter(Boolean).join(' · ')}
+          {[item.year, mediaLabel(item.media_type), item.watched && t('Vu'), item.rating && `${fmtNumber(item.rating / 2)}/5`].filter(Boolean).join(' · ')}
         </p>
         <div className="mt-1">
           <SourceChips sources={item.watchlist_sources} />
@@ -95,7 +95,7 @@ function Row({ item, active, onRate }) {
             <Check className="h-3.5 w-3.5" /> {item.watched ? t('Vu') : t('Marquer vu')}
           </button>
           <button onClick={() => onRate(item)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-text2 hover:bg-bg3 hover:text-text">
-            <Star className={`h-3.5 w-3.5 ${item.rating ? 'fill-amber-400 text-amber-400' : ''}`} /> {item.rating ? `${Math.round(item.rating / 2)}/5` : t('Noter')}
+            <Star className={`h-3.5 w-3.5 ${item.rating ? 'fill-amber-400 text-amber-400' : ''}`} /> {item.rating ? `${fmtNumber(item.rating / 2)}/5` : t('Noter')}
           </button>
           <button
             onClick={() => remove.mutate(ref)}
@@ -227,7 +227,7 @@ export default function Watchlist() {
         <div className="flex flex-col items-center gap-4 py-2">
           <StarRating
             size="lg"
-            value={rating?.rating ? Math.round(rating.rating / 2) : 0}
+            value={rating?.rating ? rating.rating / 2 : 0}
             onChange={(stars) => {
               rate.mutate({ mediaType: rating.media_type, id: rating.id, title: rating.title, stars })
               setRating(null)

@@ -19,7 +19,8 @@ const SERVICES = {
   cinema: { label: 'Cinéma', color: '#f59e0b' },
 }
 
-// Pastille d'un service utilisé : couleur du service si OK, rouge clignotant si en panne
+// Pastille d'un service utilisé : même code pour tous — vert s'il répond, gris pendant la vérification,
+// rouge clignotant s'il est en panne
 function ServiceDot({ id, health }) {
   const t = useT()
   const s = SERVICES[id]
@@ -31,8 +32,9 @@ function ServiceDot({ id, health }) {
         <span className="relative flex h-2 w-2">
           {down && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />}
           <span
-            className={`relative inline-flex h-2 w-2 rounded-full ${down ? 'animate-pulse bg-red-500' : ''}`}
-            style={down ? undefined : { background: s.color, boxShadow: `0 0 8px ${s.color}`, opacity: health ? 1 : 0.5 }}
+            className={`relative inline-flex h-2 w-2 rounded-full ${
+              down ? 'animate-pulse bg-red-500' : health ? 'bg-emerald-500 shadow-[0_0_8px_rgb(16_185_129)]' : 'bg-text3'
+            }`}
           />
         </span>
         <span className={down ? 'animate-pulse font-medium' : ''}>{t(s.label)}</span>

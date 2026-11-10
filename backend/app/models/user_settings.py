@@ -73,6 +73,8 @@ class UserSettings(Base):
     # nouvel épisode -> "air" (dès la diffusion), "platforms" (sur mes plateformes), "plex" (ajouté sur Plex) ;
     # titre de la watchlist -> "platforms" (arrivé sur mes plateformes), "plex" (ajouté sur Plex)
     notify_episode_via: Mapped[str] = mapped_column(Text, default='["air"]')
+    # Quels épisodes : each (chacun), first (premier de la saison), last (dernier), season (saison complète)
+    notify_episode_when: Mapped[str] = mapped_column(Text, default='["each"]')
     notify_movie_via: Mapped[str] = mapped_column(Text, default='["platforms"]')
 
     # Synchronisation automatique des watchlists / vus / notes entre services
@@ -84,6 +86,10 @@ class UserSettings(Base):
     hide_seen: Mapped[bool] = mapped_column(Boolean, default=False)
     # Watchlist visible par les administrateurs (Profil → Admin → Demandes → Watchlists) : choix du compte, désactivé par défaut
     share_watchlist: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Goûts (coups de cœur, bonnes notes) utilisés par « La famille a aimé » et « À deux » des membres qui partagent aussi
+    share_taste: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Enfants du foyer : tranches d'âge (petits 3-6 ans, enfants 7-10, ados 11-14), pour « Pour ce soir » avec les enfants
+    family_kids: Mapped[str] = mapped_column(Text, default="[]")
     # Ordre des onglets du menu (version ordinateur) : liste JSON de clés, vide = ordre par défaut
     nav_order: Mapped[str] = mapped_column(Text, default="")
     # Assistant de premier démarrage : "pending" pour un nouveau compte (les comptes existants : "done")
@@ -132,6 +138,14 @@ class UserSettings(Base):
     @property
     def episode_via(self) -> list[str]:
         return self._via(self.notify_episode_via, ["air"])
+
+    @property
+    def kids(self) -> list[str]:
+        return [k for k in self._via(self.family_kids, []) if k in ("petits", "enfants", "ados")]
+
+    @property
+    def episode_when(self) -> list[str]:
+        return self._via(self.notify_episode_when, ["each"])
 
     @property
     def movie_via(self) -> list[str]:

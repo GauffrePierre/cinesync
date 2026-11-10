@@ -7,6 +7,7 @@ import { useSettings } from '../../hooks/useMedia'
 import { sortProviders } from '../../lib/platforms'
 import { detailPath, formatShortDate, mediaLabel } from '../../lib/format'
 import { useT } from '../../i18n'
+import { reasonText } from '../../lib/reasons'
 
 /**
  * Poster + badges plateformes flottants + titre + méta.
@@ -74,7 +75,7 @@ export default function MediaCard({ item, fluid = false, meta = 'default', foote
               {item.trend === 'UP' ? '▲' : item.trend === 'DOWN' ? '▼' : '='}
             </span>
           )}
-          {[item.year, mediaLabel(item.media_type), item.reason && t(item.reason)].filter(Boolean).join(' · ')}
+          {[item.year, mediaLabel(item.media_type), reasonText(item, t)].filter(Boolean).join(' · ')}
         </p>
         {footer}
       </div>

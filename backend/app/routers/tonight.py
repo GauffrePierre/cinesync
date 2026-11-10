@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from app.models import MediaState
+from app.services.clock import utcnow
 from app.services.context import Ctx, get_ctx
 from app.services.enrich import enrich, plex_keys, refs_to_items
 from app.services.errors import ServiceError
@@ -148,8 +149,26 @@ async def tonight(
     mood: str | None = None,
     sort: Literal["relevance", "release", "title", "year", "rating", "critics", "audience", "added"] = "relevance",
     seen: Literal["unseen", "seen", "all"] = "unseen",
+    tz_offset_min: int = Query(0, ge=-840, le=840),  # fuseau de l'appareil (jour de la semaine local)
+    with_user: int | None = None,  # (ancien paramètre) soirée « à deux » avec un membre
+    with_users: str | None = Query(None, max_length=200),  # soirée avec des membres qui partagent leurs goûts (ids, virgules)
+    kids: bool = False,  # avec les enfants du foyer (Préférences) : âge du plus jeune et titres familiaux
     ctx: Ctx = Depends(get_ctx),
 ):
+    from fastapi import HTTPException
+
+    from app.services import family
+    from app.services.habits import evening_habit, nearly_finished
+
+    wanted = {int(x) for x in (with_users or "").split(",") if x.strip().isdigit()} | ({with_user} if with_user is not None else set())
+    group = [family.partner(ctx, uid) for uid in sorted(wanted)]
+    if any(u is None for u in group):
+        raise HTTPException(404, "Ce membre ne partage pas ses goûts (ou toi non plus)")
+    duo = bool(group)  # soirée à plusieurs
+    # Âge et genres : envie « Petits / Enfants / Ados », ou enfants du foyer — la règle la plus stricte
+    rules = [AGE_MOODS[mood]] if mood in AGE_MOODS else []
+    rules += [AGE_MOODS[k] for k in ctx.settings.kids] if kids else []
+    age_rule = (min(r[0] for r in rules), any(r[1] for r in rules)) if rules else None
     platforms = set(ctx.platforms)
     index = await plex_keys(ctx)
     states = {(r.media_type, r.tmdb_id): r for r in ctx.db.execute(select(MediaState)).scalars()}
@@ -185,15 +204,24 @@ async def tonight(
         refs = [{"tmdb_id": r.tmdb_id, "media_type": r.media_type, "title": r.title} for r in rows[:120]]
         return await enrich(ctx, await refs_to_items(ctx, refs))
 
+    async def finish_items():
+        """Séries commencées presque finies (peu d'épisodes sortis restant à voir)."""
+        if seen != "unseen" or ctx.tmdb.is_mock:
+            return []
+        shows = await nearly_finished(ctx)
+        remaining = {s["tmdb_id"]: s["remaining"] for s in shows}
+        items = await refs_to_items(ctx, [{"tmdb_id": s["tmdb_id"], "media_type": "tv"} for s in shows])
+        return [i | {"remaining": remaining.get(i["id"])} for i in await enrich(ctx, items)]
+
     async def for_you():
         try:
-            return await suggestions(ctx, media_type, 40)
+            return await suggestions(ctx, media_type, 40, discovery=False)  # ce soir : ce qui est disponible d'abord
         except ServiceError:
             return []
 
     async def themed():
         """Envies de saison ou pour enfants : des titres de ce thème disponibles sur tes plateformes (TMDB)."""
-        if (mood not in KEYWORD_MOODS and mood not in AGE_MOODS) or not platforms or ctx.tmdb.is_mock:
+        if (mood not in KEYWORD_MOODS and not age_rule) or not platforms or ctx.tmdb.is_mock:
             return []
         filters = {"watch_region": ctx.country, "with_watch_providers": "|".join(str(p) for p in platforms),
                    "with_watch_monetization_types": "flatrate|free|ads", "sort_by": "popularity.desc"}
@@ -207,8 +235,19 @@ async def tonight(
         return await enrich(ctx, items)
 
     unseen = seen != "seen"
-    deck, wl, gems, sugg, again, theme = await asyncio.gather(
+    if duo:  # à plusieurs : vos watchlists en commun, puis des titres pour vous tous
+        members = [(u.id, u.name) for u in group]
+        both, pair, theme = await asyncio.gather(family.common_watchlist(ctx, [u.id for u in group]), family.together(ctx, members, media_type),
+                                                 themed() if unseen else asyncio.sleep(0, []))
+        # Titres du thème (enfants, Noël…) : ni vus ni écartés par les autres membres
+        unwanted = set().union(*(family.unwanted(ctx, u.id) for u in group))
+        theme = [i for i in theme if (i["media_type"], i["id"]) not in unwanted]
+        deck = finish = wl = gems = sugg = again = []
+    else:
+        both = pair = []
+    deck, finish, wl, gems, sugg, again, theme = (deck, finish, wl, gems, sugg, again, theme) if duo else await asyncio.gather(
         _on_deck(ctx, index),
+        finish_items(),
         watchlist_items() if unseen else asyncio.sleep(0, []),
         library_gems() if unseen else asyncio.sleep(0, []),
         for_you() if unseen else asyncio.sleep(0, []),
@@ -234,9 +273,9 @@ async def tonight(
             if special and not special(i):
                 continue
             out.append(i)
-        if mood in AGE_MOODS and out and hasattr(ctx.tmdb, "min_age"):
-            max_age, family = AGE_MOODS[mood]
-            if family:
+        if age_rule and out and hasattr(ctx.tmdb, "min_age"):
+            max_age, family_only = age_rule
+            if family_only:
                 out = [i for i in out if set(i.get("genre_ids") or []) & FAMILY_GENRES]
             out = out[:80]
             ages = await asyncio.gather(*(ctx.tmdb.min_age(i["media_type"], i["id"]) for i in out))
@@ -253,7 +292,10 @@ async def tonight(
         return out
 
     sections = {
+        "together_watchlist": await keep(both),
+        "together": await keep(pair),
         "resume": await keep(deck, check_watched=False),
+        "finish": await keep(finish, check_watched=False),
         "watchlist": await keep(wl),
         "suggestions": await keep(sugg),
         "library": await keep(gems),
@@ -269,11 +311,18 @@ async def tonight(
                     i.setdefault("audience_score", st.audience_score)
                     i["added"] = st.listed_at
             sections[name] = sort_items(sections[name], sort)
-    for name in ("watchlist", "suggestions", "library", "rewatch"):
+    # Habitude de ce jour de la semaine (plutôt des épisodes, ou plutôt des films) : ce type passe devant
+    weekday = (utcnow() + timedelta(minutes=tz_offset_min)).weekday()
+    habit = evening_habit(ctx, weekday, tz_offset_min) if media_type == "all" else None
+    if habit and sort == "relevance":
+        for name in ("watchlist", "suggestions", "library"):
+            order = {id(i): n - (4 if i["media_type"] == habit["prefer"] else 0) for n, i in enumerate(sections[name])}
+            sections[name].sort(key=lambda i: order[id(i)])
+    for name in ("together_watchlist", "together", "finish", "watchlist", "suggestions", "library", "rewatch"):
         sections[name] = sections[name][:20]
     # Un titre n'apparaît qu'une fois, dans la section la plus pertinente
     placed = set()
-    for name in ("resume", "watchlist", "suggestions", "library", "rewatch"):
+    for name in ("together_watchlist", "together", "resume", "finish", "watchlist", "suggestions", "library", "rewatch"):
         uniq = []
         for i in sections[name]:
             k = (i["media_type"], i["id"])
@@ -282,6 +331,8 @@ async def tonight(
                 uniq.append(i)
         sections[name] = uniq
 
-    pool = sections["watchlist"] + sections["suggestions"] + sections["library"] + sections["rewatch"]
-    pick = random.choice(pool) if pool else None
-    return {"sections": sections, "pick": pick, "moods": list(MOODS) + list(SPECIAL_MOODS) + list(AGE_MOODS) + list(KEYWORD_MOODS)}
+    pool = (sections["together_watchlist"] + sections["together"] + sections["finish"] + sections["watchlist"] + sections["suggestions"]
+            + sections["library"] + sections["rewatch"])
+    preferred = [i for i in pool if habit and i["media_type"] == habit["prefer"]]
+    pick = random.choice(preferred if preferred and random.random() < 0.7 else pool) if pool else None
+    return {"sections": sections, "pick": pick, "habit": habit and {**habit, "weekday": weekday}, "together_with": ", ".join(u.name for u in group) or None, "kids": bool(age_rule) and kids, "moods": list(MOODS) + list(SPECIAL_MOODS) + list(AGE_MOODS) + list(KEYWORD_MOODS)}

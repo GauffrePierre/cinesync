@@ -4,6 +4,36 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.4.0 - 2026-11-10
+
+**Recommendations**
+- Suggestions now use every signal you leave, whatever the service: ratings, favourites, watchlist, titles watched on
+  Trakt, Plex, Jellyfin, Emby or Letterboxd, swipe choices. Recent tastes weigh more; titles you rated low or dismissed
+  push similar ones down.
+- Taste profile: directors, series creators, actors and genres that keep appearing in your favourites bring their other
+  titles forward, with the reason shown ("Directed by …, whom you like").
+- "More like this / Less like this" buttons on every suggestion.
+- More variety: at most three suggestions from the same reference, one title per franchise, films and series mixed,
+  references that change every day; titles shown again and again without interest make way for others.
+- What you can watch on your services or in your library comes first, but at least a third of the list stays discovery;
+  poorly rated or obscure titles are left out. Discover gets an "Only what I can watch" filter.
+- Tonight learns your habits by day of the week (series or film first) and gets a "Finish up" row for series you have
+  almost completed.
+
+**Family (server edition)**
+- Members can share their tastes (Profile → Preferences → Sharing, both sides must agree): "The family loved" in
+  Discover, filterable by member, shows the favourites of relatives whose tastes are close to yours.
+- Tonight with chosen members: pick one or several people; SynCiné shows your common watchlists, then what everyone
+  will like and nobody has seen or rejected.
+- "With the kids" in Tonight: set the ages of the household's children in Preferences (3-6, 7-10, 11-14); only family
+  titles for the youngest child's age are kept, also in group evenings and themed moods.
+
+**Other changes**
+- Ratings by half star (4.5 stars).
+- New episode notifications: choose each episode, the first or last of the season, or the full season.
+- A running series shows its next episode with the day and time in your local time, and the service it comes out on.
+- Profile overview counts from SynCiné's own history (all sources); service status dots use the same colours everywhere.
+
 ## 1.3.6 - 2026-11-09
 
 - Unraid app store: SynCiné's page now shows six screenshots.

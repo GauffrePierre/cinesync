@@ -182,4 +182,9 @@ export default {
   'Pas de date': 'No date',
   'Sortie en streaming': 'Streaming release',
   'Pas encore annoncée': 'Not announced yet',
+  "Prochain épisode": "Next episode",
+  "(heure locale)": "(local time)",
+  "Sur": "On",
+  "Sur {channel} (pas dans tes plateformes)": "On {channel} (not one of your services)",
+  "Horaire : TVmaze": "Schedule: TVmaze",
 }

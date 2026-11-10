@@ -4,6 +4,7 @@ import asyncio
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.services.context import Ctx, get_ctx
@@ -49,10 +50,61 @@ def merge_availability(tmdb: dict, jw_offers: list[dict] | None) -> dict:
 async def get_suggestions(
     media_type: Literal["all", "movie", "tv"] = "all",
     limit: int = Query(20, ge=1, le=60),
+    available: bool = False,
     ctx: Ctx = Depends(get_ctx),
 ):
-    items = await suggestions(ctx, media_type, limit)
+    """Suggestions de Découvrir. available : seulement ce que tu peux regarder (sinon, une part de découverte reste)."""
+    from app.services.suggestions import record_shown
+
+    items = await suggestions(ctx, media_type, limit, available_only=available)
+    if not ctx.tmdb.is_mock:
+        record_shown(ctx, items)  # un titre souvent montré sans réaction descendra
     return {"results": items, "mock": ctx.tmdb.is_mock}
+
+
+@router.get("/family")
+async def family_row(media_type: Literal["all", "movie", "tv"] = "all", members: str | None = Query(None, max_length=200),
+                     ctx: Ctx = Depends(get_ctx)):
+    """« La famille a aimé » : titres aimés par les membres qui partagent leurs goûts (comme toi) ; members : ids des
+    membres à prendre en compte (par défaut, tous)."""
+    from app.services import family
+
+    only = [int(x) for x in (members or "").split(",") if x.strip().isdigit()]
+    return {"results": await family.family_loved(ctx, media_type, only=only or None)}
+
+
+@router.get("/family/partners")
+def family_partners(ctx: Ctx = Depends(get_ctx)):
+    """Membres avec qui préparer une soirée « à deux » (ceux qui partagent leurs goûts, si tu partages les tiens)."""
+    from app.services import family
+
+    return {"sharing": bool(ctx.settings.own.share_taste), "results": [{"id": u.id, "name": u.name} for u in family.partners(ctx)]}
+
+
+class FeedbackIn(BaseModel):
+    media_type: Literal["movie", "tv"]
+    tmdb_id: int = Field(gt=0)
+    title: str = Field("", max_length=300)
+    value: Literal[-1, 0, 1]  # plus comme ça, (retirer), moins comme ça
+
+
+@router.post("/suggestions/feedback")
+def suggestion_feedback(body: FeedbackIn, ctx: Ctx = Depends(get_ctx)):
+    """« Plus comme ça » / « Moins comme ça » sur une suggestion : référence positive ou négative pour les suivantes."""
+    from app.models import SuggestionFeedback
+
+    row = ctx.db.execute(
+        select(SuggestionFeedback).where(SuggestionFeedback.media_type == body.media_type, SuggestionFeedback.tmdb_id == body.tmdb_id)
+    ).scalar_one_or_none()
+    if body.value == 0:
+        if row:
+            ctx.db.delete(row)
+    elif row:
+        row.value, row.title = body.value, body.title or row.title
+    else:
+        ctx.db.add(SuggestionFeedback(media_type=body.media_type, tmdb_id=body.tmdb_id, title=body.title, value=body.value))
+    ctx.db.commit()
+    return {"ok": True}
 
 
 @router.get("/watchlist-releases")
@@ -171,6 +223,45 @@ async def highlights(ctx: Ctx = Depends(get_ctx)):
                 slides.append(sl)
     await enrich(ctx, [s["item"] for s in slides])
     return {"slides": slides, "mock": ctx.tmdb.is_mock}
+
+
+@router.get("/tv/{tmdb_id}/airing")
+async def tv_airing(tmdb_id: int, ctx: Ctx = Depends(get_ctx)):
+    """Prochaine diffusion d'une série en cours : épisode, date (TMDB), heure exacte en UTC (TVmaze, convertie à
+    l'heure locale par l'interface), plateformes de l'utilisateur où la série est disponible, sinon son diffuseur."""
+    from app.services import tvmaze
+
+    detail = await ctx.tmdb.detail("tv", tmdb_id)
+    nxt = detail.get("next_episode") or {}
+    tm = None if ctx.tmdb.is_mock else await tvmaze.next_episode(detail.get("imdb_id"), detail.get("tvdb_id"))
+    if not nxt and not tm:
+        return {"next": None}
+    season, episode = nxt.get("season_number"), nxt.get("episode_number")
+    air_date, name, airstamp = nxt.get("air_date"), nxt.get("name") or "", None
+    if tm:
+        tm_date = tm["airstamp"][:10]
+        if not nxt or tm["season"] == season:
+            # TMDB n'annonce rien, ou même saison : l'épisode de TVmaze, plus à jour (celui de TMDB est parfois déjà
+            # sorti dans la journée), avec son heure exacte. Titre TMDB (dans la langue choisie) pour le même épisode ;
+            # un titre générique de TVmaze (« Episode 11 ») n'est pas repris
+            same = tm["episode"] == episode
+            generic = not tm["name"] or tm["name"].lower().startswith("episode ")
+            name = name if same else ("" if generic else tm["name"])
+            season, episode, air_date, airstamp = tm["season"], tm["episode"], tm_date, tm["airstamp"]
+        elif air_date == tm_date:
+            airstamp = tm["airstamp"]  # numérotation différente (saisons par année…) : même jour, même épisode
+    try:
+        providers = stream_providers(await ctx.tmdb.providers("tv", tmdb_id))
+    except ServiceError:
+        providers = []
+    mine = set(ctx.platforms)
+    networks = [n["name"] for n in detail.get("networks") or []]
+    return {"next": {
+        "season": season, "episode": episode, "name": name, "air_date": air_date, "airstamp": airstamp,
+        "platforms": [p for p in providers if p["id"] in mine],  # plateformes choisies par l'utilisateur
+        "channel": ((tm or {}).get("channel") if airstamp else None) or (networks[0] if networks else None),
+        "source_url": (tm or {}).get("url") if airstamp else None,  # crédit TVmaze (CC BY-SA)
+    }}
 
 
 @router.get("/{media_type}/{tmdb_id}")

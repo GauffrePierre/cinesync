@@ -182,4 +182,9 @@ export default {
   'Pas de date': 'Nessuna data',
   'Sortie en streaming': 'Uscita in streaming',
   'Pas encore annoncée': 'Non ancora annunciata',
+  "Prochain épisode": "Prossimo episodio",
+  "(heure locale)": "(ora locale)",
+  "Sur": "Su",
+  "Sur {channel} (pas dans tes plateformes)": "Su {channel} (non tra le tue piattaforme)",
+  "Horaire : TVmaze": "Orari: TVmaze",
 }

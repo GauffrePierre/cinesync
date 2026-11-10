@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronDown, CheckCheck, Loader2, Play, RotateCcw } from 'lucide-react'
+import { CalendarClock, Check, ChevronDown, CheckCheck, Loader2, Play, RotateCcw } from 'lucide-react'
 import Poster from '../Poster'
 import Button from '../../ui/Button'
 import PlatformBadge, { PlexBadge } from '../../ui/PlatformBadge'
 import { api } from '../../../services/api'
 import { formatShortDate } from '../../../lib/format'
 import { toast } from '../../../store/uiStore'
-import { useT } from '../../../i18n'
+import { currentLocale, useT } from '../../../i18n'
 import WatchLink from '../../ui/WatchLink'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -203,6 +203,60 @@ function SeasonCard({ tmdbId, season, active, watchUrl }) {
   )
 }
 
+// Prochaine diffusion d'une série en cours : épisode, jour et heure à l'heure locale (heure exacte : TVmaze),
+// sur quelles plateformes choisies par l'utilisateur, sinon chez quel diffuseur
+function NextAiring({ tvId, fallback }) {
+  const t = useT()
+  const { data } = useQuery({ queryKey: ['airing', String(tvId)], queryFn: () => api.get(`/media/tv/${tvId}/airing`), staleTime: 30 * 60_000 })
+  const n = data?.next
+  if (!n) {
+    return fallback ? <p className="mb-3 text-xs text-text3">{fallback}</p> : null
+  }
+  const code = n.season != null && n.episode != null ? `S${pad(n.season)}E${pad(n.episode)}` : ''
+  // Heure exacte (UTC) convertie dans le fuseau de l'appareil ; sinon la date seule
+  const when = n.airstamp
+    ? new Intl.DateTimeFormat(currentLocale(), { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(n.airstamp))
+    : n.air_date
+      ? new Intl.DateTimeFormat(currentLocale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${n.air_date}T12:00:00Z`))
+      : null
+  return (
+    <div className="mb-4 flex gap-3 rounded-xl border border-line bg-bg2 px-3 py-2.5">
+      <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-accent2" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="font-medium">
+          {t('Prochain épisode')} {code && <span className="tabular-nums">· {code}</span>}
+          {n.name && <span className="font-normal text-text2"> · {n.name}</span>}
+        </p>
+        {when && (
+          <p className="text-text2">
+            <span className="inline-block first-letter:uppercase">{when}</span>
+            {n.airstamp && <span className="text-text3"> {t('(heure locale)')}</span>}
+          </p>
+        )}
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-text2">
+          {n.platforms.length > 0 ? (
+            <>
+              <span>{t('Sur')}</span>
+              {n.platforms.map((p) => (
+                <span key={p.id} className="inline-flex items-center gap-1">
+                  <PlatformBadge provider={p} size="xs" ring={false} /> {p.name}
+                </span>
+              ))}
+            </>
+          ) : (
+            n.channel && <span>{t('Sur {channel} (pas dans tes plateformes)', { channel: n.channel })}</span>
+          )}
+          {n.source_url && (
+            <a href={n.source_url} target="_blank" rel="noreferrer" className="ml-auto text-[11px] text-text3 hover:text-text2">
+              {t('Horaire : TVmaze')}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Saisons et épisodes : progression, disponibilités, lecture d'un épisode précis, mise à jour des vus
 export default function SeriesTracker({ data, active = [] }) {
   const t = useT()
@@ -273,12 +327,16 @@ export default function SeriesTracker({ data, active = [] }) {
           )}
         </div>
       )}
-      {data.next_episode && (
-        <p className="mb-3 text-xs text-text3">
-          {data.next_episode.air_date
-            ? t('Prochaine diffusion : {code} le {date}', { code: nextCode, date: formatShortDate(data.next_episode.air_date) })
-            : t('Prochaine diffusion : {code}', { code: nextCode })}
-        </p>
+      {(data.next_episode || data.in_production) && (
+        <NextAiring
+          tvId={data.id}
+          fallback={
+            data.next_episode &&
+            (data.next_episode.air_date
+              ? t('Prochaine diffusion : {code} le {date}', { code: nextCode, date: formatShortDate(data.next_episode.air_date) })
+              : t('Prochaine diffusion : {code}', { code: nextCode }))
+          }
+        />
       )}
 
       {isLoading ? (

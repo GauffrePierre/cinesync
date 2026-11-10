@@ -3,11 +3,13 @@
 import asyncio
 import logging
 import random
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from app.models import MediaState, SwipeHistory, WatchEvent
+from app.models import MediaState, SuggestionFeedback, SuggestionShown, SwipeHistory, WatchEvent
+from app.services.clock import utcnow
 from app.services.cache import MISS, cache
 from app.services.context import Ctx
 from app.services.enrich import enrich, refs_to_items
@@ -34,6 +36,7 @@ def swipe_keys(ctx: Ctx, actions: tuple[str, ...] | None = None) -> set[tuple[st
 async def excluded_keys(ctx: Ctx) -> set[tuple[str, int]]:
     """Titres à ne jamais proposer : déjà swipés, déjà vus ou déjà en watchlist (tous services)."""
     keys = swipe_keys(ctx)
+    keys |= {(mt, tid) for mt, tid in ctx.db.execute(select(SuggestionFeedback.media_type, SuggestionFeedback.tmdb_id)).all()}
     for r in ctx.db.execute(select(MediaState)).scalars():
         if r.in_watchlist or r.watched or r.disliked:
             keys.add((r.media_type, r.tmdb_id))
@@ -161,53 +164,253 @@ async def watchlist_releases(ctx: Ctx, days: int, cached_only: bool = False) -> 
     return found
 
 
-async def seeds(ctx: Ctx, media_types: list[str]) -> list[dict]:
-    """Titres « graines » : ce que tu as aimé récemment."""
-    rows = ctx.db.execute(
-        select(SwipeHistory)
-        .where(SwipeHistory.action.in_(("like", "watchlist")), SwipeHistory.media_type.in_(media_types))
-        .order_by(SwipeHistory.created_at.desc())
-        .limit(8)
-    ).scalars()
-    out = [{"media_type": r.media_type, "tmdb_id": r.tmdb_id, "title": r.title, "weight": 1.5 if r.action == "like" else 1.0} for r in rows]
-
-    if ctx.trakt:
-        ratings, history = await asyncio.gather(_safe(ctx.trakt.ratings(), []), _safe(ctx.trakt.history(20), []))
-        out += [{**r, "weight": 1.3} for r in ratings if (r.get("rating") or 0) >= 8 and r["media_type"] in media_types][:6]
-        out += [{**h, "weight": 0.8} for h in history if h["media_type"] in media_types][:6]
-
-    seen, uniq = set(), []
-    for s in out:
-        k = (s["media_type"], s["tmdb_id"])
-        if k not in seen:
-            seen.add(k)
-            uniq.append(s)
-    return uniq[:10]
+SEEDS_TOP, SEEDS_ROTATING = 6, 6  # références : les plus fortes, puis un tirage qui change chaque jour
+PER_SEED = 3  # suggestions au plus par référence (variété)
+MIN_DISCOVERY = 0.3  # part minimale de titres hors de tes plateformes et de ta bibliothèque, pour continuer à découvrir
+AVAILABLE_BOOST = 1.35  # ce que tu peux regarder remonte, sans écarter le reste
 
 
-async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_enrich: bool = True) -> list[dict]:
+def _age_days(when) -> float:
+    if not when:
+        return 365.0
+    if isinstance(when, str):
+        try:
+            when = datetime.fromisoformat(when.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            return 365.0
+    return max(0.0, (utcnow() - when).total_seconds() / 86400)
+
+
+def _decay(when) -> float:
+    """Poids d'un signal selon son ancienneté : moitié tous les 8 mois, jamais moins d'un tiers."""
+    return max(0.35, 0.5 ** (_age_days(when) / 240))
+
+
+def _of(model, user_id: int | None):
+    """Requête sur les données du compte courant, ou d'un autre compte (fonctions famille, avec son accord)."""
+    q = select(model)
+    return q.where(model.user_id == user_id).execution_options(all_users=True) if user_id is not None else q
+
+
+def signals(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tuple[list[dict], list[dict]]:
+    """Tout ce que SynCiné sait de tes goûts (aucune requête externe), du plus fort au plus faible : titres aimés et
+    titres rejetés. Sources : coups de cœur et notes (Trakt, Plex, Letterboxd, SynCiné), « plus / moins comme ça »,
+    mode swipe, watchlist, historique de visionnage (Plex, Jellyfin, Trakt, Letterboxd), pondérés par l'ancienneté."""
+    pos: dict[tuple[str, int], dict] = {}
+    neg: dict[tuple[str, int], dict] = {}
+
+    def add(table: dict, mt: str, tid: int | None, title: str, weight: float, when=None) -> None:
+        if not tid or mt not in media_types or weight <= 0:
+            return
+        w = weight * _decay(when)
+        cur = table.get((mt, tid))
+        if cur is None:
+            table[(mt, tid)] = {"media_type": mt, "tmdb_id": tid, "title": title or "", "weight": w, "signals": 1}
+        else:  # plusieurs signaux pour un même titre : le plus fort, plus un petit bonus
+            cur["weight"] = max(cur["weight"], w) + 0.15
+            cur["signals"] += 1
+            cur["title"] = cur["title"] or title or ""
+
+    for r in ctx.db.execute(_of(MediaState, user_id)).scalars():
+        when = r.watched_at or r.listed_at or r.updated_at
+        if r.disliked:
+            add(neg, r.media_type, r.tmdb_id, r.title, 1.0, r.updated_at)
+            continue
+        if r.liked:
+            add(pos, r.media_type, r.tmdb_id, r.title, 1.5, when)
+        if r.rating is not None:
+            if r.rating >= 8:
+                add(pos, r.media_type, r.tmdb_id, r.title, 1.0 + (r.rating - 7) * 0.25, when)
+            elif r.rating <= 4:
+                add(neg, r.media_type, r.tmdb_id, r.title, 0.6 + (4 - r.rating) * 0.2, when)
+        elif r.watched:
+            add(pos, r.media_type, r.tmdb_id, r.title, 0.5, when)
+        if r.in_watchlist:
+            add(pos, r.media_type, r.tmdb_id, r.title, 0.5, r.listed_at)
+    for r in ctx.db.execute(_of(SwipeHistory, user_id).where(SwipeHistory.action.in_(("like", "watchlist", "seen")))).scalars():
+        weight = {"like": 1.5, "watchlist": 0.8}.get(r.action, 1.0 if (r.rating or 0) >= 4 else 0)
+        add(pos, r.media_type, r.tmdb_id, r.title, weight, r.created_at)
+    for r in ctx.db.execute(_of(SuggestionFeedback, user_id)).scalars():
+        add(pos if r.value > 0 else neg, r.media_type, r.tmdb_id, r.title, 1.3 if r.value > 0 else 1.0, r.created_at)
+    # Historique : films vus, séries suivies (plus d'épisodes vus, plus de poids)
+    since = utcnow() - timedelta(days=365)
+    q = (
+        select(WatchEvent.kind, WatchEvent.tmdb_id, func.count(), func.max(WatchEvent.watched_at), func.max(WatchEvent.title), func.max(WatchEvent.show_title))
+        .where(WatchEvent.tmdb_id.isnot(None), WatchEvent.watched_at >= since)
+        .group_by(WatchEvent.kind, WatchEvent.tmdb_id)
+    )
+    if user_id is not None:
+        q = q.where(WatchEvent.user_id == user_id).execution_options(all_users=True)
+    rows = ctx.db.execute(q).all()
+    for kind, tid, n, last, title, show in rows:
+        if kind == "movie":
+            add(pos, "movie", tid, title, 0.8, last)
+        else:
+            add(pos, "tv", tid, show, 0.6 + min(n, 10) * 0.06, last)
+
+    return sorted(pos.values(), key=lambda s: s["weight"], reverse=True), sorted(neg.values(), key=lambda s: s["weight"], reverse=True)
+
+
+def seeds(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tuple[list[dict], list[dict]]:
+    """Références pour les recommandations : les plus fortes, plus un tirage pondéré qui change chaque jour (pour
+    renouveler les suggestions) ; et les 3 titres les plus rejetés."""
+    ranked, negatives = signals(ctx, media_types, user_id)
+    top, rest = ranked[:SEEDS_TOP], ranked[SEEDS_TOP:SEEDS_TOP + 40]
+    rng = random.Random(f"{user_id or ctx.user.id}-{date.today().isoformat()}")  # même tirage toute la journée
+    rotating = []
+    while rest and len(rotating) < SEEDS_ROTATING:
+        pick = rng.choices(rest, weights=[s["weight"] for s in rest])[0]
+        rotating.append(pick)
+        rest.remove(pick)
+    return top + rotating, negatives[:3]
+
+
+def _franchise(title: str) -> str:
+    """Clé de saga approximative : titre avant « : », sans numéro final (« Dune », « Dune : Deuxième partie »)."""
+    t = re.split(r"\s*[:–-]\s+", (title or "").lower(), maxsplit=1)[0]
+    t = re.sub(r"\s+(\d+|[ivx]+|part \w+|partie \w+)$", "", t.strip())
+    return t.strip()
+
+
+def _variety(ranked: list[tuple[str, int]], items: dict, origin: dict) -> list[tuple[str, int]]:
+    """Au plus PER_SEED suggestions par référence, et une seule par saga."""
+    per_seed: dict = {}
+    sagas: set[str] = set()
+    out = []
+    for k in ranked:
+        seed, saga = origin.get(k), _franchise(items[k].get("title") or "")
+        if (seed and per_seed.get(seed, 0) >= PER_SEED) or (saga and saga in sagas):
+            continue
+        per_seed[seed] = per_seed.get(seed, 0) + 1
+        sagas.add(saga)
+        out.append(k)
+    return out
+
+
+def _mix_types(ordered: list[dict], media_types: list[str]) -> list[dict]:
+    """Films et séries mélangés : à chaque place, le meilleur suivant, sauf si son type dépasserait 65 % de la liste."""
+    if len(media_types) < 2:
+        return ordered
+    queues = {mt: [i for i in ordered if i["media_type"] == mt] for mt in media_types}
+    out: list[dict] = []
+    while any(queues.values()):
+        heads = [q[0] for q in queues.values() if q]
+        best = min(heads, key=ordered.index)
+        other = [mt for mt in media_types if mt != best["media_type"] and queues[mt]]
+        if out and other and sum(1 for i in out if i["media_type"] == best["media_type"]) + 1 > 0.65 * (len(out) + 1):
+            best = queues[other[0]][0]
+        queues[best["media_type"]].remove(best)
+        out.append(best)
+    return out
+
+
+def _quality(item: dict) -> float:
+    """Titre presque inconnu (très peu de votes, déjà sorti) ou mal noté : en retrait."""
+    votes, avg = item.get("vote_count") or 0, item.get("vote_average") or 0
+    released = (item.get("release_date") or "9999") <= (date.today() - timedelta(days=180)).isoformat()
+    if released and votes < 40:
+        return 0.4
+    if votes >= 40 and avg < 5.5:
+        return 0.6
+    return 1.0
+
+
+def _available(item: dict, platforms: set[int]) -> bool:
+    return bool(item.get("in_plex")) or any(p.get("id") in platforms for p in item.get("providers") or [])
+
+
+def _keep_discovery(ranked: list[dict], platforms: set[int], limit: int) -> list[dict]:
+    """Ce que tu peux regarder passe devant, mais au moins MIN_DISCOVERY de la liste reste de la découverte."""
+    out = ranked[:limit]
+    want = int(limit * MIN_DISCOVERY + 0.999)
+    others = [i for i in ranked[limit:] if not _available(i, platforms)]
+    while sum(1 for i in out if not _available(i, platforms)) < want and others:
+        last_available = max((n for n, i in enumerate(out) if _available(i, platforms)), default=None)
+        if last_available is None:
+            break
+        out[last_available] = others.pop(0)
+    return out
+
+
+def _reason(key: str, params: dict | None = None) -> dict:
+    """Raison affichée : texte français (compatibilité) et clé + variables, traduites par l'interface."""
+    text = key.format(**params) if params else key
+    return {"reason": text, "reason_key": key, "reason_params": params or {}}
+
+
+async def _apply_taste(ctx: Ctx, media_types: list[str], pool: list[dict], scores: dict) -> None:
+    """Affinité avec le profil de goûts (genres, personnes, mots-clés, langue, époque) : ajuste les scores et donne
+    une raison plus parlante quand une personne aimée participe au titre. Trie la liste sur place."""
+    if ctx.tmdb.is_mock or not pool:
+        return
+    from app.services import taste
+
+    pos, neg = signals(ctx, ["movie", "tv"])
+    prof = await taste.profile(ctx, pos, neg)
+    if prof is None:
+        return
+    sem = asyncio.Semaphore(8)
+
+    async def one(item):
+        async with sem:
+            return await taste.features(ctx, item["media_type"], item["id"])
+
+    for item, f in zip(pool, await asyncio.gather(*(one(i) for i in pool))):
+        if not f:
+            continue
+        mult, why = taste.affinity(prof, f, item["media_type"])
+        scores[(item["media_type"], item["id"])] *= mult
+        if why:
+            item.update(_reason(*why))
+    pool.sort(key=lambda i: scores[(i["media_type"], i["id"])], reverse=True)
+
+
+def record_shown(ctx: Ctx, items: list[dict]) -> None:
+    """Mémorise les suggestions montrées (au plus une fois toutes les 12 heures par titre)."""
+    now = utcnow()
+    rows = {(r.media_type, r.tmdb_id): r for r in ctx.db.execute(select(SuggestionShown)).scalars()}
+    for i in items:
+        r = rows.get((i["media_type"], i["id"]))
+        if r is None:
+            ctx.db.add(SuggestionShown(media_type=i["media_type"], tmdb_id=i["id"], count=1, last_shown=now))
+        elif not r.last_shown or now - r.last_shown >= timedelta(hours=12):
+            r.count, r.last_shown = r.count + 1, now
+    ctx.db.commit()
+
+
+async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_enrich: bool = True,
+                      discovery: bool = True, available_only: bool = False) -> list[dict]:
+    """Suggestions classées : recommandations TMDB des références (moins celles des titres mal notés), Trakt,
+    titres déjà souvent montrés en retrait, variété, et ce que tu peux regarder en tête.
+    discovery : garder une part de titres que tu n'as pas encore (Découvrir) ; available_only : seulement le reste."""
     media_types = ["movie", "tv"] if media_type == "all" else [media_type]
-    excluded, seed_list = await asyncio.gather(excluded_keys(ctx), seeds(ctx, media_types))
+    excluded = await excluded_keys(ctx)
+    seed_list, negatives = seeds(ctx, media_types)
     excluded |= {(s["media_type"], s["tmdb_id"]) for s in seed_list}
 
     scores: dict[tuple[str, int], float] = {}
     items: dict[tuple[str, int], dict] = {}
+    origin: dict[tuple[str, int], str] = {}  # référence qui a le plus apporté (variété)
 
-    def add(item: dict, score: float, reason: str) -> None:
+    def add(item: dict, score: float, reason: str, seed: str, params: dict | None = None) -> None:
         k = (item["media_type"], item["id"])
         if k in excluded:
             return
-        if k not in items:
-            items[k] = {**item, "reason": reason}
+        if k not in items or score > scores.get(k, 0):
+            items[k] = {**item, **_reason(reason, params)}
+            origin[k] = seed
         scores[k] = scores.get(k, 0) + score
 
-    # 1. Recommandations TMDB à partir des graines
-    rec_lists = await asyncio.gather(
-        *(_safe(ctx.tmdb.recommendations(s["media_type"], s["tmdb_id"]), []) for s in seed_list)
+    # 1. Recommandations TMDB à partir des références (et de celles des titres mal notés, en négatif)
+    rec_lists, neg_lists = await asyncio.gather(
+        asyncio.gather(*(_safe(ctx.tmdb.recommendations(s["media_type"], s["tmdb_id"]), []) for s in seed_list)),
+        asyncio.gather(*(_safe(ctx.tmdb.recommendations(s["media_type"], s["tmdb_id"]), []) for s in negatives)),
     )
     for s, recs in zip(seed_list, rec_lists):
+        reason, params = ("Parce que tu as aimé {title}", {"title": s["title"]}) if s.get("title") else ("Pour toi", None)
         for rank, item in enumerate(recs[:15]):
-            add(item, s["weight"] * (15 - rank) / 15, f"Parce que tu as aimé {s['title']}" if s.get("title") else "Pour toi")
+            add(item, s["weight"] * (15 - rank) / 15, reason, f"{s['media_type']}:{s['tmdb_id']}", params)
+    unwanted = {(i["media_type"], i["id"]) for recs in neg_lists for i in recs[:10]}
 
     # 2. Recommandations personnalisées Trakt
     if ctx.trakt:
@@ -216,19 +419,21 @@ async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_e
             trakt_refs += await _safe(ctx.trakt.recommendations(mt, 15), [])
         trakt_refs = [r for r in trakt_refs if (r["media_type"], r["tmdb_id"]) not in excluded][:12]
         for item in await refs_to_items(ctx, trakt_refs):
-            add(item, 1.2, "Recommandé par Trakt")
+            add(item, 1.2, "Recommandé par Trakt", "trakt")
 
     # 3. Complément : incontournables bien notés
-    if len(items) < limit:
+    if len(items) < limit * 2:
         for mt in media_types:
             extra = await _safe(
                 ctx.tmdb.discover(mt, page=random.randint(1, 5), sort_by="vote_average.desc", **{"vote_count.gte": 1500}),
                 [],
             )
             for item in extra:
-                add(item, 0.1, "Incontournable")
+                add(item, 0.1, "Incontournable", "classics")
 
-    # Genres des titres « pas intéressé » : pénalité proportionnelle (2 rejets d'un genre ou plus)
+    # Proches de ce que tu n'aimes pas : en retrait ; genres souvent rejetés : pénalité proportionnelle
+    for k in unwanted & scores.keys():
+        scores[k] *= 0.5
     disliked_rows = list(ctx.db.execute(select(MediaState).where(MediaState.disliked.is_(True))).scalars())[:40]
     if disliked_rows and not ctx.tmdb.is_mock:
         from collections import Counter
@@ -239,7 +444,24 @@ async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_e
             penalty = sum(bad[g] for g in it.get("genre_ids", []) if bad[g] >= 2)
             if penalty:
                 scores[k] /= 1 + 0.25 * penalty
+    # Déjà montré plusieurs fois sans réaction : descend peu à peu
+    shown = {(r.media_type, r.tmdb_id): r.count for r in ctx.db.execute(select(SuggestionShown)).scalars()}
+    for k in scores:
+        if shown.get(k, 0) > 2:
+            scores[k] /= 1 + 0.35 * (shown[k] - 2)
 
-    ranked = sorted(items, key=lambda k: scores[k], reverse=True)[:limit]
-    result = [items[k] for k in ranked]
-    return await enrich(ctx, result) if with_enrich else result
+    for k, it in items.items():
+        scores[k] *= _quality(it)
+    ranked = sorted(items, key=lambda k: scores[k], reverse=True)
+    pool = [items[k] for k in _variety(ranked, items, origin)][: limit * 2]
+    await _apply_taste(ctx, media_types, pool, scores)
+    if not with_enrich:
+        return _mix_types(pool, media_types)[:limit]
+    pool = await enrich(ctx, pool)
+    # Ce que tu peux regarder (plateformes, bibliothèque) remonte, puis films et séries sont mélangés
+    platforms = set(ctx.platforms)
+    boosted = sorted(pool, key=lambda i: scores[(i["media_type"], i["id"])] * (AVAILABLE_BOOST if _available(i, platforms) else 1), reverse=True)
+    if available_only:
+        return _mix_types([i for i in boosted if _available(i, platforms)], media_types)[:limit]
+    ordered = _mix_types(boosted, media_types)
+    return _keep_discovery(ordered, platforms, limit) if discovery else ordered[:limit]

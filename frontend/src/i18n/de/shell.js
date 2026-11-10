@@ -139,4 +139,10 @@ export default {
   'Le compte {server} « {name} » a été relié à ton compte SynCiné. Si ce n\'était pas toi, change ton mot de passe.': 'Das {server}-Konto „{name}“ wurde mit deinem SynCiné-Konto verbunden. Warst du das nicht, ändere dein Passwort.',
   'La connexion avec ton compte {server} « {name} » est activée sur SynCiné.': 'Die Anmeldung mit deinem {server}-Konto „{name}“ ist jetzt auf SynCiné aktiviert.',
   "Ta demande « {title} » est disponible sur {server}": "Deine Anfrage „{title}“ ist auf {server} verfügbar",
+  "Saison {season} de {title} complète : {count} épisodes": "Staffel {season} von {title} ist komplett: {count} Folgen",
+  "Saison {season} de {title} complète sur {platforms} : {count} épisodes": "Staffel {season} von {title} ist auf {platforms} komplett: {count} Folgen",
+  "Dernier épisode de la saison {season} de {title} : {code}": "Letzte Folge von Staffel {season} von {title}: {code}",
+  "Dernier épisode de la saison {season} de {title} sur {platforms} : {code}": "Letzte Folge von Staffel {season} von {title} auf {platforms}: {code}",
+  "Premier épisode de la saison {season} de {title} : {code}": "Erste Folge von Staffel {season} von {title}: {code}",
+  "Premier épisode de la saison {season} de {title} sur {platforms} : {code}": "Erste Folge von Staffel {season} von {title} auf {platforms}: {code}",
 }

@@ -39,6 +39,8 @@ class SettingsOut(BaseModel):
     auto_sync: bool
     hide_seen: bool
     share_watchlist: bool
+    share_taste: bool
+    family_kids: list[str]
     recent_days: int
     onboarding: str
     nav_order: list[str]
@@ -46,6 +48,7 @@ class SettingsOut(BaseModel):
     notify_new_episodes: bool
     notify_services: bool
     notify_episode_via: list[str]
+    notify_episode_when: list[str]
     notify_movie_via: list[str]
     country_code: str
     active_platforms: list[int]
@@ -74,6 +77,8 @@ class SettingsOut(BaseModel):
             auto_sync=s.auto_sync,
             hide_seen=s.hide_seen,
             share_watchlist=s.share_watchlist,
+            share_taste=s.share_taste,
+            family_kids=s.kids,
             recent_days=s.recent_days,
             onboarding=s.onboarding or "done",
             nav_order=_nav_order(s.nav_order),
@@ -81,6 +86,7 @@ class SettingsOut(BaseModel):
             notify_new_episodes=s.notify_new_episodes,
             notify_services=s.notify_services,
             notify_episode_via=s.episode_via,
+            notify_episode_when=s.episode_when,
             notify_movie_via=s.movie_via,
             country_code=s.country_code,
             active_platforms=s.platforms,
@@ -109,6 +115,8 @@ class SettingsUpdate(BaseModel):
     auto_sync: bool | None = None
     hide_seen: bool | None = None
     share_watchlist: bool | None = None
+    share_taste: bool | None = None
+    family_kids: list[Literal["petits", "enfants", "ados"]] | None = Field(default=None, max_length=3)
     recent_days: int | None = Field(default=None, ge=0, le=365)
     onboarding: Literal["pending", "done"] | None = None
     nav_order: list[Annotated[str, StringConstraints(pattern=r"^[a-z]{2,20}$")]] | None = Field(default=None, max_length=30)
@@ -116,6 +124,7 @@ class SettingsUpdate(BaseModel):
     notify_new_episodes: bool | None = None
     notify_services: bool | None = None
     notify_episode_via: list[Literal["air", "platforms", "plex"]] | None = Field(default=None, max_length=3)
+    notify_episode_when: list[Literal["each", "first", "last", "season"]] | None = Field(default=None, max_length=4)
     notify_movie_via: list[Literal["platforms", "plex"]] | None = Field(default=None, max_length=2)
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
     active_platforms: list[int] | None = None
