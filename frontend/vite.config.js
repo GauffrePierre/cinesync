@@ -11,7 +11,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false, // enregistrement dans src/main.jsx (vérification régulière des mises à jour)
       manifest: false, // on utilise public/manifest.json
-      includeAssets: ['icons/*'],
+      includeAssets: ['icons/*', 'favicon.ico'],
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],

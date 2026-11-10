@@ -117,6 +117,14 @@ body {
   display: none;
 }
 
+/* Nom « SynCiné » du logo : image servant de masque, prend la couleur du texte (thème clair ou sombre) */
+.logo-name {
+  aspect-ratio: 480 / 125;
+  background-color: currentColor;
+  -webkit-mask: url('/icons/logo-name.webp') center / contain no-repeat;
+  mask: url('/icons/logo-name.webp') center / contain no-repeat;
+}
+
 /* Zones sûres iOS */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);

@@ -4,6 +4,11 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.4.1 - 2026-11-10
+
+- New SynCiné logo (popcorn and sync arrows): app icon on the home screen and in the browser tab, sign-in screens,
+  sidebar and top bar, notifications and README. The name follows the light or dark theme.
+
 ## 1.4.0 - 2026-11-10
 
 **Recommendations**

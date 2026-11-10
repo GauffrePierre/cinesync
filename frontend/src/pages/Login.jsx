@@ -19,7 +19,7 @@ function Shell({ title, subtitle, children }) {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-bg px-4 py-10 text-text">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-          <Logo />
+          <Logo stacked />
         </div>
         <div className="rounded-2xl border border-line bg-bg2 p-6 shadow-sm">
           <h1 className="text-center text-xl font-semibold">{title}</h1>

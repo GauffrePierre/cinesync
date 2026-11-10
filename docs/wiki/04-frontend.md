@@ -104,6 +104,10 @@ Tailwind v4 is loaded with `@import 'tailwindcss'` in `index.css` and the `@tail
 
 `main.jsx` imports `registerSW` from `virtual:pwa-register` and calls it with `immediate: true`. In `onRegisteredSW` it checks for updates every hour and whenever the document becomes visible. See [Architecture](01-architecture.md#pwa-and-service-worker) for the caching rules.
 
+## Logo and icons
+
+The master logos are in `docs/logo/` (`SynCine-popcorn-*-transparent.png`: mark alone, name below, name on the right, transparent background). The app uses images derived from them: `public/icons/logo-mark.webp` (popcorn mark) and `logo-name.webp` (the name, white in the masters, used as a CSS mask by the `.logo-name` class so it takes the text colour of the light or dark theme). `components/layout/Logo.jsx` puts the name on the right (sidebar, top bar, onboarding) or below with `stacked` (sign-in screens). The PWA icons (`icon-*.png`, `apple-touch-icon.png`), `favicon-64.png`, `/favicon.ico`, the notification badge (`badge-96.png`) and the README logos (`docs/logo/syncine-{light,dark}.png`) come from the same masters: regenerate them all together if the logo changes.
+
 ## Opening native apps: `WatchLink` and `lib/appLinks.js`
 
 `components/ui/WatchLink.jsx` puts the app link directly in `href` when it is known (`directAppLink`), because iOS and Android only open another app from a real tap on a link, never from a JavaScript redirect. Otherwise it renders the web link and, on click, calls `openInApp(href, appRef)`, which can open `components/ui/AppChooser.jsx` ("app or browser").

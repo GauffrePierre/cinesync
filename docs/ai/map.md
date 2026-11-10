@@ -38,7 +38,7 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `main.jsx` → React root, QueryClient defaults, self-hosted Inter font, PWA registration (`virtual:pwa-register`, hourly/visibility update checks).
 - `App.jsx` → auth gate (`useMe`: splash / setup / login / forced password change / app) + routes.
 - `pages/` → `Discover`, `Upcoming`, `News`, `Library` (Plex / Jellyfin / Emby), `Tonight`, `Watchlist`, `MediaDetail`, `Profile` (onglets `?tab=account|connections|prefs|admin`, admin : `&section=server|users|requests|backups`), `Stats`, `Swipe`, `Admin` (redirection de l'ancienne adresse /admin), `Login` (Setup, Login, PasswordForm, ForcePasswordChange, Splash).
-- `components/layout/` → `AppLayout`, `Sidebar` (nav, services health, version), `BottomBar` (mobile), `TopBar`, `nav.js` (`NAV_ITEMS`, `useNavItems` hides items needing an absent service).
+- `components/layout/` → `AppLayout`, `Sidebar` (nav, services health, version), `BottomBar` (mobile), `TopBar`, `Logo` (popcorn mark + name; `stacked` on sign-in screens), `nav.js` (`NAV_ITEMS`, `useNavItems` hides items needing an absent service).
 - `components/media/` → `MediaCard`, `PosterActions`, `MediaRow`, `MediaGrid`, `HeroCarousel`/`HeroSection`, `PlatformFilter`, `Poster`; `detail/` (`Availability`, `SeriesTracker`, `People`, `Trailer`).
 - `components/admin/` → `ServerDashboard` (Plex / Jellyfin / Emby, sélecteur si plusieurs ; `useMediaServers`), `UsersPanel`, `BackupsPanel`. `components/profile/` → `ConnectionCard`, `PlexConnect`, `TraktConnect`, `SyncPanel`, `CinemaPicker`, `PlatformPicker`, `RequestsPanel` (scope mine/all), `HiddenTitles`, `NotificationSettings`, `About` (`Support`, `About`).
 - `components/ui/` → `Button`, `Modal`, `Tabs` (translates labels), `EmptyState`, `Skeleton`, `Toaster`, `PlatformBadge`, `StarRating`, `WatchlistButton`, `WatchLink` (opens native apps), `AppChooser` (iOS app/browser sheet).
@@ -47,4 +47,4 @@ One line per file: responsibility → key symbols. Paths relative to repo root.
 - `i18n/` → `index.js` (`translate`, `t`, `useT`, `currentLocale`, `fmtNumber`, `UI_LANGUAGES`), `en/*.js` dictionaries merged in `en/index.js`.
 - `lib/` → `format.js` (dates, relative time [UTC-safe], labels), `platforms.js`, `appLinks.js` (Android intents, iOS app links; Plex = watch.plex.tv links only, real `href` taps), `project.js` (repo, license, Ko-fi URL).
 - `store/` → `uiStore.js` (filters, toasts, search), `settingsStore.js` (theme, UI language; persisted).
-- `public/` → `manifest.json`, icons, `plex-done.html`, `theme-init.js` (pre-render theme, no inline script).
+- `public/` → `manifest.json`, icons (generated from the master logos in `docs/logo/`), `favicon.ico`, `plex-done.html`, `theme-init.js` (pre-render theme, no inline script).

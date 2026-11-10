@@ -1,8 +1,9 @@
-<p align="center">
-  <img src="frontend/public/icons/icon-192.png" width="88" alt="" />
-</p>
-
-<h1 align="center">SynCiné</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/syncine-dark.png" />
+    <img src="docs/logo/syncine-light.png" width="200" alt="SynCiné" />
+  </picture>
+</h1>
 
 <p align="center">
   <b>The film lover's companion, self-hosted.</b><br />
@@ -79,7 +80,7 @@ SynCiné is free, open source and ad-free. If you enjoy it, you can buy **the de
 
 **Recommendations that know you**
 
-This is the heart of SynCiné: suggestions built from **everything you do**, whatever the service, and meant to be watched tonight rather than left in a list.
+This is the heart of SynCiné: suggestions built from **everything you've watched**, whatever the service, and meant to be watched tonight rather than left in a list.
 
 - **All your history counts**: ratings (down to half stars), favourites, watchlist, titles watched on Trakt, Plex, Jellyfin, Emby or Letterboxd, swipe-mode choices. What you loved recently weighs more than what you watched five years ago; what you rated low or dismissed pushes similar titles down.
 - **Your taste profile**: genres, directors, series creators and actors who keep showing up in your favourites bring their other titles forward ("Directed by Denis Villeneuve, whom you like").

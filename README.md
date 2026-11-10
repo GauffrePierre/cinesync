@@ -1,8 +1,9 @@
-<p align="center">
-  <img src="frontend/public/icons/icon-192.png" width="88" alt="" />
-</p>
-
-<h1 align="center">SynCiné</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/syncine-dark.png" />
+    <img src="docs/logo/syncine-light.png" width="200" alt="SynCiné" />
+  </picture>
+</h1>
 
 <p align="center">
   <b>Le compagnon des cinéphiles, auto-hébergé.</b><br />
@@ -79,7 +80,7 @@ SynCiné est gratuit, libre et sans publicité. Si l'appli te plaît, tu peux of
 
 **Des recommandations qui te connaissent**
 
-C'est le cœur de SynCiné : des suggestions construites à partir de **tout ce que tu fais**, quel que soit le service, et pensées pour être regardées ce soir plutôt que de rester dans une liste.
+C'est le cœur de SynCiné : des suggestions construites à partir de **tous tes visionnages**, quel que soit le service, et pensées pour être regardées ce soir plutôt que de rester dans une liste.
 
 - **Tout ton historique compte** : notes (même à la demi-étoile), coups de cœur, watchlist, titres vus sur Trakt, Plex, Jellyfin, Emby ou Letterboxd, choix du mode swipe. Ce que tu as aimé récemment pèse plus que ce que tu as vu il y a cinq ans ; ce que tu as mal noté ou écarté fait reculer les titres qui lui ressemblent.
 - **Ton profil de goûts** : genres, réalisateurs, créateurs de séries et acteurs qui reviennent dans tes coups de cœur font remonter leurs autres titres (« Réalisé par Denis Villeneuve, que tu aimes »).
