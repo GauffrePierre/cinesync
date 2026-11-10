@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 
 from urllib.parse import urlsplit
@@ -17,6 +18,15 @@ from app.scheduler import start_scheduler, stop_scheduler
 from app.services.auth import require_ready
 from app.services.errors import ServiceError
 from app.services.http import close_http
+
+# Types des fichiers de l'interface : l'image Docker (python slim) n'a pas /etc/mime.types et Python 3.12 ne connaît
+# pas .webp ; avec « nosniff », un type faux (application/octet-stream) peut empêcher l'affichage
+def register_mime_types() -> None:
+    for ext, mime in ((".webp", "image/webp"), (".webmanifest", "application/manifest+json"), (".woff2", "font/woff2")):
+        mimetypes.add_type(mime, ext)
+
+
+register_mime_types()
 
 logging.basicConfig(level=config.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 # Les bibliothèques réseau écrivent chaque URL appelée en INFO, clés d'API comprises (TMDB…) : jamais dans les journaux

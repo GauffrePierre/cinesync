@@ -268,6 +268,22 @@ def test_personal_mode_needs_no_login(fresh, monkeypatch):
     assert evil.put("/api/settings", json={"theme": "dark"}).status_code == 403
 
 
+def test_interface_mime_types():
+    """Image Docker sans /etc/mime.types : les logos .webp doivent quand même partir en image/webp (« nosniff »)."""
+    import mimetypes
+
+    from app.main import register_mime_types
+
+    mimetypes.init(files=[])  # comme dans python:3.12-slim
+    try:
+        register_mime_types()
+        assert mimetypes.guess_type("icons/logo-mark.webp")[0] == "image/webp"
+        assert mimetypes.guess_type("favicon.ico")[0] in ("image/vnd.microsoft.icon", "image/x-icon")
+    finally:
+        mimetypes.init()
+        register_mime_types()
+
+
 def test_security_headers(fresh):
     r = client().get("/api/health")
     assert r.headers["x-content-type-options"] == "nosniff" and r.headers["x-frame-options"] == "DENY"
