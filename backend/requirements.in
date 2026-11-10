@@ -3,7 +3,7 @@
 # (requirements.txt : versions exactes et empreintes SHA-256, installé tel quel dans l'image Docker)
 fastapi>=0.115,<1
 uvicorn[standard]>=0.34
-sqlalchemy>=2.0.40,<2.1
+sqlalchemy>=2.1.8,<2.2
 httpx>=0.28
 pydantic>=2.14.3
 pydantic-settings>=2.8
