@@ -20,12 +20,12 @@ def countries():
 
 
 @router.get("/search")
-async def search(q: str = Query(..., min_length=2), country: str = "FR"):
+async def search(q: str = Query(..., min_length=2, max_length=80), country: str = Query("FR", pattern=r"^[A-Za-z]{2}$")):
     return {"results": await allocine_client.search(q, country)}
 
 
 @router.get("/showtimes")
-async def showtimes(date: str | None = None, ctx: Ctx = Depends(get_ctx)):
+async def showtimes(date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"), ctx: Ctx = Depends(get_ctx)):
     """Films à l'affiche dans tes cinémas pour une date, avec leurs séances par cinéma."""
     cinemas = ctx.settings.cinema_list
     if not cinemas:

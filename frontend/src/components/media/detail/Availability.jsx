@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { safeUrl } from '../../../lib/format'
 import { ChevronDown, ExternalLink } from 'lucide-react'
 import PlatformBadge, { PlexBadge } from '../../ui/PlatformBadge'
 import { useT } from '../../../i18n'
@@ -32,7 +33,7 @@ function ProviderTile({ p, fallback, active }) {
   const mine = active.includes(p.id)
   return (
     <Tile
-      href={p.url || fallback}
+      href={safeUrl(p.url) || fallback}
       icon={<PlatformBadge provider={p} size="md" ring={false} />}
       name={p.name}
       sub={[mine && t('Ton abonnement'), p.quality, p.url ? t('Lien direct') : null].filter(Boolean).join(' · ')}

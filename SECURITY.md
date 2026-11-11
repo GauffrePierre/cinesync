@@ -13,4 +13,4 @@ Please include the affected version, steps to reproduce and the possible impact.
 - Version `server` : accès par connexion (mots de passe hachés scrypt, cookies HttpOnly / SameSite, essais limités).
 - Version `personal` : **aucune connexion** — à garder sur un réseau de confiance (réseau local, Tailscale), jamais exposée directement sur Internet.
 - Sur Internet, place SynCiné derrière un proxy HTTPS et renseigne `PUBLIC_URL` en `https://` ; avec un domaine dédié, active `HSTS_SECONDS`.
-- La base `cinesync.db` contient les jetons des services connectés : sauvegarde-la comme un secret.
+- Dans la base `cinesync.db`, les jetons des services connectés et les secrets de double authentification sont chiffrés avec la clé du serveur (`secret.key`, même dossier, absente des sauvegardes). Protège ce dossier : la clé et la base ensemble donnent accès à tes services.

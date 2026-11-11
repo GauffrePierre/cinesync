@@ -24,6 +24,8 @@ def fresh():
     cache.clear()
     auth.login_limiter._fails.clear()
     auth.jellyfin_limiter._fails.clear()
+    auth.jellyfin_device_limiter._fails.clear()
+    auth._protect = None
     from app.services import quick_connect
 
     quick_connect.clear()
@@ -410,8 +412,15 @@ def test_personal_mode_can_be_protected_by_a_password(fresh, monkeypatch):
     me = client()
     # Activation : identifiant + mot de passe ; cet appareil reste connecté
     assert me.put("/api/auth/profile", json={"display_name": "Alex", "username": "alex"}).status_code == 200
-    r = me.post("/api/auth/password", json={"new_password": "mon-mot-de-passe"})
+    # L'accès est encore libre : le premier mot de passe demande le code écrit dans les journaux du serveur,
+    # sinon n'importe quel visiteur pourrait le définir et enfermer le propriétaire dehors
+    assert me.post("/api/auth/password", json={"new_password": "mon-mot-de-passe"}).status_code == 403
+    assert me.post("/api/auth/protect/code").status_code == 200
+    assert me.post("/api/auth/password", json={"new_password": "mon-mot-de-passe", "code": "0000-0000-0000"}).status_code == 403
+    code = auth._protect[0]
+    r = me.post("/api/auth/password", json={"new_password": "mon-mot-de-passe", "code": code.lower()})
     assert r.status_code == 200 and r.json()["user"]["has_password"]
+    assert me.post("/api/auth/protect/code").status_code == 409  # déjà protégé : plus de code
     assert me.get("/api/settings").status_code == 200
     # Un autre appareil doit maintenant se connecter
     other = client()

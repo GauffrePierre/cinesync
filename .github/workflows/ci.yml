@@ -1,0 +1,54 @@
+# Vérifications à chaque envoi sur main et à chaque pull request qui touche au code : tests du serveur, traductions,
+# compilation de l'interface. Un seul job, annulé si un envoi plus récent arrive (minutes comptées sur un dépôt privé).
+# Les tests navigateur, plus longs, restent dans le flux de publication (docker.yml).
+# Les actions sont fixées par empreinte de commit (une étiquette « v4 » peut être déplacée).
+name: Vérifications
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", "frontend/**", ".github/workflows/ci.yml"]
+  pull_request:
+    paths: ["backend/**", "frontend/**", ".github/workflows/ci.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Tests du serveur
+        working-directory: backend
+        run: |
+          pip install --require-hashes -r requirements.txt
+          pip install -r requirements-dev.txt
+          python -m pytest -q
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Traductions et compilation de l'interface
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check:i18n
+          npm run build

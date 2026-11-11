@@ -4,6 +4,8 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, fun
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.services.clock import utcnow
+from app.services.crypto import EncryptedString
 
 ROLES = ("admin", "member")
 
@@ -23,6 +25,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(8), default="member")
     password_hash: Mapped[str] = mapped_column(String, default="")
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Mot de passe provisoire (choisi par l'administrateur) : inutilisable après cette date (UTC)
+    temp_password_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Compte Plex autorisé (identifiant plex.tv) et son identifiant dans l'historique du serveur
     plex_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True)
@@ -30,10 +34,10 @@ class User(Base):
     plex_thumb: Mapped[str] = mapped_column(String, default="")
     plex_server_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Double authentification (TOTP) : secret actif, secret en cours d'activation, dernier code accepté
+    # Double authentification (TOTP) : secret actif, secret en cours d'activation (chiffrés), dernier code accepté
     # (refus du rejeu), empreintes des codes de secours (JSON)
-    totp_secret: Mapped[str] = mapped_column(String, default="")
-    totp_pending: Mapped[str] = mapped_column(String, default="")
+    totp_secret: Mapped[str] = mapped_column(EncryptedString, default="")
+    totp_pending: Mapped[str] = mapped_column(EncryptedString, default="")
     totp_last_counter: Mapped[int] = mapped_column(Integer, default=0)
     recovery_codes: Mapped[str] = mapped_column(Text, default="[]")
     # Codes incorrects d'affilée et blocage temporaire (contre la recherche du code par essais)
@@ -58,6 +62,10 @@ class User(Base):
     def name(self) -> str:
         return self.display_name or self.plex_username or self.username
 
+    @property
+    def temp_password_expired(self) -> bool:
+        return bool(self.must_change_password and self.temp_password_until and self.temp_password_until < utcnow())
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -68,6 +76,7 @@ class User(Base):
             "is_admin": self.is_admin,
             "has_password": bool(self.password_hash),
             "must_change_password": self.must_change_password,
+            "temp_password_expired": self.temp_password_expired,
             "two_factor": bool(self.totp_secret),
             "plex": {"id": self.plex_user_id, "username": self.plex_username, "thumb": self.plex_thumb or None} if self.plex_user_id else None,
             "can_request_direct": self.is_admin or self.can_request_direct,

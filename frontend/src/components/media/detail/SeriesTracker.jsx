@@ -5,7 +5,7 @@ import Poster from '../Poster'
 import Button from '../../ui/Button'
 import PlatformBadge, { PlexBadge } from '../../ui/PlatformBadge'
 import { api } from '../../../services/api'
-import { formatShortDate } from '../../../lib/format'
+import { formatShortDate, safeUrl } from '../../../lib/format'
 import { toast } from '../../../store/uiStore'
 import { currentLocale, useT } from '../../../i18n'
 import WatchLink from '../../ui/WatchLink'
@@ -247,7 +247,7 @@ function NextAiring({ tvId, fallback }) {
             n.channel && <span>{t('Sur {channel} (pas dans tes plateformes)', { channel: n.channel })}</span>
           )}
           {n.source_url && (
-            <a href={n.source_url} target="_blank" rel="noreferrer" className="ml-auto text-[11px] text-text3 hover:text-text2">
+            <a href={safeUrl(n.source_url)} target="_blank" rel="noreferrer" className="ml-auto text-[11px] text-text3 hover:text-text2">
               {t('Horaire : TVmaze')}
             </a>
           )}

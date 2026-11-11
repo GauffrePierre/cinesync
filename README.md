@@ -355,7 +355,7 @@ Sur Unraid : onglet **Docker → Check for Updates**, puis **Apply Update**.
 
 La base de données (`cinesync.db` dans le dossier des données) est migrée automatiquement au démarrage.
 
-**Sauvegardes** : SynCiné sauvegarde sa base chaque jour dans `backups/` (dossier des données) et garde les 7 dernières. Dans **Profil → Admin → Sauvegardes**, tu peux changer ce nombre, désactiver la sauvegarde automatique, sauvegarder tout de suite ou télécharger une copie. Une sauvegarde contient les jetons de tes services connectés : garde les copies en lieu sûr, idéalement aussi hors du serveur.
+**Sauvegardes** : SynCiné sauvegarde sa base chaque jour dans `backups/` (dossier des données) et garde les 7 dernières. Dans **Profil → Admin → Sauvegardes**, tu peux changer ce nombre, désactiver la sauvegarde automatique, sauvegarder tout de suite ou télécharger une copie. Les jetons de tes services connectés y sont chiffrés avec la clé du serveur (`secret.key`, dans le dossier des données, jamais copiée dans une sauvegarde) : une sauvegarde seule ne donne pas accès à tes services. Garde quand même les copies en lieu sûr (historique, empreintes des mots de passe), idéalement aussi hors du serveur.
 
 **Restaurer** une sauvegarde :
 
@@ -365,6 +365,8 @@ gunzip -c data/backups/syncine-AAAAMMJJ-HHMMSS.db.gz > data/cinesync.db
 rm -f data/cinesync.db-wal data/cinesync.db-shm
 docker compose start
 ```
+
+Sur une autre installation (sans le fichier `secret.key` d'origine), la base restaurée démarre avec les services déconnectés : reconnecte-les dans **Profil → Connexions** et réactive la double authentification. Pour tout conserver d'un coup, copie le dossier des données entier.
 
 ## Réglages
 

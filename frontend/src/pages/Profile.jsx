@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, DatabaseBackup, Clock, Film, Inbox, KeyRound, Layers, LogOut, Monitor, Moon, Plug, Plus, RotateCcw, Search, Server, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Tv, User, Users } from 'lucide-react'
+import { AlertTriangle, Clock, Film, Layers, Monitor, Moon, Plug, Plus, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Tv, User } from 'lucide-react'
 import ConnectionCard from '../components/profile/ConnectionCard'
 import TraktConnect from '../components/profile/TraktConnect'
 import JellyfinConnect from '../components/profile/JellyfinConnect'
@@ -9,12 +9,7 @@ import PlexConnect from '../components/profile/PlexConnect'
 import SyncPanel from '../components/profile/SyncPanel'
 import CinemaPicker from '../components/profile/CinemaPicker'
 import RequestsPanel from '../components/profile/RequestsPanel'
-import ServerDashboard, { useMediaServers } from '../components/admin/ServerDashboard'
-import UsersPanel from '../components/admin/UsersPanel'
-import AdminRequests from '../components/admin/AdminRequests'
-import BackupsPanel from '../components/admin/BackupsPanel'
 import HiddenTitles from '../components/profile/HiddenTitles'
-import TwoFactor from '../components/profile/TwoFactor'
 import { About, Support } from '../components/profile/About'
 import NotificationSettings from '../components/profile/NotificationSettings'
 import MenuOrder from '../components/profile/MenuOrder'
@@ -28,35 +23,16 @@ import { KID_LABELS } from '../lib/kids'
 import { useCountries, useSettings, useStats, useStatus, useUpdateSettings } from '../hooks/useMedia'
 import { useSettingsStore } from '../store/settingsStore'
 import { swipe } from '../services/swipe'
-import { auth } from '../services/auth'
-import { useCurrentUser, usePersonal, useResetSession } from '../hooks/useAuth'
-import Modal from '../components/ui/Modal'
-import { PasswordForm } from './Login'
+import { useCurrentUser, usePersonal } from '../hooks/useAuth'
 import { getAppPref, setAppPref } from '../lib/appLinks'
 import { LANGUAGES } from '../lib/languages'
 import { toast } from '../store/uiStore'
 import { UI_LANGUAGES, fmtNumber, useT } from '../i18n'
-
-// Recherche dans les réglages : une rubrique s'affiche si son titre, sa description ou ses mots-clés
-// (français et anglais) contiennent le texte cherché
-const SearchContext = createContext('')
-const fold = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-
-function Section({ title, description, keywords = '', children, right, className = '' }) {
-  const query = useContext(SearchContext)
-  if (query && !fold(`${title} ${description || ''} ${keywords}`).includes(query)) return null
-  return (
-    <section className={`mb-10 ${className}`}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {right}
-      </div>
-      {description && <p className="mb-4 mt-0.5 text-sm text-text2">{description}</p>}
-      {!description && <div className="mb-4" />}
-      {children}
-    </section>
-  )
-}
+import AccountSection from '../components/profile/AccountSection'
+import AdminArea from '../components/profile/AdminArea'
+import ProfileTabs from '../components/profile/ProfileTabs'
+import Section, { SearchContext, fold } from '../components/profile/Section'
+import ServerServices from '../components/profile/ServerServices'
 
 const SERVICE_META = {
   tmdb: { label: 'TMDB', color: '#01b4e4', hint: 'Indispensable : métadonnées et disponibilités' },
@@ -103,293 +79,6 @@ function AppPrefsReset() {
   )
 }
 
-// Compte connecté : nom affiché, mot de passe, déconnexion
-function AccountSection({ user }) {
-  const t = useT()
-  const personal = usePersonal()
-  const reset = useResetSession()
-  const [name, setName] = useState(user.display_name || '')
-  const [pwOpen, setPwOpen] = useState(false)
-  const [username, setUsername] = useState(user.username)
-  const [removeOpen, setRemoveOpen] = useState(false)
-  const [current, setCurrent] = useState('')
-  const saveName = useMutation({
-    mutationFn: () => auth.updateProfile(name),
-    onSuccess: (me) => {
-      reset(me)
-      toast(t('Nom enregistré'), 'success')
-    },
-    onError: (e) => toast(e.message, 'error'),
-  })
-  const removePw = useMutation({
-    mutationFn: () => auth.removePassword(current),
-    onSuccess: (me) => {
-      reset(me)
-      setRemoveOpen(false)
-      setCurrent('')
-      toast(personal ? t('Protection retirée : SynCiné est de nouveau en accès libre') : t('Mot de passe supprimé : tu te connectes avec Plex'), 'success')
-    },
-    onError: (e) => toast(e.message, 'error'),
-  })
-  const logout = async () => {
-    await auth.logout().catch(() => {})
-    reset(null)
-  }
-  const avatar = user.plex?.thumb
-  const canLogout = !personal || user.has_password
-  // Supprimer le mot de passe : version personnelle (accès libre), ou compte qui peut se connecter avec Plex
-  const canRemove = user.has_password && (personal || !!user.plex)
-  const pwLabel = user.has_password ? t('Mot de passe') : personal ? t('Protéger par un mot de passe') : t('Créer un mot de passe')
-  return (
-    <Section title={t('Mon compte')} keywords="compte account mot de passe password identifiant username nom name double authentification two-factor 2fa totp code déconnexion logout sign out">
-      <div className="rounded-2xl border border-line bg-bg2 p-4">
-        <div className="flex items-center gap-3">
-          {avatar ? (
-            <img src={avatar} alt="" className="h-11 w-11 rounded-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent/15 font-semibold text-accent2">{user.name[0]?.toUpperCase()}</span>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{user.name}</p>
-            <p className="truncate text-xs text-text2">
-              {[
-                user.plex && t('Connexion avec Plex ({name})', { name: user.plex.username }),
-                (user.has_password || !user.plex) && t('Identifiant : {name}', { name: user.username }),
-                user.is_admin && !personal && t('Administrateur'),
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          </div>
-          {canLogout && (
-            <Button size="sm" variant="ghost" icon={LogOut} onClick={logout}>
-              <span className="hidden sm:inline">{t('Se déconnecter')}</span>
-            </Button>
-          )}
-        </div>
-        {personal && !user.has_password && (
-          <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-text2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-            {t('Accès libre : toute personne qui ouvre SynCiné y accède sans se connecter. Protège-le par un identifiant et un mot de passe, surtout s’il est accessible hors de chez toi.')}
-          </p>
-        )}
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('Nom affiché')}
-            aria-label={t('Nom affiché')}
-            className="h-10 w-full min-w-0 shrink-0 rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent sm:w-auto sm:flex-1"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => saveName.mutate()} loading={saveName.isPending} disabled={name === (user.display_name || '')}>
-              {t('Enregistrer')}
-            </Button>
-            <Button icon={KeyRound} variant={personal && !user.has_password ? 'primary' : 'secondary'} onClick={() => setPwOpen(true)}>
-              {pwLabel}
-            </Button>
-          </div>
-        </div>
-        {(!personal || user.has_password) && <TwoFactor user={user} />}
-      </div>
-
-      <Modal open={pwOpen} onClose={() => setPwOpen(false)} title={user.has_password ? t('Changer de mot de passe') : pwLabel}>
-        {!user.has_password && (
-          <p className="mb-4 text-sm text-text2">
-            {personal
-              ? t('SynCiné demandera cet identifiant et ce mot de passe sur chaque appareil. Cet appareil-ci reste connecté.')
-              : user.plex
-                ? t('En plus de Plex, tu pourras te connecter avec cet identifiant et ce mot de passe.')
-                : t('Choisis ton identifiant et ton mot de passe de connexion.')}
-          </p>
-        )}
-        <PasswordForm
-          needCurrent={user.has_password}
-          beforeSubmit={!user.has_password && username.trim().toLowerCase() !== user.username ? () => auth.updateProfile(name, username) : undefined}
-          onDone={(me) => {
-            reset(me)
-            setPwOpen(false)
-            toast(user.has_password ? t('Mot de passe enregistré — tes autres appareils ont été déconnectés') : t('Mot de passe enregistré'), 'success')
-          }}
-        >
-          {!user.has_password && (
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">{t('Identifiant')}</span>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                autoCapitalize="none"
-                required
-                className="h-11 w-full rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent"
-              />
-            </label>
-          )}
-        </PasswordForm>
-        {canRemove && (
-          <button onClick={() => { setPwOpen(false); setRemoveOpen(true) }} className="mt-4 block w-full text-center text-xs text-text3 hover:text-red-400">
-            {personal ? t('Retirer la protection par mot de passe') : t('Supprimer mon mot de passe (connexion avec Plex uniquement)')}
-          </button>
-        )}
-      </Modal>
-
-      <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} title={personal ? t('Retirer la protection ?') : t('Supprimer ton mot de passe ?')}>
-        <p className="mb-4 text-sm text-text2">
-          {personal ? t('SynCiné redeviendra accessible sans connexion, à toute personne qui l’ouvre.') : t('Tu te connecteras uniquement avec ton compte Plex.')}
-        </p>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            removePw.mutate()
-          }}
-        >
-          <input
-            type="password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            placeholder={t('Mot de passe actuel')}
-            aria-label={t('Mot de passe actuel')}
-            autoComplete="current-password"
-            required
-            className="h-11 w-full rounded-xl border border-line bg-bg px-3 text-sm outline-none focus:border-accent"
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" onClick={() => setRemoveOpen(false)}>
-              {t('Annuler')}
-            </Button>
-            <Button type="submit" variant="danger" loading={removePw.isPending}>
-              {personal ? t('Retirer la protection') : t('Supprimer')}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </Section>
-  )
-}
-
-// Onglets du Profil : toujours sur une ligne ; sur téléphone, pictogramme au-dessus du libellé (colonnes égales)
-function ProfileTabs({ value, onChange, options, className = '' }) {
-  const t = useT()
-  return (
-    <div role="tablist" className={`grid w-full auto-cols-fr grid-flow-col gap-1 rounded-xl border border-line bg-bg2 p-1 sm:inline-grid sm:w-fit sm:auto-cols-auto ${className}`}>
-      {options.map(({ value: v, label, icon: Icon }) => {
-        const active = v === value
-        return (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(v)}
-            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${
-              active ? 'bg-bg3 text-text shadow-sm' : 'text-text2 hover:text-text'
-            }`}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="max-w-full truncate">{t(label)}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// Onglet Admin du Profil : serveur(s) multimédia, comptes, demandes, sauvegardes, chacun dans un sous-onglet
-function AdminArea({ section, onSection }) {
-  const t = useT()
-  const personal = usePersonal()
-  const { data: servers = [] } = useMediaServers()
-  // Libellé court : le nom du serveur (Plex, Jellyfin, Emby), ou « Serveurs » s'il y en a plusieurs
-  const serverLabel = servers.length === 1 ? SERVER_LABELS[servers[0].kind] : servers.length > 1 ? 'Serveurs' : 'Serveur'
-  const all = [
-    { key: 'server', icon: Server, label: serverLabel, hint: 'Lectures en cours, débit, bibliothèques, statistiques', Panel: ServerDashboard },
-    { key: 'users', icon: Users, label: 'Comptes', hint: 'Comptes locaux et comptes Plex, Jellyfin ou Emby autorisés', Panel: UsersPanel },
-    { key: 'requests', icon: Inbox, label: 'Demandes', hint: 'Demandes d’ajout et watchlists partagées par la famille', Panel: AdminRequests },
-    { key: 'backups', icon: DatabaseBackup, label: 'Sauvegardes', hint: 'Sauvegarde automatique de la base, téléchargement', Panel: BackupsPanel },
-  ]
-  const panels = personal ? all.filter((p) => p.key === 'server' || p.key === 'backups') : all
-  // Recherche : la rubrique qui correspond s'affiche d'elle-même
-  const query = useContext(SearchContext)
-  const keywords = 'admin administration plex jellyfin emby serveur server dashboard comptes accounts famille family utilisateurs users demandes requests sauvegardes backups'
-  const match = query ? panels.find((p) => fold(`${t(p.label)} ${t(p.hint)}`).includes(query)) : null
-  if (query && !match && !fold(keywords).includes(query)) return null
-  const current = match || panels.find((p) => p.key === section) || panels[0]
-  const { Panel } = current
-  return (
-    <section className="mb-10">
-      {query && <h2 className="mb-4 text-lg font-semibold">{t('Réglages admin')}</h2>}
-      {panels.length > 1 && (
-        <ProfileTabs value={current.key} onChange={onSection} options={panels.map(({ key, label, icon }) => ({ value: key, label, icon }))} />
-      )}
-      <p className="mb-4 mt-3 text-sm text-text2">
-        {t(current.hint)}
-        {current.key === 'server' && !personal && ` · ${t('Les connexions TMDB, serveur multimédia (Plex, Jellyfin, Emby), Seerr et JustWatch sont partagées par tous les comptes.')}`}
-      </p>
-      <Panel />
-    </section>
-  )
-}
-
-// Membre : services fournis par le serveur (réglés par l'administrateur, rien à configurer de son côté)
-function ServerServices({ user, status }) {
-  const t = useT()
-  const rows = [
-    { key: 'tmdb', color: '#01b4e4', label: 'TMDB', on: status?.tmdb?.configured, desc: t('Fiches, tendances, sorties et disponibilités streaming') },
-    { key: 'justwatch', color: 'var(--justwatch)', label: 'JustWatch', on: status?.justwatch?.configured, desc: t('Liens directs vers chaque plateforme et nouveautés') },
-    status?.plex?.configured && {
-      key: 'plex',
-      color: 'var(--plex)',
-      label: 'Plex',
-      on: true,
-      desc: user.plex
-        ? t('Compte {name} · serveur {server}', { name: user.plex.username, server: status?.plex?.server || '—' })
-        : t('Serveur {server}, partagé par l’administrateur', { server: status?.plex?.server || '—' }),
-      note: !status?.plex?.own && t('Connecte-toi avec Plex pour synchroniser tes propres vus et ta progression.'),
-    },
-    status?.jellyfin?.configured && !status?.plex?.configured && {
-      key: 'jellyfin',
-      color: '#aa5cc3',
-      label: SERVER_LABELS[status.jellyfin.kind] || 'Jellyfin',
-      on: true,
-      desc: status.jellyfin.linked
-        ? t('Compte {name} · serveur {server}', { name: status.jellyfin.username, server: status.jellyfin.server || '—' })
-        : t('Serveur {server}, partagé par l’administrateur', { server: status.jellyfin.server || '—' }),
-    },
-    // Demandes d'ajout au serveur multimédia : seulement pour les comptes qui y sont reliés
-    status?.seerr?.configured && status?.media?.configured && {
-      key: 'seerr',
-      color: 'var(--seerr)',
-      label: 'Seerr',
-      on: true,
-      desc: user.can_request_direct ? t('Tes demandes d’ajout partent directement à Seerr') : t('Tes demandes d’ajout passent par l’administrateur'),
-    },
-  ].filter(Boolean)
-  return (
-    <div className="rounded-2xl border border-line bg-bg2 p-4">
-      <p className="font-medium">{t('Fournis par le serveur')}</p>
-      <p className="mt-0.5 text-xs text-text2">{t('Réglés par l’administrateur pour tout le monde : déjà actifs pour toi, rien à configurer.')}</p>
-      <ul className="mt-3 divide-y divide-line">
-        {rows.map((r) => (
-          <li key={r.key} className="flex items-start gap-3 py-2.5 last:pb-0">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white" style={{ background: r.color }}>
-              {r.label[0]}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{r.label}</p>
-              <p className="text-xs text-text2">{r.desc}</p>
-              {r.note && <p className="mt-0.5 text-xs text-text3">{r.note}</p>}
-            </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${r.on ? 'bg-emerald-500/15 text-emerald-500' : 'bg-bg3 text-text3'}`}>
-              {r.on ? t('Actif') : t('Non activé')}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 export default function Profile() {
   const t = useT()
   const { data: settings, isLoading } = useSettings()
@@ -406,6 +95,8 @@ export default function Profile() {
   const [params, setParams] = useSearchParams()
   const user = useCurrentUser()
   const isAdmin = !!user?.is_admin
+  // Réglages du serveur : administrateur complet seulement (le principal, ou les autres s'il leur laisse l'accès)
+  const serverAdmin = isAdmin && user?.server_admin !== false
   const personal = usePersonal()
   const [search, setSearch] = useState('')
   const query = fold(search.trim())
@@ -481,8 +172,8 @@ export default function Profile() {
   }
   // Un membre ne règle que ses services personnels ; le reste appartient à l'administrateur
   const MEMBER_SERVICES = ['trakt', 'letterboxd', 'jellyfin']
-  const shown = (k) => (isAdmin || MEMBER_SERVICES.includes(k)) && (used[k] || added.includes(k))
-  const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (isAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id) && (k !== 'jellyfin' || status?.jellyfin?.server_linked))))
+  const shown = (k) => (serverAdmin || MEMBER_SERVICES.includes(k)) && (used[k] || added.includes(k))
+  const hidden = Object.keys(SERVICE_META).filter((k) => !shown(k) && (serverAdmin || (MEMBER_SERVICES.includes(k) && (k !== 'trakt' || settings.trakt_client_id) && (k !== 'jellyfin' || status?.jellyfin?.server_linked))))
   // Seerr : demandes vers le serveur de la bibliothèque (Plex, Jellyfin ou Emby ; « ta bibliothèque » s'il y en a plusieurs)
   const serviceHint = (k) => {
     const both = status?.plex?.configured && status?.jellyfin?.configured
@@ -512,7 +203,7 @@ export default function Profile() {
 
       {!query && <ProfileTabs className="mb-8" value={tab} onChange={goTab} options={tabs} />}
 
-      {noTmdb && isAdmin && (
+      {noTmdb && serverAdmin && (
         <div className="mb-8 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
           <div>
@@ -605,7 +296,7 @@ export default function Profile() {
             }
           >
             <div className="grid grid-cols-1 gap-4">
-              {!isAdmin && <ServerServices user={user} status={status} />}
+              {!serverAdmin && <ServerServices user={user} status={status} />}
               {shown('tmdb') && (
               <ConnectionCard
                 service="tmdb"
@@ -650,7 +341,7 @@ export default function Profile() {
                 helpLabel="Créer une application"
                 settings={settings}
                 connected={status?.trakt?.connected}
-                fields={!isAdmin ? [] : [
+                fields={!serverAdmin ? [] : [
                   {
                     name: 'trakt_client_id',
                     label: 'Client ID',
@@ -674,7 +365,7 @@ export default function Profile() {
                 optional
                 testable={!!status?.jellyfin?.server_linked}
               >
-                <JellyfinConnect status={status?.jellyfin} isAdmin={isAdmin} />
+                <JellyfinConnect status={status?.jellyfin} isAdmin={serverAdmin} />
               </ConnectionCard>
               )}
 
@@ -744,7 +435,7 @@ export default function Profile() {
             <SyncPanel />
           </Section>
 
-          {(isAdmin || status?.media?.configured) && (
+          {(serverAdmin || status?.media?.configured) && (
             <Section title={t('Mes demandes')} keywords="demandes requests seerr plex jellyfin emby ajout" description={t('Titres que tu as demandés pour ta bibliothèque.')}>
               <RequestsPanel />
             </Section>
@@ -835,7 +526,7 @@ export default function Profile() {
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{t('Partager mes goûts avec la famille')}</span>
                   <span className="mt-0.5 block text-xs text-text2">
-                    {t('Tes coups de cœur et tes bonnes notes servent aux suggestions « La famille a aimé » et « À deux » des membres qui partagent aussi les leurs. Rien d’autre n’est visible.')}
+                    {t('Tes coups de cœur et tes bonnes notes servent aux suggestions « La famille a aimé » et « À deux » des membres qui partagent aussi les leurs ; « À deux » montre aussi les titres présents dans vos deux watchlists. Rien d’autre n’est visible.')}
                   </span>
                 </span>
                 <input
@@ -845,6 +536,22 @@ export default function Profile() {
                   className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
                 />
               </label>
+              {user.is_admin && user.id === 1 && (
+                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line bg-bg2 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{t('Donner l’accès complet aux autres administrateurs')}</span>
+                    <span className="mt-0.5 block text-xs text-text2">
+                      {t('Tableau de bord et bibliothèque du serveur multimédia, réglages du serveur (TMDB, Plex, Jellyfin, Seerr…) et sauvegardes. Désactivé : les autres administrateurs gèrent seulement les comptes et les demandes.')}
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={!!settings.admins_full_access}
+                    onChange={(e) => update.mutate({ admins_full_access: e.target.checked })}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
+                  />
+                </label>
+              )}
               </div>
             </Section>
           )}

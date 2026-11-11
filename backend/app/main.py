@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -13,7 +13,7 @@ from app import __version__
 from app.config import config
 from app.database import init_db
 import app.services.push  # noqa: F401 — envoi push à chaque notification enregistrée
-from app.routers import admin, auth, cinema, episodes, jellyfin, justwatch, letterboxd, library, media, news, notifications, plex, push, requests, search, seerr, swipe, tmdb, tonight, trakt, user
+from app.routers import admin, admin_backups, admin_server, auth, auth_external, cinema, episodes, jellyfin, justwatch, letterboxd, library, media, news, notifications, plex, push, requests, search, seerr, swipe, tmdb, tonight, trakt, user
 from app.scheduler import start_scheduler, stop_scheduler
 from app.services.auth import require_ready
 from app.services.errors import ServiceError
@@ -53,6 +53,38 @@ app = FastAPI(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+MAX_BODY = 1024 * 1024  # aucune requête de l'interface n'approche 1 Mo (pas d'envoi de fichiers)
+
+
+class BodyLimit:
+    """Refuse (413) les corps de requête démesurés avant de les garder en mémoire, annoncés (Content-Length)
+    ou non (envoi par morceaux) : sans cela, un visiteur anonyme pourrait épuiser la mémoire du serveur."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.inner(scope, receive, send)
+        declared = dict(scope["headers"]).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > MAX_BODY:
+            return await JSONResponse({"detail": "Requête trop volumineuse"}, status_code=413)(scope, receive, send)
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body") or b"")
+                if seen > MAX_BODY:
+                    raise HTTPException(413, "Requête trop volumineuse")
+            return message
+
+        await self.inner(scope, limited, send)
+
+
+app.add_middleware(BodyLimit)
 if config.cors_list:
     app.add_middleware(
         CORSMiddleware,
@@ -159,8 +191,9 @@ async def same_origin_only(request: Request, call_next):
 
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(auth_external.router, prefix="/api")  # connexion avec Plex / Jellyfin
 # Tout le reste exige une session (et un mot de passe provisoire déjà changé)
-for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, push, jellyfin, letterboxd, seerr, justwatch, news, admin):
+for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, push, jellyfin, letterboxd, seerr, justwatch, news, admin, admin_server, admin_backups):
     app.include_router(r.router, prefix="/api", dependencies=[Depends(require_ready)])
 
 

@@ -8,9 +8,13 @@ export const auth = {
   login: (username, password) => api.post('/auth/login', { username, password }),
   logout: async () => {
     await forgetDevice()
+    // Appareil partagé : les images de la bibliothèque gardées par le service worker partent avec la session
+    if (typeof caches !== 'undefined') await caches.delete('plex-images').catch(() => {})
     return api.post('/auth/logout')
   },
-  changePassword: (current_password, new_password) => api.post('/auth/password', { current_password, new_password }),
+  changePassword: (current_password, new_password, code = '') => api.post('/auth/password', { current_password, new_password, code }),
+  // Version personnelle en accès libre : fait écrire dans les journaux du serveur le code du premier mot de passe
+  protectCode: () => api.post('/auth/protect/code'),
   updateProfile: (display_name, username) => api.put('/auth/profile', username ? { display_name, username } : { display_name }),
   removePassword: (current_password) => api.del('/auth/password', { current_password }),
   plexPin: (mode = 'link') => api.post(`/auth/plex/pin?mode=${mode}`),

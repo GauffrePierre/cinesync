@@ -55,12 +55,14 @@ Pour les personnes qui ont un compte sur ton serveur Jellyfin ou Emby :
 
 Un membre qui a déjà un compte SynCiné peut aussi relier son compte Jellyfin lui-même (**Profil → Connexions → + → Jellyfin / Emby → Relier mon compte**, avec son mot de passe SynCiné) : il retrouve sa bibliothèque et ses vus. Se **connecter** à SynCiné avec ce compte reste à autoriser par toi : case **Peut se connecter avec son compte Jellyfin** sur son compte, dans **Profil → Admin → Comptes**.
 
+**Trop de mots de passe Jellyfin faux** : après 2 mots de passe incorrects pour un compte Jellyfin, SynCiné n'en transmet plus au serveur (sinon il pourrait servir à faire bloquer ce compte par le serveur lui-même). La personne peut toujours se connecter depuis un appareil déjà utilisé, ou avec son mot de passe SynCiné. Pour lever le blocage : décoche puis recoche **Peut se connecter avec son compte Jellyfin** sur son compte.
+
 ### Sans compte Plex
 Ces comptes ne voient rien de ton serveur Plex (bibliothèque, nom du serveur, titres vus) et ne peuvent pas faire de demandes d'ajout.
 
 1. Section **Comptes SynCiné → Ajouter**.
 2. Choisis un **identifiant** et un **mot de passe provisoire** (bouton **Générer**), coche les options si besoin.
-3. Transmets l'adresse, l'identifiant et le mot de passe : il sera changé à la première connexion.
+3. Transmets l'adresse, l'identifiant et le mot de passe : il sera changé à la première connexion. Un mot de passe provisoire est valable **7 jours** ; passé ce délai, donnes-en un nouveau (menu du compte → **Nouveau mot de passe provisoire**).
 
 Plus tard, le menu **⋯** d'un compte permet de donner ou renouveler un mot de passe, de rendre administrateur, de désactiver ou de supprimer le compte.
 
@@ -79,12 +81,14 @@ Quand un membre demande l'ajout d'un titre :
 
 Si Plex **et** Jellyfin (ou Emby) sont reliés, un sélecteur en haut permet de passer de l'un à l'autre ; chaque serveur y affiche son nombre de lectures en cours. Pour Jellyfin et Emby, les statistiques comptent la dernière lecture de chaque titre par compte (ces serveurs ne gardent pas d'historique complet).
 
+**Plusieurs administrateurs** : par défaut, les autres administrateurs ont les mêmes accès que toi : ce tableau de bord, la bibliothèque du serveur sans y relier leur propre compte (donc avec tes titres vus), les réglages du serveur et les sauvegardes (qui contiennent les jetons des services). Pour qu'ils gèrent seulement les comptes et les demandes, décoche **Profil → Préférences → Partage → Donner l'accès complet aux autres administrateurs** (seul le compte administrateur principal voit cette case).
+
 ## 6. Check-list sécurité
 
 - [ ] Mot de passe administrateur long et unique.
 - [ ] **Double authentification** activée (Profil → Mon compte → Activer), codes de secours rangés en lieu sûr. Si un membre perd son téléphone : menu **⋯** de son compte → **Réinitialiser la double authentification**.
 - [ ] Accès depuis Internet uniquement en **HTTPS** (proxy inverse ou Tailscale), `PUBLIC_URL` renseigné.
-- [ ] Sauvegarde automatique activée (**Profil → Admin → Sauvegardes**, active par défaut), et de temps en temps une copie téléchargée rangée hors du serveur : elle contient les jetons des services.
+- [ ] Sauvegarde automatique activée (**Profil → Admin → Sauvegardes**, active par défaut), et de temps en temps une copie téléchargée rangée hors du serveur. Les jetons des services y sont chiffrés avec la clé du serveur (`secret.key`, absente des sauvegardes) : restaurée sur une autre installation, elle demandera de reconnecter les services.
 - [ ] Mises à jour : `git pull && docker compose up -d --build`, ou l'image publiée.
 
 ---

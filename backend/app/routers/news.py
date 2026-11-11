@@ -3,7 +3,7 @@
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -60,7 +60,7 @@ def _save(ctx: Ctx, sources: list[dict]) -> None:
 
 
 @router.get("")
-async def feed(kind: Literal["all", "article", "video"] = "all", source: str | None = None, limit: int = 80, ctx: Ctx = Depends(get_ctx)):
+async def feed(kind: Literal["all", "article", "video"] = "all", source: str | None = Query(None, max_length=100), limit: int = Query(80, ge=1, le=200), ctx: Ctx = Depends(get_ctx)):
     sources = active_sources(ctx)
     if source:
         sources = [s for s in sources if s["id"] == source]

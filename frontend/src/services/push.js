@@ -48,6 +48,20 @@ export const push = {
   },
 }
 
+// Ouverture de l'appli : l'appareil déjà abonné dans ce navigateur se réinscrit auprès du serveur, qui oublie les
+// appareils d'un compte quand ses sessions sont fermées (changement de mot de passe, compte désactivé)
+export async function resyncDevice() {
+  try {
+    if (!pushSupported() || Notification.permission !== 'granted') return
+    const sub = await currentSubscription()
+    if (!sub) return
+    const json = sub.toJSON()
+    await api.post('/push/subscribe', { endpoint: json.endpoint, keys: json.keys })
+  } catch {
+    /* rien à faire : les notifications se réactivent depuis le profil */
+  }
+}
+
 // Déconnexion : cet appareil ne doit plus recevoir les notifications du compte qui s'en va
 export async function forgetDevice() {
   try {

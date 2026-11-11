@@ -5,11 +5,12 @@
 Chaque membre voit ses demandes ; l'admin les voit toutes.
 """
 
+import re
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func, select
 
 from app.models import MediaRequest, Notification, User
 from app.services import messages
@@ -19,21 +20,31 @@ from app.services.errors import NotConfigured, ServiceError
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 OPEN = ("pending", "sent")
+MAX_PENDING = 50  # demandes en attente par membre (la file et la cloche de l'administrateur ne se remplissent pas sans fin)
+_TMDB_POSTER = re.compile(r"https://image\.tmdb\.org/t/p/\w+/[\w-]+\.(?:jpg|png|webp)")
 
 
 class RequestIn(BaseModel):
-    tmdb_id: int
+    """Le contenu vient du navigateur du membre et s'affiche chez l'administrateur : tout est borné."""
+
+    tmdb_id: int = Field(gt=0)
     media_type: Literal["movie", "tv"]
-    title: str = ""
-    year: int | None = None
-    poster: str | None = None
-    seasons: list[int] | None = None
-    note: str = ""
+    title: str = Field("", max_length=300)
+    year: int | None = Field(None, ge=1870, le=2200)
+    poster: str | None = Field(None, max_length=300)
+    seasons: list[int] | None = Field(None, max_length=100)
+    note: str = Field("", max_length=500)
+
+    @field_validator("poster")
+    @classmethod
+    def tmdb_poster_only(cls, v: str | None) -> str | None:
+        # Affiche TMDB seulement : l'administrateur ne charge jamais une adresse choisie par un membre
+        return v if v and _TMDB_POSTER.fullmatch(v) else None
 
 
 class RequestUpdate(BaseModel):
     status: Literal["pending", "declined", "available"]
-    note: str | None = None
+    note: str | None = Field(None, max_length=500)
 
 
 def find_open(ctx: Ctx, media_type: str, tmdb_id: int) -> MediaRequest | None:
@@ -73,7 +84,7 @@ def _names(ctx: Ctx) -> dict[int, str]:
 
 def _for(ctx: Ctx, d: dict) -> dict:
     """L'adresse de Seerr (réseau du serveur) n'est montrée qu'à l'admin."""
-    return d if ctx.is_admin else {**d, "seerr_url": None}
+    return d if ctx.server_admin else {**d, "seerr_url": None}
 
 
 def _out(ctx: Ctx, req: MediaRequest, names: dict[int, str]) -> dict:
@@ -130,6 +141,10 @@ async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
     existing = find_open(ctx, body.media_type, body.tmdb_id)
     if existing:
         return {"request": visible(ctx, existing), "created": False}
+    if not ctx.is_admin:
+        q = select(func.count(MediaRequest.id)).where(MediaRequest.user_id == ctx.user.id, MediaRequest.status == "pending")
+        if ctx.db.execute(q).scalar_one() >= MAX_PENDING:
+            raise HTTPException(429, "Trop de demandes en attente : attends que l'administrateur les traite")
     req = MediaRequest(
         tmdb_id=body.tmdb_id, media_type=body.media_type, title=body.title, year=body.year, poster=body.poster, note=body.note,
         requested_by=ctx.user.username, status="pending",

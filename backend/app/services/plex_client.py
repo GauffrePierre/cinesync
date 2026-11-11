@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -10,6 +11,9 @@ import httpx
 from app.services.cache import MISS, cache
 from app.services.errors import ServiceError
 from app.services.http import http
+
+IMAGE_PATH = re.compile(r"/library/[A-Za-z0-9_/-]{1,200}")  # /library/metadata/123/thumb/456
+IMAGE_TYPES = ("image/jpeg", "image/png", "image/webp", "image/gif")
 
 _index_lock = asyncio.Lock()
 
@@ -169,7 +173,9 @@ class PlexClient:
         return hits[:limit]
 
     async def image(self, path: str, width: int) -> tuple[bytes, str]:
-        if not path.startswith("/library/"):
+        # Chemin d'une image de la bibliothèque, tel que Plex le donne (/library/metadata/123/thumb/456) : rien
+        # qui permette de viser une autre ressource du serveur (« .. », adresse complète, paramètres)
+        if not IMAGE_PATH.fullmatch(path):
             raise ServiceError("plex", "Chemin d'image invalide", 400)
         height = int(width * 1.5)
         try:
@@ -181,9 +187,10 @@ class PlexClient:
             )
         except httpx.HTTPError as e:
             raise ServiceError("plex", "Image Plex indisponible") from e
-        if r.status_code >= 400:
-            raise ServiceError("plex", "Image Plex indisponible", r.status_code)
-        return r.content, r.headers.get("content-type", "image/jpeg")
+        ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
+        if r.status_code >= 400 or ctype not in IMAGE_TYPES:  # rien d'autre qu'une image n'est relayé
+            raise ServiceError("plex", "Image Plex indisponible", r.status_code if r.status_code >= 400 else 404)
+        return r.content, ctype
 
     async def _action(self, path: str, **params) -> None:
         try:

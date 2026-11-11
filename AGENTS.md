@@ -17,6 +17,7 @@ uvicorn app.main:app --reload --port 8000        # API on :8000, DB in backend/d
 python -m pytest -q                               # must stay green
 cd frontend && npm install && npm run dev         # :5173, proxies /api to :8000
 npx vite build                                    # must build without errors
+npm run check:i18n                                # translations: no missing or conflicting key, same placeholders
 python -m pytest -q e2e                           # from the repo root, after the build: browser tests (see docs/wiki/10-testing.md)
 docker compose up -d --build                      # full image (see .env.example)
 ```

@@ -8,18 +8,22 @@
 import base64
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 from collections import deque
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import Depends, HTTPException, Request, Response
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.config import config
 from app.database import bind_user, get_db
-from app.models import AuthSession, User
+from app.models import AuthSession, PushSubscription, User
 from app.services.clock import utcnow
+
+log = logging.getLogger(__name__)
 
 COOKIE = "cinesync_session"
 SESSION_DAYS = 30
@@ -90,9 +94,8 @@ class RateLimiter:
     - all : plafond global (attaque répartie).
     """
 
-    # jf : échecs par compte Jellyfin / Emby visé, sous le seuil de blocage du serveur (3 par défaut, remis à
-    # zéro seulement par une connexion réussie) : SynCiné ne doit pas pouvoir servir à bloquer un compte
-    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300, "pin": 20, "jf": 2}
+    # jf / jfd : mots de passe faux transmis au serveur Jellyfin / Emby pour un compte (voir jellyfin_guard)
+    LIMITS = {"pair": 8, "ip": 30, "user": 50, "all": 300, "pin": 20, "jf": 2, "jfd": 2}
     MAX_KEYS = 10_000
 
     def __init__(self, window: int):
@@ -129,7 +132,59 @@ class RateLimiter:
 
 
 login_limiter = RateLimiter(window=15 * 60)
-jellyfin_limiter = RateLimiter(window=24 * 3600)  # clés « jf:<identifiant Jellyfin> »
+
+# Mots de passe Jellyfin / Emby : le serveur bloque un compte après quelques échecs d'affilée (3 par défaut) et ne
+# remet son compteur à zéro qu'après une connexion réussie. SynCiné ne doit pas pouvoir servir à bloquer un compte :
+# - jf:<identifiant> : 2 échecs au plus, jamais oubliés avant une réussite (ou une réautorisation par l'admin) ;
+# - jfd:<identifiant> : l'appareil déjà connecté à ce compte garde ses propres essais (2 par 24 h), sinon n'importe
+#   qui pourrait empêcher son propriétaire de se connecter.
+jellyfin_limiter = RateLimiter(window=float("inf"))
+jellyfin_device_limiter = RateLimiter(window=24 * 3600)
+JELLYFIN_BLOCKED = "Trop d'essais pour ce compte Jellyfin : utilise un appareil déjà connecté ou ton mot de passe SynCiné, ou demande à l'administrateur"
+
+
+def jellyfin_guard(username: str, known: bool = False) -> tuple[RateLimiter, str]:
+    """Refuse (429) si trop de mots de passe faux ont déjà été transmis au serveur pour ce compte ; renvoie le
+    compteur et la clé à passer à fail(). known : appareil déjà connecté à ce compte (cookie signé)."""
+    name = username.strip().lower()
+    limiter, key = (jellyfin_device_limiter, f"jfd:{name}") if known else (jellyfin_limiter, f"jf:{name}")
+    if limiter.blocked(key):
+        raise HTTPException(429, JELLYFIN_BLOCKED)
+    return limiter, key
+
+
+def jellyfin_release(username: str) -> None:
+    """Connexion réussie (ou réautorisation par l'administrateur) : le compteur du serveur est reparti de zéro."""
+    name = username.strip().lower()
+    jellyfin_limiter.reset(f"jf:{name}")
+    jellyfin_device_limiter.reset(f"jfd:{name}")
+
+
+# --- Version personnelle : première protection par mot de passe ---------------------------
+# Tant que l'accès est libre, n'importe quel visiteur pourrait définir lui-même le mot de passe et enfermer le
+# propriétaire dehors : la première fois, il faut un code écrit dans les journaux du serveur (comme l'installation).
+
+PROTECT_TTL = 30 * 60
+_protect: tuple[str, float] | None = None  # (code, expiration)
+
+
+def new_protect_code() -> None:
+    global _protect
+    code = "-".join(secrets.token_hex(2).upper() for _ in range(3))
+    _protect = (code, time.monotonic() + PROTECT_TTL)
+    log.warning("Protection de l'accès : code pour définir le mot de passe -> %s", code)
+
+
+def use_protect_code(given: str) -> bool:
+    """Vrai si le code est celui des journaux (valable 30 min, une seule fois)."""
+    global _protect
+    if _protect is None or _protect[1] < time.monotonic():
+        return False
+    clean = given.strip().upper().replace("-", "").replace(" ", "")
+    if not hmac.compare_digest(clean.encode(), _protect[0].replace("-", "").encode()):
+        return False
+    _protect = None
+    return True
 
 
 def client_ip(request: Request) -> str:
@@ -143,23 +198,32 @@ def guard_attempts(request: Request, subject: str = "", trusted: bool = False) -
 
     subject : ce qui est visé, préfixé par son usage (« login:alice », « 2fa:3 », « setup »), pour qu'un
     identifiant inventé ne puisse pas épuiser le compteur d'un autre usage.
-    trusted : appareil déjà connecté à ce compte (cookie signé, voir known_device) : les plafonds par
-    adresse et global ne le bloquent pas, sinon une attaque répartie empêcherait tout le monde de se connecter."""
+    trusted : appareil déjà connecté à ce compte (cookie signé, voir known_device) ou session ouverte sur ce
+    compte : les plafonds par adresse et global ne le bloquent pas, sinon une attaque répartie empêcherait tout
+    le monde de se connecter ou de changer son mot de passe."""
     ip = client_ip(request)
     soft = ("all:", f"ip:{ip}")
     hard = (f"pair:{ip}|{subject}", f"user:{subject}") if subject else ()
-    if login_limiter.blocked(*(hard if trusted else soft + hard)):
+    keys = hard if trusted else soft + hard
+    if login_limiter.blocked(*keys):
         raise HTTPException(429, "Trop d'essais, réessaie dans quelques minutes")
-    return soft + hard
+    # Les échecs d'un appareil connu ne comptent que pour son compte : sinon un membre connecté pourrait remplir
+    # à lui seul les plafonds par adresse et global, qui bloquent les nouveaux appareils de tout le monde
+    return keys
 
 
 RECENT_LOGIN = timedelta(minutes=10)
+TEMP_PASSWORD_DAYS = 7  # un mot de passe provisoire jamais utilisé ne reste pas une porte ouverte
+
+
+def temp_password_deadline() -> datetime:
+    return utcnow() + timedelta(days=TEMP_PASSWORD_DAYS)
 
 
 def confirm_identity(db, request: Request, user: User, password: str) -> None:
     """Changement sensible : mot de passe actuel exigé ; sans mot de passe (compte Plex / Jellyfin), connexion récente."""
     if user.password_hash:
-        keys = guard_attempts(request, f"login:{user.username}")
+        keys = guard_attempts(request, f"login:{user.username}", trusted=True)  # session ouverte sur ce compte
         if not verify_password(password, user.password_hash):
             login_limiter.fail(*keys)
             raise HTTPException(403, "Mot de passe actuel incorrect")
@@ -177,25 +241,27 @@ DEVICE_COOKIE = "cinesync_device"
 DEVICE_DAYS = 365
 
 
-def _device_sig(user_id: int, nonce: str) -> str:
+def _device_sig(user_id: int, issued: int, nonce: str) -> str:
     from app.services.secret import server_secret
 
-    return hmac.new(server_secret(), f"device|{user_id}|{nonce}".encode(), hashlib.sha256).hexdigest()[:32]
+    return hmac.new(server_secret(), f"device|{user_id}|{issued}|{nonce}".encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def remember_device(request: Request, response: Response, user_id: int) -> None:
-    nonce = secrets.token_urlsafe(12)
+    # La date d'émission est signée : passé un an, le cookie ne vaut plus rien, même recopié ailleurs
+    nonce, issued = secrets.token_urlsafe(12), int(time.time())
     response.set_cookie(
-        DEVICE_COOKIE, f"{user_id}.{nonce}.{_device_sig(user_id, nonce)}", max_age=DEVICE_DAYS * 86400,
+        DEVICE_COOKIE, f"{user_id}.{issued}.{nonce}.{_device_sig(user_id, issued, nonce)}", max_age=DEVICE_DAYS * 86400,
         httponly=True, samesite="lax", secure=_is_https(request), path="/api/auth",
     )
 
 
 def known_device(request: Request) -> int | None:
-    """Id du compte déjà connecté depuis cet appareil (cookie signé valide), sinon None."""
+    """Id du compte déjà connecté depuis cet appareil (cookie signé, émis depuis moins d'un an), sinon None."""
     try:
-        uid, nonce, sig = (request.cookies.get(DEVICE_COOKIE) or "").split(".")
-        if hmac.compare_digest(sig, _device_sig(int(uid), nonce)):
+        uid, issued, nonce, sig = (request.cookies.get(DEVICE_COOKIE) or "").split(".")
+        age = time.time() - int(issued)
+        if hmac.compare_digest(sig, _device_sig(int(uid), int(issued), nonce)) and -300 <= age <= DEVICE_DAYS * 86400:
             return int(uid)
     except ValueError:
         pass
@@ -254,12 +320,15 @@ def close_session(db: Session, request: Request, response: Response) -> None:
 
 
 def close_all_sessions(db: Session, user_id: int, keep_request: Request | None = None) -> None:
-    """Déconnecte un compte partout (sauf, éventuellement, la session de cette requête)."""
+    """Déconnecte un compte partout (sauf, éventuellement, la session de cette requête). Ses appareils ne
+    reçoivent plus de notifications push : un appareil perdu ou celui d'un compte désactivé n'affiche plus rien
+    (l'appareil qui reste connecté se réabonne tout seul à la prochaine ouverture)."""
     q = db.query(AuthSession).filter(AuthSession.user_id == user_id)
     token = keep_request.cookies.get(COOKIE) if keep_request else None
     if token:
         q = q.filter(AuthSession.token_hash != _digest(token))
     q.delete()
+    db.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id).execution_options(all_users=True, synchronize_session=False))
     db.commit()
 
 

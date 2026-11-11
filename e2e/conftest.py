@@ -29,16 +29,15 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="session")
-def server(tmp_path_factory):
-    """Serveur SynCiné neuf (version serveur, sans clé TMDB : données de démonstration)."""
+def _start(tmp_path_factory, mode: str):
+    """Serveur SynCiné neuf (sans clé TMDB : données de démonstration), dans la version demandée."""
     dist = ROOT / "frontend" / "dist"
     if not (dist / "index.html").is_file():
         pytest.exit("Interface non compilée : cd frontend && npm run build", 2)
     data = tmp_path_factory.mktemp("data")
     port = _free_port()
     log = data / "server.log"
-    env = {**os.environ, "DATA_DIR": str(data), "STATIC_DIR": str(dist), "CINESYNC_MODE": "server", "LOG_LEVEL": "WARNING",
+    env = {**os.environ, "DATA_DIR": str(data), "STATIC_DIR": str(dist), "CINESYNC_MODE": mode, "LOG_LEVEL": "WARNING",
            "PUBLIC_URL": "", "TZ": "Europe/Paris"}
     with open(log, "w") as out:
         proc = subprocess.Popen(
@@ -57,14 +56,26 @@ def server(tmp_path_factory):
         else:
             pytest.exit(f"Le serveur ne démarre pas :\n{log.read_text()[-3000:]}", 2)
         code = re.search(r"administrateur -> (\S+)", log.read_text())
-        assert code, "code d'installation absent des journaux"
-        yield {"base": base, "code": code.group(1), "log": log}
+        assert code or mode == "personal", "code d'installation absent des journaux"
+        yield {"base": base, "code": code.group(1) if code else None, "log": log}
     finally:
         proc.terminate()
         try:
             proc.wait(10)
         except subprocess.TimeoutExpired:
             proc.kill()
+
+
+@pytest.fixture(scope="session")
+def server(tmp_path_factory):
+    """Version serveur (comptes, connexion)."""
+    yield from _start(tmp_path_factory, "server")
+
+
+@pytest.fixture(scope="session")
+def personal_server(tmp_path_factory):
+    """Version personnelle (un seul utilisateur, accès libre tant qu'aucun mot de passe n'est défini)."""
+    yield from _start(tmp_path_factory, "personal")
 
 
 @pytest.fixture(scope="session")

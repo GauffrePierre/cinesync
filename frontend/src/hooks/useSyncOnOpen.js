@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { library } from '../services/library'
+import { resyncDevice } from '../services/push'
 
 const KEYS = ['library-keys', 'watchlist', 'media', 'status', 'notifications', 'sync-status', 'suggestions', 'library']
 const RESUME_AFTER = 5 * 60_000 // retour dans l'appli après 5 min d'absence
@@ -15,6 +16,7 @@ export function useSyncOnOpen() {
 
   useEffect(() => {
     const run = async () => {
+      resyncDevice() // notifications push : sans attendre
       try {
         // max_age : le serveur ignore la demande si une synchro date de moins de 2 min
         await library.syncNow(120)

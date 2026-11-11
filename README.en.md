@@ -355,7 +355,7 @@ On Unraid: **Docker tab → Check for Updates**, then **Apply Update**.
 
 The database (`cinesync.db` in the data folder) is migrated automatically at startup.
 
-**Backups**: SynCiné backs up its database every day into `backups/` (in the data folder) and keeps the last 7. In **Profile → Admin → Backups** you can change that number, turn automatic backups off, back up right away or download a copy. A backup holds the tokens of your connected services: keep copies somewhere safe, ideally off the server too.
+**Backups**: SynCiné backs up its database every day into `backups/` (in the data folder) and keeps the last 7. In **Profile → Admin → Backups** you can change that number, turn automatic backups off, back up right away or download a copy. The tokens of your connected services are encrypted in it with the server key (`secret.key`, in the data folder, never copied into a backup): a backup alone does not give access to your services. Still keep copies somewhere safe (history, password hashes), ideally off the server too.
 
 **Restore** a backup:
 
@@ -365,6 +365,8 @@ gunzip -c data/backups/syncine-YYYYMMDD-HHMMSS.db.gz > data/cinesync.db
 rm -f data/cinesync.db-wal data/cinesync.db-shm
 docker compose start
 ```
+
+On another installation (without the original `secret.key` file), the restored database starts with the services disconnected: reconnect them in **Profile → Connections** and turn two-factor sign-in back on. To keep everything in one go, copy the whole data folder.
 
 ## Settings
 

@@ -448,6 +448,12 @@ class TMDBClient:
         raw = await self.detail_raw(media_type, tmdb_id)
         return normalize_detail(raw, media_type, self.lang2, self.country)
 
+    async def features_raw(self, media_type: str, tmdb_id: int) -> dict:
+        """Fiche réduite à ce que lit le profil de goûts (genres, mots-clés, équipe). Pas gardée en cache : la
+        réponse pèse des dizaines de Ko, seules les quelques caractéristiques extraites le sont (taste.features)."""
+        append = "credits,keywords" if media_type == "movie" else "aggregate_credits,keywords"
+        return await self._get(f"/{media_type}/{tmdb_id}", ttl=0, append_to_response=append)
+
     async def basic(self, media_type: str, tmdb_id: int) -> dict | None:
         """Version légère (pour enrichir des items Trakt/JustWatch avec poster, note…)."""
         try:

@@ -296,7 +296,7 @@ async def full_detail(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx
         if not ctx.seerr:
             return None
         status = await ctx.seerr.media_status(media_type, tmdb_id)
-        return status if ctx.is_admin else {k: v for k, v in status.items() if k != "url"}  # adresse : admin seulement
+        return status if ctx.server_admin else {k: v for k, v in status.items() if k != "url"}  # adresse : admin seulement
 
     async def collection():
         c = detail.get("collection")

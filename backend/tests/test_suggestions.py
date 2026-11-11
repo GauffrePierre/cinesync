@@ -29,7 +29,7 @@ class Tmdb:
     async def basic(self, media_type, tmdb_id):
         return None
 
-    async def detail_raw(self, media_type, tmdb_id):
+    async def features_raw(self, media_type, tmdb_id):
         return getattr(self, "raw", {}).get((media_type, tmdb_id), {})
 
 
@@ -127,6 +127,66 @@ def test_movies_and_series_mixed_and_unknown_titles_step_back(db, monkeypatch):
     types = [i["media_type"] for i in out]
     assert types.count("tv") >= 2 and "tv" in types[:3]  # séries mêlées aux films, pas toutes à la fin
     assert out[0]["title"] != "Inconnu"  # presque aucun vote : en retrait
+
+
+def test_recent_known_and_well_rated_titles_come_first(db, monkeypatch):
+    """À recommandation égale, ce qui est sorti dans l'année, connu et bien noté passe devant (ce que montrent les
+    historiques réels) ; un titre obscur ou mal noté recule, sans disparaître."""
+    recent = (utcnow() - timedelta(days=90)).date().isoformat()
+    five_years = (utcnow() - timedelta(days=5 * 365)).date().isoformat()
+    old = _item(100, "Ancien") | {"vote_count": 3000, "vote_average": 7.5, "release_date": five_years}
+    new = _item(101, "Récent") | {"vote_count": 3000, "vote_average": 7.5, "release_date": recent}
+    assert sg._prior(new) == sg.RECENT_BOOST * sg._prior(old)
+    assert sg._prior(old | {"vote_count": 60}) < 0.4 * sg._prior(old)  # presque inconnu
+    assert sg._prior(old | {"vote_average": 5.5}) < 0.3 * sg._prior(old)  # mal noté
+    assert sg._prior(old | {"vote_average": 8.2}) > 2 * sg._prior(old)  # très bien noté
+    assert sg._prior(_item(102, "Sans date") | {"vote_count": 0, "vote_average": 0}) > 0  # jamais nul, jamais d'erreur
+    db.add(MediaState(tmdb_id=1, media_type="movie", title="A", liked=True))
+    db.commit()
+    bad = _item(103, "Mal noté") | {"vote_count": 3000, "vote_average": 5.2, "release_date": five_years}
+    monkeypatch.setattr(sg, "enrich", _fake_enrich(set()))
+    out = asyncio.run(sg.suggestions(_ctx(db, {("movie", 1): [bad, old, new]}), "movie", limit=3))
+    assert [i["title"] for i in out] == ["Récent", "Ancien", "Mal noté"]  # l'ordre de TMDB était l'inverse
+
+
+def test_recent_releases_join_the_candidates_within_a_cap(db, monkeypatch):
+    """Les sorties de l'année les plus suivies s'ajoutent aux candidats (même sans rapport avec une référence), mais
+    restent une part limitée de la liste : PER_SEED par type."""
+    recent = (utcnow() - timedelta(days=60)).date().isoformat()
+    asked = []
+
+    class WithReleases(Tmdb):
+        async def discover(self, media_type, **kw):
+            asked.append((media_type, kw))
+            if kw.get("sort_by") != "vote_count.desc":
+                return []
+            base = 300 if media_type == "movie" else 400
+            page = kw.get("page", 1)
+            return [_item(base + 20 * page + n, f"{'Film' if media_type == 'movie' else 'Série'} {chr(65 + n)}{page}", media_type)
+                    | {"vote_count": 4000, "vote_average": 7.6, "release_date": recent} for n in range(8)]
+
+    db.add(MediaState(tmdb_id=1, media_type="movie", title="A", liked=True))
+    db.commit()
+    mine = [_item(100 + n, f"Pour moi {chr(65 + n)}") | {"vote_count": 2000, "vote_average": 7.5, "release_date": "2021-03-01"} for n in range(3)]
+    ctx = SimpleNamespace(db=db, user=db.get(User, 1), tmdb=WithReleases({("movie", 1): mine}), trakt=None, platforms=[])
+    monkeypatch.setattr(sg, "enrich", _fake_enrich(set()))
+    out = asyncio.run(sg.suggestions(ctx, "all", limit=12))
+    releases = [i for i in out if i["reason_key"] == "Sortie récente remarquée"]
+    assert len([i for i in releases if i["media_type"] == "movie"]) == sg.PER_SEED
+    assert len([i for i in releases if i["media_type"] == "tv"]) == sg.PER_SEED
+    assert {i["title"] for i in out} >= {"Pour moi A", "Pour moi B", "Pour moi C"}  # les suggestions personnelles restent
+    window = next(kw for mt, kw in asked if mt == "movie" and kw.get("sort_by") == "vote_count.desc")
+    assert window["primary_release_date.lte"] == utcnow().date().isoformat() and window["primary_release_date.gte"] < window["primary_release_date.lte"]
+
+
+def test_references_cover_more_than_the_strongest_titles(db):
+    """Références : les 20 plus fortes, plus un tirage du jour parmi les suivantes (vivier de candidats assez large)."""
+    db.add_all([MediaState(tmdb_id=n, media_type="movie", title=f"T{n}", liked=n <= 30, watchlist_sources='["local"]') for n in range(1, 101)])
+    db.commit()
+    seeds, _ = sg.seeds(SimpleNamespace(db=db, user=db.get(User, 1)), ["movie"])
+    ids = [s["tmdb_id"] for s in seeds]
+    assert len(ids) == len(set(ids)) == sg.SEEDS_TOP + sg.SEEDS_ROTATING == 40
+    assert all(i <= 30 for i in ids[:20])  # les plus fortes d'abord (coups de cœur)
 
 
 def _raw(director=None, genres=(), cast=(), lang="en", year="2015", creator=None):

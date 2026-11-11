@@ -3,7 +3,6 @@
 eux, et seulement à travers ces suggestions : rien d'autre de leur compte n'est lu ni renvoyé."""
 
 import asyncio
-import math
 
 from sqlalchemy import select
 
@@ -11,7 +10,7 @@ from app.config import config
 from app.models import MediaState, User, UserSettings
 from app.services.context import Ctx
 from app.services.enrich import enrich, refs_to_items
-from app.services.suggestions import _of, _quality, _reason, _safe, _variety, excluded_keys, seeds, signals
+from app.services.suggestions import _of, _prior, _reason, _safe, _variety, excluded_keys, seeds, signals
 
 
 def partners(ctx: Ctx) -> list[User]:
@@ -29,7 +28,7 @@ def partner(ctx: Ctx, user_id: int) -> User | None:
 def _loved(ctx: Ctx, uid: int | None, media_types: list[str]) -> dict[tuple[str, int], dict]:
     """Titres vraiment aimés (coup de cœur, note ≥ 8, « J'aime » du swipe ou « plus comme ça ») d'un compte."""
     pos, _ = signals(ctx, media_types, uid)
-    return {(s["media_type"], s["tmdb_id"]): s for s in pos if s["weight"] >= 1.2}
+    return {(s["media_type"], s["tmdb_id"]): s for s in pos if s["loved"] and s["weight"] >= 1.2}
 
 
 def unwanted(ctx: Ctx, uid: int) -> set[tuple[str, int]]:
@@ -90,7 +89,9 @@ async def together(ctx: Ctx, members: list[tuple[int, str]], media_type: str = "
     items: dict[tuple[str, int], dict] = {}
     origin: dict[tuple[str, int], str] = {}
     for uid, name in people:
-        seed_list = seeds(ctx, media_types, uid)[0]
+        # Autre compte : seulement ses coups de cœur et bonnes notes (ce que le partage annonce), jamais son
+        # historique, ses titres seulement vus ni sa watchlist — le titre de référence est renvoyé en clair
+        seed_list = seeds(ctx, media_types, uid, loved_only=uid is not None)[0]
         scores: dict = {}
         recs = await asyncio.gather(*(_safe(ctx.tmdb.recommendations(s["media_type"], s["tmdb_id"]), []) for s in seed_list))
         for s, lst in zip(seed_list, recs):
@@ -115,7 +116,7 @@ async def together(ctx: Ctx, members: list[tuple[int, str]], media_type: str = "
     for k in items:
         values = [p[k] for p in per if p.get(k)]
         coverage = len(values) / n
-        final[k] = (sum(values) / len(values)) * coverage ** 2 * (2 if len(values) == n else 1) * _quality(items[k])
+        final[k] = (sum(values) / len(values)) * coverage ** 2 * (2 if len(values) == n else 1) * _prior(items[k])
         if len(values) == n:  # plairait à tout le monde
             items[k].update(_reason("Pour vous deux" if n == 2 else "Pour vous tous"))
     ranked = sorted(items, key=final.get, reverse=True)

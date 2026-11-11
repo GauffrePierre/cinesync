@@ -8,7 +8,7 @@ class SwipeIn(BaseModel):
     media_type: Literal["movie", "tv"]
     action: Literal["skip", "seen", "watchlist", "like"]
     rating: float | None = Field(default=None, ge=0.5, le=5, multiple_of=0.5)  # pour "seen", par demi-étoile
-    title: str = ""
+    title: str = Field("", max_length=300)
 
 
 class SwipeOut(BaseModel):

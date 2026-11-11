@@ -1,6 +1,6 @@
 """Lectures en cours du tableau de bord Plex : débit et décisions de transcodage."""
 
-from app.routers.admin import _session, _totals
+from app.routers.admin_server import _session, _totals
 
 DIRECT = {
     "type": "movie", "title": "Dune", "year": 2021, "duration": 9_000_000, "viewOffset": 4_500_000, "thumb": "/library/metadata/1/thumb",

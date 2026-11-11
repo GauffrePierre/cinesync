@@ -8,7 +8,7 @@ sur la ligne de l'administrateur principal (id=1) — ctx.settings fait l'aiguil
 from dataclasses import dataclass
 from functools import cached_property
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.config import config
@@ -32,6 +32,7 @@ GLOBAL_FIELDS = frozenset({
     "tmdb_api_key", "plex_url", "plex_server_name", "plex_machine_id", "plex_client_id",
     "seerr_url", "seerr_api_key", "justwatch_enabled", "trakt_client_id", "trakt_client_secret", "youtube_api_key",
     "jellyfin_url", "jellyfin_public_url", "jellyfin_api_key", "jellyfin_server_id", "jellyfin_server_name", "jellyfin_kind",
+    "admins_full_access",
 })
 SHARED_ID = 1
 
@@ -97,12 +98,19 @@ class Ctx:
     def is_admin(self) -> bool:
         return self.user.is_admin
 
+    @property
+    def server_admin(self) -> bool:
+        """Administrateur complet : serveur multimédia avec les accès du serveur (tableau de bord, bibliothèque
+        sans compte relié), réglages du serveur, sauvegardes. L'administrateur principal toujours ; les autres
+        seulement s'il le leur laisse (réglage admins_full_access), sinon ils gèrent les comptes et les demandes."""
+        return self.user.is_admin and (self.user.id == SHARED_ID or bool(self.settings.shared.admins_full_access))
+
     @cached_property
     def plex(self) -> PlexClient | None:
         """Serveur Plex partagé, en lecture, avec le jeton propre au compte.
-        Un administrateur sans jeton propre utilise celui du serveur. Un membre sans compte Plex relié n'a
-        AUCUN accès Plex : ni bibliothèque, ni badges, ni nom du serveur (rien du Plex de l'admin)."""
-        token = self.settings.own.plex_token or (self.settings.shared.plex_token if self.user.is_admin else "")
+        Un administrateur sans jeton propre utilise celui du serveur (voir server_admin). Un membre sans compte Plex
+        relié n'a AUCUN accès Plex : ni bibliothèque, ni badges, ni nom du serveur (rien du Plex de l'admin)."""
+        token = self.settings.own.plex_token or (self.settings.shared.plex_token if self.server_admin else "")
         if self.settings.plex_url and token:
             return PlexClient(self.settings.plex_url, token)
         return None
@@ -174,7 +182,7 @@ class Ctx:
         own_token, own_user = s.own.jellyfin_token, s.own.jellyfin_user_id
         if own_token and own_user:
             token, user = own_token, own_user
-        elif self.user.is_admin and s.jellyfin_api_key:
+        elif self.server_admin and s.jellyfin_api_key:
             token, user = s.jellyfin_api_key, ""
         else:
             return None
@@ -226,3 +234,10 @@ def public_base_url(request: Request) -> str:
     proto = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
     return f"{proto}://{host}"
+
+
+def require_server_admin(ctx: Ctx = Depends(get_ctx)) -> Ctx:
+    """Réglages du serveur, tableau de bord, sauvegardes : administrateur complet seulement (voir Ctx.server_admin)."""
+    if not ctx.server_admin:
+        raise HTTPException(403, "Réservé à l'administrateur principal")
+    return ctx

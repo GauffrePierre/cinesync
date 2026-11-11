@@ -21,9 +21,9 @@ router = APIRouter(prefix="/library", tags=["library"])
 
 
 class Ref(BaseModel):
-    tmdb_id: int
+    tmdb_id: int = Field(gt=0)
     media_type: Literal["movie", "tv"]
-    title: str = ""
+    title: str = Field("", max_length=300)
 
 
 class RatingIn(Ref):

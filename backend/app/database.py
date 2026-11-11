@@ -108,6 +108,23 @@ def _add_missing_columns() -> None:
                 conn.execute(text(ddl))
 
 
+def _encrypt_secrets() -> None:
+    """Chiffre les jetons et clés encore en clair (base d'avant le chiffrement, ou colonne devenue chiffrée) :
+    toute colonne de type EncryptedString, quelle que soit la table. Sans effet si tout est déjà chiffré."""
+    from app.services.crypto import PREFIX, EncryptedString, encrypt
+
+    done = 0
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            for col in (c.name for c in table.columns if isinstance(c.type, EncryptedString)):
+                query = text(f'SELECT id, "{col}" FROM "{table.name}" WHERE "{col}" IS NOT NULL AND "{col}" != \'\' AND "{col}" NOT LIKE :p')
+                for row_id, value in conn.execute(query, {"p": PREFIX + "%"}).all():
+                    conn.execute(text(f'UPDATE "{table.name}" SET "{col}" = :v WHERE id = :id'), {"v": encrypt(value), "id": row_id})
+                    done += 1
+    if done:
+        log.info("Jetons et clés chiffrés dans la base : %d valeur(s)", done)
+
+
 # Tables dont la contrainte d'unicité inclut désormais l'utilisateur : SQLite ne sait pas
 # modifier une contrainte, la table est reconstruite (données existantes -> compte n°1).
 _REBUILD_FOR_USERS = ("media_state", "swipe_history", "watch_events")
@@ -157,6 +174,7 @@ def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
     _rebuild_for_users()
+    _encrypt_secrets()
     if legacy_events:
         # Historique Plex d'avant les comptes : seuls les visionnages du propriétaire (accountID 1) sont à l'admin ;
         # ceux des autres comptes Plex attendent que l'admin les autorise (user_id 0)
@@ -172,6 +190,12 @@ def init_db() -> None:
         for u in db.query(User).all():
             if db.get(UserSettings, u.id) is None:
                 db.add(UserSettings(id=u.id, onboarding="pending"))
+        db.commit()
+        # Mots de passe provisoires d'avant leur durée limitée : le délai court à partir de cette mise à jour
+        from app.services.auth import temp_password_deadline
+
+        for u in db.query(User).filter(User.must_change_password.is_(True), User.temp_password_until.is_(None), User.password_hash != ""):
+            u.temp_password_until = temp_password_deadline()
         db.commit()
         if setup_required(db):
             setup_code = "-".join(secrets.token_hex(2).upper() for _ in range(3))

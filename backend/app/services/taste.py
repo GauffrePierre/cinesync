@@ -28,10 +28,16 @@ class Profile:
     names: dict = field(default_factory=dict)  # id de personne -> nom
 
 
+FEATURES_TTL = 7 * 86400  # genres, équipe et mots-clés d'un titre ne changent presque jamais
+
+
 async def features(ctx: Ctx, media_type: str, tmdb_id: int) -> dict | None:
-    """Caractéristiques d'un titre (fiche TMDB brute, en cache)."""
+    """Caractéristiques d'un titre, gardées une semaine (quelques centaines d'octets, au lieu de la fiche entière)."""
+    key = ("tmdb", "features", media_type, tmdb_id)
+    if (hit := cache.get(key)) is not MISS:
+        return hit
     try:
-        raw = await ctx.tmdb.detail_raw(media_type, tmdb_id)
+        raw = await ctx.tmdb.features_raw(media_type, tmdb_id)
     except ServiceError:
         return None
     if not raw:
@@ -41,7 +47,7 @@ async def features(ctx: Ctx, media_type: str, tmdb_id: int) -> dict | None:
     cast = (credits.get("cast") or (raw.get("aggregate_credits") or {}).get("cast") or [])[:6]
     makers = [c for c in credits.get("crew") or [] if c.get("job") == "Director"] if media_type == "movie" else raw.get("created_by") or []
     year = (raw.get("release_date") or raw.get("first_air_date") or "")[:4]
-    return {
+    out = {
         "genres": [g["id"] for g in raw.get("genres") or []],
         "keywords": [k["id"] for k in (kw.get("keywords") or kw.get("results") or [])[:15]],
         "makers": {m["id"]: m.get("name") or "" for m in makers[:3]},
@@ -49,6 +55,8 @@ async def features(ctx: Ctx, media_type: str, tmdb_id: int) -> dict | None:
         "lang": raw.get("original_language"),
         "decade": int(year) // 10 * 10 if year.isdigit() else None,
     }
+    cache.set(key, out, FEATURES_TTL)
+    return out
 
 
 async def profile(ctx: Ctx, positives: list[dict], negatives: list[dict]) -> Profile | None:

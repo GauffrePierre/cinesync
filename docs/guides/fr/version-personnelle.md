@@ -16,7 +16,8 @@ Tant qu'aucun mot de passe n'est défini, **toute personne qui ouvre l'adresse e
 
 1. **Profil → Mon compte → Protéger par un mot de passe**.
 2. Choisis un **identifiant** et un **mot de passe** (8 caractères minimum ; 12 ou plus si SynCiné est sur Internet).
-3. Cet appareil reste connecté ; les autres afficheront l'écran **Connexion**.
+3. Recopie le **code de sécurité** que SynCiné vient d'écrire dans les journaux du serveur (journaux du conteneur ; sur Unraid : icône du conteneur → **Logs**), sur une ligne « Protection de l'accès : code pour définir le mot de passe ». Comme l'accès est encore libre, ce code prouve que c'est bien toi, qui as la main sur le serveur, et pas un visiteur. Il est valable 30 minutes ; rouvre la fenêtre pour en obtenir un nouveau.
+4. Cet appareil reste connecté ; les autres afficheront l'écran **Connexion**.
 
 Tu peux revenir à l'accès libre plus tard : **Mon compte → Mot de passe → Retirer la protection par mot de passe**.
 

@@ -16,7 +16,8 @@ Until a password is set, **anyone who opens the address gets into your SynCiné*
 
 1. **Profile → My account → Protect with a password**.
 2. Choose a **username** and a **password** (at least 8 characters; 12+ if SynCiné is on the Internet).
-3. This device stays signed in; other devices will show the **Sign in** screen.
+3. Copy the **security code** SynCiné has just written to the server logs (container logs; on Unraid: container icon → **Logs**), on a line reading “Protection de l'accès : code pour définir le mot de passe”. Access is still open at this point, so the code proves it is you, who controls the server, and not a visitor. It is valid for 30 minutes; reopen the dialog to get a new one.
+4. This device stays signed in; other devices will show the **Sign in** screen.
 
 You can go back to open access later: **My account → Password → Remove password protection**.
 

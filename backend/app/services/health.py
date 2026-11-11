@@ -80,7 +80,7 @@ async def test_service(ctx: Ctx, service: str) -> dict:
             d = await ctx.plex.test()
             return {"ok": True, "message": f"Plex connecté — {d['sections']} bibliothèque(s) films/séries", "details": d}
         if service == "jellyfin":
-            client = ctx.jellyfin_admin if ctx.is_admin else ctx.jellyfin
+            client = ctx.jellyfin_admin if ctx.server_admin else ctx.jellyfin
             if not client:
                 return {"ok": False, "message": "Serveur Jellyfin non relié"}
             d = await client.test()

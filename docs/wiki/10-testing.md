@@ -101,7 +101,8 @@ Then check the change in the browser, in both themes, in French and English, and
 - the main pages load without uncaught JavaScript errors;
 - the Profile tabs, an immediate backup, the old `/admin` address, settings search and switching the interface language;
 - a member created by the admin signs in, must change the temporary password and has no Admin tab or admin API access;
-- phone layout (iPhone 13): bottom bar, no horizontal overflow, the four Profile tabs fit the width.
+- phone layout (iPhone 13): bottom bar, no horizontal overflow, the four Profile tabs fit the width;
+- personal edition (second server, `personal_server` fixture): protecting access asks for the security code written to the server logs, then another device has to sign in.
 
 ```bash
 cd frontend && npm run build && cd ..
@@ -113,6 +114,8 @@ python -m pytest -q e2e        # E2E_PYTHON=… to start the server with another
 Selectors use the French interface (`locale="fr-FR"`) and visible labels; when you rename a button or a label used there, update the test.
 
 ## What CI runs
+
+`.github/workflows/ci.yml` ("Vérifications") runs on every push to `main` and every pull request that touches `backend/` or `frontend/`: the backend tests, the translation check (`npm run check:i18n`) and the frontend build, in a single job that is cancelled when a newer push arrives. The end-to-end tests are not part of it (they take longer); they run before a release.
 
 `.github/workflows/docker.yml` ("Image Docker") runs on tags `v*.*.*` and on manual dispatch:
 
@@ -128,7 +131,7 @@ flowchart LR
 
 The image is only built and published if the tests, the frontend build and the end-to-end tests pass. Actions are pinned by commit SHA, and the workflow has read-only `contents` permission; only the `image` job gets `packages: write`. See [Release and deploy](11-release-and-deploy.md).
 
-Because CI runs on release tags, **run the tests locally before every pull request**.
+The end-to-end tests only run in CI on release tags: **run them locally when you change the interface or the sign-in flows**.
 
 ## See also
 

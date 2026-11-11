@@ -207,7 +207,7 @@ function UserRow({ user, me, onReset, onDelete }) {
           {user.username}
           {' · '}
           {user.last_login_at ? t('connecté {when}', { when: relativeTime(user.last_login_at) }) : t('jamais connecté')}
-          {user.must_change_password && ` · ${t('mot de passe provisoire')}`}
+          {user.must_change_password && ` · ${user.temp_password_expired ? t('mot de passe provisoire expiré') : t('mot de passe provisoire')}`}
         </p>
         {!user.is_admin && (
           <label className="mt-1.5 flex items-center gap-2 text-xs text-text2">

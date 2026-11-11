@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Layers, Sparkles } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import Button from '../components/ui/Button'
+import Toaster from '../components/ui/Toaster'
 import ConnectionCard from '../components/profile/ConnectionCard'
 import PlatformPicker from '../components/profile/PlatformPicker'
 import CinemaPicker from '../components/profile/CinemaPicker'
@@ -131,7 +132,7 @@ export default function Onboarding() {
   const { data: status } = useStatus()
   const update = useUpdateSettings()
   const [index, setIndex] = useState(0)
-  const isAdmin = !!user?.is_admin
+  const isAdmin = !!user?.is_admin && user.server_admin !== false // réglages du serveur : administrateur complet
 
   if (!settings) return null
 
@@ -209,6 +210,8 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text">
+      {/* Messages (« Code copié », erreurs de connexion d'un service…) : l'assistant est affiché hors de la mise en page de l'appli */}
+      <Toaster />
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-4 pt-6">
         <Logo />
         {!last && (

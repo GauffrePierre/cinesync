@@ -4,6 +4,7 @@ import { Copy, ExternalLink, Loader2, LogIn, LogOut } from 'lucide-react'
 import Button from '../ui/Button'
 import { trakt } from '../../services/trakt'
 import { safeUrl } from '../../lib/format'
+import { copyText } from '../../lib/clipboard'
 import { useTraktOauth } from '../../hooks/useMedia'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
@@ -63,7 +64,7 @@ export default function TraktConnect({ settings }) {
     mutationFn: trakt.deviceStart,
     onSuccess: (d) => {
       setDevice(d)
-      navigator.clipboard?.writeText(d.user_code).catch(() => {})
+      copyText(d.user_code) // sans message : la plupart des navigateurs ne copient que sur un clic
       poll(d.interval || 5, Date.now() + d.expires_in * 1000)
     },
     onError: (e) => toast(e.message, 'error'),
@@ -83,9 +84,9 @@ export default function TraktConnect({ settings }) {
     },
   })
 
-  const copy = (text, message) => {
-    navigator.clipboard?.writeText(text)
-    toast(message, 'success')
+  const copy = async (text, message) => {
+    const ok = await copyText(text)
+    toast(ok ? message : t('Copie impossible : sélectionne le texte et copie-le à la main'), ok ? 'success' : 'error')
   }
 
   const ready = !!settings?.trakt_client_id

@@ -12,7 +12,7 @@ from app.models import MediaState
 from app.services import plex_auth
 from app.services.cache import cache
 from app.services.auth import require_admin
-from app.services.context import Ctx, get_ctx
+from app.services.context import Ctx, get_ctx, require_server_admin
 from app.services.enrich import enrich
 from app.services.errors import NotConfigured, ServiceError
 from app.services.sorting import Sort, sort_items
@@ -90,11 +90,13 @@ async def status(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx = De
 
 
 @router.get("/image")
-async def image(path: str, width: int = Query(342, ge=50, le=1920), ctx: Ctx = Depends(get_ctx)):
+async def image(path: str = Query(max_length=300), width: int = Query(342, ge=50, le=1920), ctx: Ctx = Depends(get_ctx)):
     if not ctx.plex:
         raise NotConfigured("plex")
     content, ctype = await ctx.plex.image(path, width)
-    return Response(content=content, media_type=ctype, headers={"Cache-Control": "private, max-age=604800"})
+    # Servie depuis l'origine de SynCiné : jamais interprétée comme une page (bac à sable, type vérifié)
+    return Response(content=content, media_type=ctype, headers={
+        "Cache-Control": "private, max-age=604800", "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"})
 
 
 # --- Connexion via le compte plex.tv ----------------------------------------------
@@ -184,7 +186,7 @@ async def auth_check(pin_id: int, ctx: Ctx = Depends(get_ctx)):
     return {"authorized": True, "servers": plex_auth.public(servers), "selected": selected}
 
 
-@router.get("/servers", dependencies=[Depends(require_admin)])
+@router.get("/servers", dependencies=[Depends(require_server_admin)])
 async def servers(ctx: Ctx = Depends(get_ctx)):
     if not ctx.settings.shared.plex_account_token:
         raise NotConfigured("plex", "Connecte-toi d'abord avec ton compte Plex")
@@ -192,7 +194,7 @@ async def servers(ctx: Ctx = Depends(get_ctx)):
     return {"results": plex_auth.public(found), "current": ctx.settings.plex_machine_id or None}
 
 
-@router.post("/servers/select", dependencies=[Depends(require_admin)])
+@router.post("/servers/select", dependencies=[Depends(require_server_admin)])
 async def select_server(body: ServerChoice, ctx: Ctx = Depends(get_ctx)):
     if not ctx.settings.shared.plex_account_token:
         raise NotConfigured("plex", "Connecte-toi d'abord avec ton compte Plex")
@@ -203,7 +205,7 @@ async def select_server(body: ServerChoice, ctx: Ctx = Depends(get_ctx)):
     return _apply_server(ctx, server)
 
 
-@router.post("/auth/logout", dependencies=[Depends(require_admin)])
+@router.post("/auth/logout", dependencies=[Depends(require_server_admin)])
 def logout(ctx: Ctx = Depends(get_ctx)):
     s = ctx.settings.shared
     s.plex_account_token = s.plex_url = s.plex_token = s.plex_server_name = s.plex_machine_id = ""

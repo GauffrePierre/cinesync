@@ -4,7 +4,7 @@ import asyncio
 from datetime import date
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.context import Ctx, get_ctx
 from app.services.enrich import plex_keys, stream_providers
@@ -14,13 +14,13 @@ router = APIRouter(prefix="/episodes", tags=["episodes"])
 
 
 class EpisodeRef(BaseModel):
-    season: int
-    episode: int
+    season: int = Field(ge=0, le=1000)
+    episode: int = Field(ge=0, le=100_000)
 
 
 class EpisodesUpdate(BaseModel):
-    tmdb_id: int
-    episodes: list[EpisodeRef]
+    tmdb_id: int = Field(gt=0)
+    episodes: list[EpisodeRef] = Field(max_length=2000)  # une série entière au plus (chaque épisode = un appel au serveur)
     watched: bool = True
 
 

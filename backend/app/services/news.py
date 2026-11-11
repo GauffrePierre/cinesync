@@ -309,8 +309,8 @@ async def resolve(url: str, youtube_key: str = "") -> dict:
     u = urlsplit(url)
     host = (u.hostname or "").lower()
 
-    if host.endswith("youtube.com") or host == "youtu.be":
-        channel = next(iter(_CHANNEL.findall(u.path)), None) or parse_qs(u.query).get("channel_id", [None])[0]
+    if host in ("youtube.com", "youtu.be") or host.endswith(".youtube.com"):  # nom exact (pas « evilyoutube.com »)
+        channel = next(iter(_CHANNEL.findall(u.path) or _CHANNEL.findall(parse_qs(u.query).get("channel_id", [""])[0])), None)
         if not channel:
             # Adresse @nom : l'identifiant de la chaîne figure dans la page
             _, body, _ = await safe_fetch.fetch(url)

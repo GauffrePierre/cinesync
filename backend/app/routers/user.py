@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections import Counter
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.models import SwipeHistory
@@ -29,7 +29,7 @@ FALLBACK_COUNTRIES = [
 
 @router.get("/settings", response_model=SettingsOut)
 def get_settings(ctx: Ctx = Depends(get_ctx)):
-    return SettingsOut.from_model(ctx.settings, admin=ctx.is_admin, has_plex=ctx.is_admin or ctx.plex is not None)
+    return SettingsOut.from_model(ctx.settings, admin=ctx.server_admin, has_plex=ctx.server_admin or ctx.plex is not None)
 
 
 # Réglages du serveur modifiables par l'admin seulement (plex_token : jeton saisi à la main pour le serveur)
@@ -40,8 +40,10 @@ ADMIN_FIELDS = GLOBAL_FIELDS | {"plex_token"}
 async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
     s = ctx.settings
     data = body.model_dump(exclude_unset=True)
-    if not ctx.is_admin and (forbidden := sorted(f for f, v in data.items() if f in ADMIN_FIELDS and v is not None)):
+    if not ctx.server_admin and (forbidden := sorted(f for f, v in data.items() if f in ADMIN_FIELDS and v is not None)):
         raise HTTPException(403, "Réglages réservés à l'administrateur : " + ", ".join(forbidden))
+    if data.get("admins_full_access") is not None and ctx.user.id != SHARED_ID:
+        raise HTTPException(403, "Seul le compte administrateur principal peut modifier ce réglage")
     old_trakt_app = s.trakt_client_id
     for field, value in data.items():
         if value is None:
@@ -67,12 +69,12 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
         s.trakt_access_token = s.trakt_refresh_token = s.trakt_username = ""
         s.trakt_token_expires_at = None
     ctx.db.commit()
-    if any(f in GLOBAL_FIELDS for f in data):
-        cache.clear()
+    if ctx.server_admin and any(f in GLOBAL_FIELDS and v is not None for f, v in data.items()):
+        cache.clear()  # réglage du serveur modifié (un champ du serveur envoyé vide par un membre est ignoré)
     # Revérifie aussitôt les services en arrière-plan (sidebar et alertes à jour)
     _background.add(task := asyncio.create_task(health.check_all([ctx.user.id])))
     task.add_done_callback(_background.discard)
-    return SettingsOut.from_model(s, admin=ctx.is_admin, has_plex=ctx.is_admin or ctx.plex is not None)
+    return SettingsOut.from_model(s, admin=ctx.server_admin, has_plex=ctx.server_admin or ctx.plex is not None)
 
 
 @router.get("/settings/status")
@@ -94,7 +96,8 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
         "country": s.country_code,
         "platforms": s.platforms,
         # Services utilisés et leur santé (None = pas encore vérifié) — sidebar
-        "health": health.state_for(s, ctx.user.id),
+        # Seerr renseigne sur la bibliothèque du serveur : rien pour un membre qui n'y est pas relié
+        "health": {k: v for k, v in health.state_for(s, ctx.user.id).items() if k != "seerr" or ctx.is_admin or ctx.seerr is not None},
     }
 
 
@@ -102,11 +105,13 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
 async def test_connection(service: str, ctx: Ctx = Depends(get_ctx)):
     if service not in health.SERVICES:
         raise HTTPException(404, f"Service inconnu : {service}")
+    if service == "seerr" and not ctx.is_admin and ctx.seerr is None:
+        raise HTTPException(403, "Les demandes d'ajout sont réservées aux comptes reliés au serveur multimédia")
     result = await health.test_service(ctx, service)
     # Service du serveur testé par un membre (avec son propre accès) : pas d'effet sur l'état commun
     if service in health.used_services(ctx.settings) and (service not in health.GLOBAL_SERVICES or ctx.user.id == SHARED_ID):
         health.record(ctx.db, service, result, ctx.user.id)
-    if not ctx.is_admin and service in health.GLOBAL_SERVICES:
+    if not ctx.server_admin and service in health.GLOBAL_SERVICES:
         result = {**result, "details": None}  # détails du serveur (comptes, versions) : admin seulement
     return TestResult(**result)
 
@@ -139,7 +144,7 @@ async def providers_catalog(ctx: Ctx = Depends(get_ctx)):
 
 @router.get("/stats/activity")
 async def stats_activity(
-    period: str = "week", offset: int = 0, tz: int = 0, ctx: Ctx = Depends(get_ctx)
+    period: str = "week", offset: int = Query(0, ge=0, le=5000), tz: int = Query(0, ge=-900, le=900), ctx: Ctx = Depends(get_ctx)
 ):
     """Statistiques détaillées. period : day | week | month | year ; offset : fenêtres vers le passé ;
     tz : décalage du fuseau du navigateur en minutes (pour couper les journées à minuit local)."""
@@ -156,8 +161,11 @@ async def stats_activity(
 
 
 @router.get("/stats/events")
-def stats_events(start: str, end: str, tz: int = 0, ctx: Ctx = Depends(get_ctx)):
-    return {"results": history.events_between(ctx.db, start, end, tz_offset_min=tz)}
+def stats_events(start: str = Query(max_length=40), end: str = Query(max_length=40), tz: int = Query(0, ge=-900, le=900), ctx: Ctx = Depends(get_ctx)):
+    try:
+        return {"results": history.events_between(ctx.db, start, end, tz_offset_min=tz)}
+    except ValueError as e:
+        raise HTTPException(422, "Dates invalides") from e
 
 
 @router.post("/stats/import")

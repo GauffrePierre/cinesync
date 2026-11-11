@@ -26,7 +26,7 @@ class Tmdb:
     async def basic(self, media_type, tmdb_id):
         return _item(tmdb_id, f"T{tmdb_id}", media_type)
 
-    async def detail_raw(self, media_type, tmdb_id):
+    async def features_raw(self, media_type, tmdb_id):
         return {}
 
 

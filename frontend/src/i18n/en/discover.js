@@ -28,6 +28,7 @@ export default {
   'Parce que tu as aimé {title}': 'Because you liked {title}',
   'Recommandé par Trakt': 'Recommended by Trakt',
   Incontournable: 'Must-see',
+  'Sortie récente remarquée': 'Notable recent release',
   Précédent: 'Previous',
   Suivant: 'Next',
   'Diapositive {n} : {label}': 'Slide {n}: {label}',

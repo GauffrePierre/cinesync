@@ -12,7 +12,7 @@ router = APIRouter(tags=["search"])
 
 
 @router.get("/search")
-async def global_search(q: str = Query(..., min_length=1), ctx: Ctx = Depends(get_ctx)):
+async def global_search(q: str = Query(..., min_length=1, max_length=200), ctx: Ctx = Depends(get_ctx)):
     errors: dict[str, str] = {}
     ql = q.lower().strip()
 

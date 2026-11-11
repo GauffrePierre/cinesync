@@ -28,6 +28,7 @@ export default {
   'Parce que tu as aimé {title}': 'Weil dir {title} gefallen hat',
   'Recommandé par Trakt': 'Von Trakt empfohlen',
   Incontournable: 'Pflichtprogramm',
+  'Sortie récente remarquée': 'Viel beachtete Neuerscheinung',
   Précédent: 'Vorherige',
   Suivant: 'Nächste',
   'Diapositive {n} : {label}': 'Folie {n}: {label}',

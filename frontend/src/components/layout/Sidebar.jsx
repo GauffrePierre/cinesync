@@ -59,7 +59,7 @@ export default function Sidebar() {
 
   return (
     <aside className="no-scrollbar fixed inset-y-0 left-0 z-40 hidden w-[200px] flex-col overflow-y-auto border-r border-line bg-bg2/60 px-3 py-5 backdrop-blur-xl lg:flex">
-      <Link to="/" className="mb-8 px-2">
+      <Link to="/" className="mb-8 flex justify-center">
         <Logo />
       </Link>
 

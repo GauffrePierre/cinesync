@@ -9,9 +9,9 @@ from sqlalchemy import select, update
 
 from app.models import Notification, User, UserSettings
 from app.services import messages
-from app.services.auth import confirm_identity, guard_attempts, jellyfin_limiter, login_limiter, require_admin
+from app.services.auth import confirm_identity, guard_attempts, jellyfin_guard, jellyfin_release, login_limiter, require_admin
 from app.services.cache import cache
-from app.services.context import Ctx, get_ctx
+from app.services.context import Ctx, get_ctx, require_server_admin
 from app.services.errors import NotConfigured, ServiceError
 from app.services.jellyfin_client import ITEM_ID, JellyfinClient
 
@@ -43,7 +43,7 @@ def _clean_url(url: str) -> str:
     return url
 
 
-@router.post("/server", dependencies=[Depends(require_admin)])
+@router.post("/server", dependencies=[Depends(require_server_admin)])
 async def connect_server(body: ServerIn, ctx: Ctx = Depends(get_ctx)):
     """Relie le serveur : vérifie l'adresse et la clé API, enregistre nom, identifiant et type (Jellyfin ou Emby)."""
     url = _clean_url(body.url)
@@ -62,7 +62,7 @@ async def connect_server(body: ServerIn, ctx: Ctx = Depends(get_ctx)):
     return {"ok": True, "server": info["name"], "kind": info["kind"], "version": info["version"]}
 
 
-@router.delete("/server", dependencies=[Depends(require_admin)])
+@router.delete("/server", dependencies=[Depends(require_server_admin)])
 def disconnect_server(ctx: Ctx = Depends(get_ctx)):
     s = ctx.settings.shared
     s.jellyfin_url = s.jellyfin_public_url = s.jellyfin_api_key = s.jellyfin_server_id = s.jellyfin_server_name = ""
@@ -101,21 +101,19 @@ async def link_account(body: LinkIn, request: Request, ctx: Ctx = Depends(get_ct
         raise HTTPException(409, "Ce serveur Jellyfin utilise Quick Connect : relie ton compte avec un code Quick Connect")
     username = body.username.strip()
     keys = guard_attempts(request, f"jflink:{ctx.user.id}")
-    target = f"jf:{username.lower()}"
-    if jellyfin_limiter.blocked(target):
-        raise HTTPException(429, "Trop d'essais pour ce compte Jellyfin : réessaie demain")
+    limiter, target = jellyfin_guard(username)
     client = JellyfinClient(s.jellyfin_url, "", "", s.jellyfin_server_id, s.jellyfin_public_url, s.jellyfin_kind, device=username)
     try:
         auth = await client.authenticate(username, body.password)
     except ServiceError as e:
         if e.status == 401:
             login_limiter.fail(*keys)
-            jellyfin_limiter.fail(target)
+            limiter.fail(target)
             raise HTTPException(403, "Identifiant ou mot de passe Jellyfin incorrect") from e
         raise
     await _store_link(ctx, auth, client.label)
     login_limiter.reset(*keys)
-    jellyfin_limiter.reset(target)
+    jellyfin_release(username)
     return {"ok": True, "username": auth["name"]}
 
 

@@ -80,13 +80,21 @@ def _norm(code: str) -> str:
 
 
 def hash_recovery(code: str) -> str:
-    return hashlib.sha256(_norm(code).encode()).hexdigest()
+    """Empreinte à clé (clé du serveur) : une base qui fuit sans cette clé ne permet pas de retrouver les codes
+    par essais (ils sont courts)."""
+    from app.services.secret import server_secret
+
+    return "k1:" + hmac.new(server_secret(), b"recovery|" + _norm(code).encode(), hashlib.sha256).hexdigest()
+
+
+def _legacy_hash(code: str) -> str:
+    return hashlib.sha256(_norm(code).encode()).hexdigest()  # codes créés avant les empreintes à clé
 
 
 def use_recovery(code: str, hashes: list[str]) -> list[str] | None:
     """Si le code de secours est valide, renvoie la liste des empreintes restantes (code consommé), sinon None."""
-    h = hash_recovery(code)
+    candidates = (hash_recovery(code), _legacy_hash(code))
     for stored in hashes:
-        if hmac.compare_digest(stored, h):
+        if any(hmac.compare_digest(stored, h) for h in candidates):
             return [x for x in hashes if x != stored]
     return None

@@ -27,7 +27,7 @@ async def trending(
 
 
 @router.get("/search")
-async def search(q: str = Query(..., min_length=1), page: int = 1, ctx: Ctx = Depends(get_ctx)):
+async def search(q: str = Query(..., min_length=1, max_length=200), page: int = Query(1, ge=1, le=50), ctx: Ctx = Depends(get_ctx)):
     items = await ctx.tmdb.search_multi(q, page)
     await enrich(ctx, items, providers=False)
     return {"results": items, "page": page, "mock": ctx.tmdb.is_mock}
@@ -51,7 +51,7 @@ async def upcoming(
 
 
 @router.get("/on_the_air")
-async def on_the_air(page: int = 1, ctx: Ctx = Depends(get_ctx)):
+async def on_the_air(page: int = Query(1, ge=1, le=20), ctx: Ctx = Depends(get_ctx)):
     items = await ctx.tmdb.on_the_air(page)
     await enrich(ctx, items)
     return {"results": items, "page": page, "mock": ctx.tmdb.is_mock}

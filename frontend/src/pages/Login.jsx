@@ -398,7 +398,7 @@ export function Login({ me }) {
 }
 
 // Formulaire de changement de mot de passe : écran imposé (mot de passe provisoire) ou dans le Profil
-export function PasswordForm({ needCurrent, onDone, submitLabel, beforeSubmit, children }) {
+export function PasswordForm({ needCurrent, onDone, submitLabel, beforeSubmit, code, children }) {
   const t = useT()
   const [form, setForm] = useState({ current: '', next: '', confirm: '' })
   const [error, setError] = useState(null)
@@ -412,7 +412,7 @@ export function PasswordForm({ needCurrent, onDone, submitLabel, beforeSubmit, c
     setError(null)
     try {
       if (beforeSubmit) await beforeSubmit()
-      const me = await auth.changePassword(form.current, form.next)
+      const me = await auth.changePassword(form.current, form.next, code)
       setForm({ current: '', next: '', confirm: '' })
       onDone?.(me)
     } catch (err) {

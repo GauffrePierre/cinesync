@@ -3,10 +3,9 @@
 import hmac
 import json
 import secrets
+import threading
 import time
-import uuid
 from datetime import timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -14,23 +13,18 @@ from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 import app.database as database
+from app.config import config
 from app.database import get_db
 from app.models import Notification, User
-from app.services import auth, messages, plex_auth, totp
-from app.config import config
+from app.services import auth, messages, totp
 from app.services.auth import current_user, guard_attempts, login_limiter, require_server_mode
-from app.services.context import SHARED_ID, settings_for
-from app.services.errors import ServiceError
-from app.services.history import assign_plex_events
 from app.services.clock import utcnow
+from app.services.context import SHARED_ID, settings_for
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 # Connexion, installation, mot de passe : seulement dans la version serveur
 server_only = [Depends(require_server_mode)]
 
-PIN_COOKIE = "cinesync_plex_pin"
-_pending_pins: dict[int, tuple[str, float]] = {}  # pin plex.tv -> (jeton du navigateur, expiration)
-MAX_PENDING_PINS = 500
 
 
 class SetupIn(BaseModel):
@@ -48,6 +42,7 @@ class LoginIn(BaseModel):
 class PasswordIn(BaseModel):
     current_password: str = Field("", max_length=256)
     new_password: str = Field(max_length=256)
+    code: str = Field("", max_length=40)  # version personnelle, premier mot de passe : code des journaux du serveur
 
 
 class ProfileIn(BaseModel):
@@ -71,7 +66,8 @@ class RemovePasswordIn(BaseModel):
 def _me(db: Session, user: User | None) -> dict:
     shared = settings_for(db, SHARED_ID).shared
     return {
-        "user": user.to_dict() if user else None,
+        # server_admin : administrateur complet (le principal, ou les autres s'il leur laisse l'accès : voir Ctx.server_admin)
+        "user": {**user.to_dict(), "server_admin": user.is_admin and (user.id == SHARED_ID or bool(shared.admins_full_access))} if user else None,
         "setup_required": database.setup_required(db),
         # Connexion Plex proposée dès que l'admin a relié son serveur (version serveur seulement)
         "plex_login": config.cinesync_mode == "server" and bool(shared.plex_machine_id and shared.plex_client_id),
@@ -117,6 +113,7 @@ def setup(body: SetupIn, request: Request, response: Response, db: Session = Dep
     admin.username, admin.password_hash = username, auth.hash_password(body.password)
     admin.display_name = body.display_name.strip()
     admin.must_change_password = False
+    admin.temp_password_until = None
     admin.active = True
     login_limiter.reset(*keys)
     database.setup_code = None
@@ -136,6 +133,8 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
         login_limiter.fail(*keys)
         raise HTTPException(401, "Identifiant ou mot de passe incorrect")
     login_limiter.reset(*keys)
+    if user.temp_password_expired:  # dit seulement à qui connaît le bon mot de passe
+        raise HTTPException(403, "Mot de passe provisoire expiré : demande-en un nouveau à l'administrateur")
     if user.totp_secret:
         return _two_factor_ticket(user)
     auth.open_session(db, user, request, response)
@@ -144,8 +143,10 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
 
 # --- Double authentification (2FA) -------------------------------------------------------
 
-_tickets: dict[str, tuple[int, float, int]] = {}  # ticket -> (id du compte, expiration, essais ratés)
+_tickets: dict[str, tuple[int, float, int]] = {}  # ticket -> (id du compte, expiration, essais faits)
+_tickets_lock = threading.Lock()
 TICKET_TTL = 5 * 60
+TICKET_TRIES = 5
 
 
 def _two_factor_ticket(user: User) -> dict:
@@ -185,10 +186,12 @@ def _check_code(db: Session, user: User, code: str) -> bool:
         db.commit()
         db.refresh(user)
         return True
-    user.totp_failures = (user.totp_failures or 0) + 1
-    if user.totp_failures >= LOCK_AFTER:
-        user.totp_locked_until = now + timedelta(minutes=min(2 ** (user.totp_failures - LOCK_AFTER), 24 * 60))
-        if user.totp_failures == LOCK_AFTER:
+    # Incrément fait par la base : des essais simultanés sont tous comptés (pas de lecture puis écriture)
+    q = update(User).where(User.id == user.id).values(totp_failures=func.coalesce(User.totp_failures, 0) + 1).returning(User.totp_failures)
+    failures = db.execute(q).scalar_one()
+    if failures >= LOCK_AFTER:
+        user.totp_locked_until = now + timedelta(minutes=min(2 ** (failures - LOCK_AFTER), 24 * 60))
+        if failures == LOCK_AFTER:
             db.add(Notification(
                 user_id=user.id, kind="service", service="security",
                 **messages.fields("Plusieurs codes de double authentification incorrects : si ce n'était pas toi, change ton mot de passe."),
@@ -200,19 +203,20 @@ def _check_code(db: Session, user: User, code: str) -> bool:
 @router.post("/login/2fa")
 def login_two_factor(body: TwoFactorIn, request: Request, response: Response, db: Session = Depends(get_db)):
     """Deuxième étape de connexion : code de l'application (ou code de secours)."""
-    entry = _tickets.get(body.ticket)
-    if entry is None or entry[1] < time.monotonic():
-        _tickets.pop(body.ticket, None)
-        raise HTTPException(410, "Délai dépassé : reconnecte-toi")
-    user_id, expires, fails = entry
+    with _tickets_lock:  # l'essai est compté avant la vérification : des requêtes simultanées n'en gagnent pas
+        entry = _tickets.get(body.ticket)
+        if entry is None or entry[1] < time.monotonic():
+            _tickets.pop(body.ticket, None)
+            raise HTTPException(410, "Délai dépassé : reconnecte-toi")
+        user_id, expires, tries = entry
+        if tries + 1 >= TICKET_TRIES:
+            _tickets.pop(body.ticket, None)  # dernier essai de ce ticket : ensuite, retour à l'identifiant
+        else:
+            _tickets[body.ticket] = (user_id, expires, tries + 1)
     user = db.get(User, user_id)
     keys = guard_attempts(request, f"2fa:{user_id}", trusted=auth.known_device(request) == user_id)
     if user is None or not user.active or not _check_code(db, user, body.code):
         login_limiter.fail(*keys)
-        if fails + 1 >= 5:
-            _tickets.pop(body.ticket, None)  # trop d'essais sur ce ticket : retour à l'identifiant
-        else:
-            _tickets[body.ticket] = (user_id, expires, fails + 1)
         raise HTTPException(401, "Code incorrect")
     _tickets.pop(body.ticket, None)
     login_limiter.reset(*keys)
@@ -290,138 +294,6 @@ def two_factor_new_codes(body: CodeIn, request: Request, user: User = Depends(cu
     return {"recovery_codes": codes}
 
 
-class JellyfinLoginIn(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=256)  # jamais de mot de passe vide (comptes sans mot de passe)
-
-
-@router.post("/jellyfin", dependencies=server_only)
-async def login_jellyfin(body: JellyfinLoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    """Connexion avec un compte Jellyfin / Emby que l'administrateur a autorisé (mot de passe vérifié par le serveur).
-
-    Le serveur n'est interrogé que pour un compte autorisé : SynCiné ne sert pas à tester des mots de passe sur
-    les autres comptes du serveur, et chaque compte visé n'a que deux essais par jour (sous le seuil de blocage
-    du serveur). Toutes les erreurs donnent la même réponse."""
-    from app.models import UserSettings
-    from app.services.errors import ServiceError
-    from app.services.jellyfin_client import JellyfinClient
-
-    shared = settings_for(db, SHARED_ID).shared
-    if not shared.jellyfin_url:
-        raise HTTPException(404, "La connexion avec Jellyfin n'est pas activée sur ce SynCiné")
-    if await _jellyfin_client(shared).quick_connect_enabled():  # le mot de passe Jellyfin n'est alors jamais saisi ici
-        raise HTTPException(409, "Ce serveur Jellyfin utilise Quick Connect : connecte-toi avec un code Quick Connect")
-    username = body.username.strip()
-    own = (
-        db.query(UserSettings).join(User, User.id == UserSettings.id)
-        .filter(func.lower(UserSettings.jellyfin_username) == username.lower(), UserSettings.jellyfin_user_id != "",
-                User.jellyfin_login.is_(True), User.active.is_(True))
-        .first()
-    )
-    user = db.get(User, own.id) if own else None
-    keys = guard_attempts(request, f"jflogin:{username.lower()}", trusted=user is not None and auth.known_device(request) == user.id)
-    target = f"jf:{username.lower()}"
-    if auth.jellyfin_limiter.blocked(target):
-        raise HTTPException(429, "Trop d'essais pour ce compte Jellyfin : connecte-toi avec ton mot de passe SynCiné, ou réessaie demain")
-    refused = HTTPException(401, "Identifiant ou mot de passe incorrect")
-    if user is None:
-        login_limiter.fail(*keys)
-        raise refused
-    client = JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind,
-                            device=username)
-    try:
-        info = await client.authenticate(username, body.password)
-    except ServiceError as e:
-        if e.status == 401:
-            login_limiter.fail(*keys)
-            auth.jellyfin_limiter.fail(target)
-            raise refused from e
-        raise
-    if info["user_id"] != own.jellyfin_user_id:  # autre compte du serveur sous ce nom (renommage) : refusé
-        login_limiter.fail(*keys)
-        raise refused
-    login_limiter.reset(*keys)
-    auth.jellyfin_limiter.reset(target)
-    return await _jellyfin_session(db, request, response, user, own, info, shared)
-
-
-def _jellyfin_client(shared, device: str = ""):
-    from app.services.jellyfin_client import JellyfinClient
-
-    return JellyfinClient(shared.jellyfin_url, "", "", shared.jellyfin_server_id, shared.jellyfin_public_url, shared.jellyfin_kind, device=device)
-
-
-async def _jellyfin_session(db: Session, request: Request, response: Response, user: User, own, info: dict, shared):
-    """Connexion réussie avec Jellyfin : nouveau jeton du compte (l'ancien est révoqué), puis session ou 2FA."""
-    from app.services.errors import ServiceError
-    from app.services.jellyfin_client import JellyfinClient
-
-    if own.jellyfin_token and own.jellyfin_token != info["token"]:
-        try:
-            await JellyfinClient(shared.jellyfin_url, own.jellyfin_token, own.jellyfin_user_id, kind=shared.jellyfin_kind).logout()
-        except ServiceError:
-            pass
-    own.jellyfin_token, own.jellyfin_username = info["token"], info["name"]  # jeton du compte : sa bibliothèque, ses vus
-    db.commit()
-    if user.totp_secret:
-        return _two_factor_ticket(user)
-    auth.open_session(db, user, request, response)
-    return _me(db, user)
-
-
-@router.get("/jellyfin/quickconnect", dependencies=server_only)
-async def jellyfin_quick_connect_status(db: Session = Depends(get_db)):
-    """Quick Connect disponible sur le serveur Jellyfin relié (sinon : identifiant et mot de passe)."""
-    shared = settings_for(db, SHARED_ID).shared
-    return {"enabled": bool(shared.jellyfin_url) and await _jellyfin_client(shared).quick_connect_enabled()}
-
-
-@router.post("/jellyfin/quickconnect", dependencies=server_only)
-async def jellyfin_quick_connect_start(request: Request, db: Session = Depends(get_db)):
-    """Connexion par Quick Connect, étape 1 : un code à valider dans Jellyfin (profil → Quick Connect)."""
-    from app.services import quick_connect
-
-    shared = settings_for(db, SHARED_ID).shared
-    if not shared.jellyfin_url or not db.query(User.id).filter(User.jellyfin_login.is_(True), User.active.is_(True)).first():
-        raise HTTPException(404, "La connexion avec Jellyfin n'est pas activée sur ce SynCiné")
-    ip = auth.client_ip(request)
-    if not quick_connect.can_start(ip):
-        raise HTTPException(429, "Trop de demandes en attente, réessaie dans quelques minutes")
-    device = quick_connect.new_device()
-    started = await _jellyfin_client(shared, device).quick_connect_start()
-    key = quick_connect.add(quick_connect.Pending(started["secret"], started["code"], device, "login", ip))
-    return {"id": key, "code": started["code"], "expires_in": quick_connect.TTL}
-
-
-@router.post("/jellyfin/quickconnect/{key}", dependencies=server_only)
-async def jellyfin_quick_connect_check(key: str, request: Request, response: Response, db: Session = Depends(get_db)):
-    """Étape 2 (interrogée toutes les 2 s) : en attente, ou connexion du compte SynCiné autorisé pour ce compte Jellyfin."""
-    from app.models import UserSettings
-    from app.services import quick_connect
-    from app.services.errors import ServiceError
-    from app.services.jellyfin_client import JellyfinClient
-
-    pending = quick_connect.get(key, "login")
-    if pending is None:
-        raise HTTPException(410, "Code expiré : recommence")
-    shared = settings_for(db, SHARED_ID).shared
-    client = _jellyfin_client(shared, pending.device)
-    if not await client.quick_connect_approved(pending.secret):
-        return {"status": "pending"}
-    quick_connect.drop(key)
-    info = await client.quick_connect_auth(pending.secret)
-    own = db.query(UserSettings).filter(UserSettings.jellyfin_user_id == info["user_id"]).first()
-    user = db.get(User, own.id) if own else None
-    if user is None or not user.active or not user.jellyfin_login:
-        # Compte non autorisé : le jeton tout juste créé est aussitôt révoqué
-        try:
-            await JellyfinClient(shared.jellyfin_url, info["token"], info["user_id"], kind=shared.jellyfin_kind).logout()
-        except ServiceError:
-            pass
-        raise HTTPException(403, "Ce compte Jellyfin n'est pas autorisé à se connecter à SynCiné — demande à l'administrateur")
-    return await _jellyfin_session(db, request, response, user, own, info, shared)
-
-
 @router.post("/logout")
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     auth.close_session(db, request, response)
@@ -431,13 +303,20 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @router.post("/password")
 def change_password(body: PasswordIn, request: Request, response: Response, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Nouveau mot de passe. L'actuel est demandé, sauf juste après une connexion avec un mot de passe provisoire.
-    Version personnelle : le premier mot de passe active la protection de l'accès (et ouvre une session)."""
+    Version personnelle : le premier mot de passe active la protection de l'accès (et ouvre une session) ; l'accès
+    étant encore libre, il faut le code écrit dans les journaux du serveur (POST /auth/protect/code)."""
     protecting = auth.personal_mode() and not user.password_hash
+    if protecting:
+        auth.validate_password(body.new_password)  # avant le code : une erreur de saisie ne le consomme pas
+        keys = guard_attempts(request, "protect")
+        if not auth.use_protect_code(body.code):
+            login_limiter.fail(*keys)
+            raise HTTPException(403, "Code incorrect ou expiré : il est écrit dans les journaux du serveur")
     if not user.password_hash and not protecting:
         # Compte Plex sans mot de passe : en ajouter un donne un accès durable, connexion récente exigée
         _confirm_identity(db, request, user, "")
     if user.password_hash and not user.must_change_password:
-        keys = guard_attempts(request, f"login:{user.username}")
+        keys = guard_attempts(request, f"login:{user.username}", trusted=True)  # session ouverte sur ce compte
         if not auth.verify_password(body.current_password, user.password_hash):
             login_limiter.fail(*keys)
             raise HTTPException(403, "Mot de passe actuel incorrect")
@@ -446,11 +325,26 @@ def change_password(body: PasswordIn, request: Request, response: Response, user
         raise HTTPException(422, "Choisis un mot de passe différent de l'actuel")
     user.password_hash = auth.hash_password(body.new_password)
     user.must_change_password = False
+    user.temp_password_until = None
     db.commit()
     auth.close_all_sessions(db, user.id, keep_request=request)  # déconnecte les autres appareils
     if protecting:
         auth.open_session(db, user, request, response)  # cet appareil reste connecté
     return _me(db, user)
+
+
+@router.post("/protect/code")
+def protect_code(request: Request, user: User = Depends(current_user)):
+    """Version personnelle en accès libre : écrit dans les journaux du serveur le code demandé pour définir le
+    premier mot de passe (seul celui qui a la main sur le serveur peut le lire)."""
+    if not auth.personal_mode() or user.password_hash:
+        raise HTTPException(409, "L'accès est déjà protégé par un mot de passe")
+    key = f"pin:protect|{auth.client_ip(request)}"
+    if login_limiter.blocked(key):
+        raise HTTPException(429, "Trop d'essais, réessaie dans quelques minutes")
+    login_limiter.fail(key)  # chaque code demandé compte (une ligne dans les journaux)
+    auth.new_protect_code()
+    return {"ok": True}
 
 
 @router.delete("/password")
@@ -461,12 +355,13 @@ def remove_password(body: RemovePasswordIn, request: Request, response: Response
         raise HTTPException(409, "Aucun mot de passe à supprimer")
     if not auth.personal_mode() and not user.plex_user_id:
         raise HTTPException(409, "Ce compte se connecte uniquement par mot de passe : il ne peut pas être supprimé")
-    keys = guard_attempts(request, f"login:{user.username}")
+    keys = guard_attempts(request, f"login:{user.username}", trusted=True)  # session ouverte sur ce compte
     if not auth.verify_password(body.current_password, user.password_hash):
         login_limiter.fail(*keys)
         raise HTTPException(403, "Mot de passe actuel incorrect")
     user.password_hash = ""
     user.must_change_password = False
+    user.temp_password_until = None
     if auth.personal_mode():  # accès libre : la double authentification n'aurait plus rien à protéger
         user.totp_secret = user.totp_pending = ""
         user.recovery_codes = "[]"
@@ -488,99 +383,3 @@ def update_profile(body: ProfileIn, user: User = Depends(current_user), db: Sess
         user.username = username
     db.commit()
     return _me(db, user)
-
-
-# --- Connexion avec Plex ---------------------------------------------------------------
-
-
-def _client_id(db: Session) -> str:
-    shared = settings_for(db, SHARED_ID).shared
-    if not shared.plex_client_id:
-        shared.plex_client_id = str(uuid.uuid4())
-        db.commit()
-    return shared.plex_client_id
-
-
-@router.post("/plex/pin", dependencies=server_only)
-async def plex_pin(
-    request: Request, response: Response, mode: Literal["link", "window"] = "link", db: Session = Depends(get_db),
-):
-    """Étape 1 : code plex.tv. Le code est lié à ce navigateur (cookie) : personne d'autre ne peut l'utiliser."""
-    shared = settings_for(db, SHARED_ID).shared
-    if not (shared.plex_machine_id and shared.plex_client_id):
-        raise HTTPException(404, "La connexion avec Plex n'est pas activée sur ce SynCiné")
-    keys = guard_attempts(request, trusted=auth.known_device(request) is not None)
-    pin_key = f"pin:{auth.client_ip(request)}"
-    if login_limiter.blocked(pin_key) or len(_pending_pins) >= MAX_PENDING_PINS:
-        raise HTTPException(429, "Trop d'essais, réessaie dans quelques minutes")
-    login_limiter.fail(pin_key)  # chaque code créé compte (appel à plex.tv)
-    del keys
-    # Retour après connexion : toujours la page de SynCiné (jamais une adresse fournie par le client)
-    base = (config.public_url or str(request.base_url)).rstrip("/")
-    pin = await plex_auth.create_pin(_client_id(db), mode, f"{base}/plex-done.html" if mode == "window" else None)
-    nonce = secrets.token_urlsafe(24)
-    now = time.monotonic()
-    for k in [k for k, (_, exp) in _pending_pins.items() if exp < now]:
-        _pending_pins.pop(k, None)
-    _pending_pins[pin["id"]] = (nonce, now + pin["expires_in"])
-    response.set_cookie(PIN_COOKIE, nonce, max_age=pin["expires_in"], httponly=True, samesite="lax",
-                        secure=auth._is_https(request), path="/api/auth")
-    return pin
-
-
-@router.post("/plex/pin/{pin_id}", dependencies=server_only)
-async def plex_check(pin_id: int, request: Request, response: Response, db: Session = Depends(get_db)):
-    """Étape 2 (interrogée en boucle) : une fois connecté sur plex.tv, vérifie que ce compte Plex est autorisé."""
-    pending = _pending_pins.get(pin_id)
-    nonce = request.cookies.get(PIN_COOKIE, "")
-    if pending is None or not hmac.compare_digest(pending[0], nonce):
-        raise HTTPException(410, "Code de connexion Plex expiré — recommence")
-    cid = _client_id(db)
-    token = await plex_auth.check_pin(cid, pin_id)
-    if not token:
-        return {"authorized": False}
-    _pending_pins.pop(pin_id, None)
-    keys = guard_attempts(request, trusted=auth.known_device(request) is not None)
-    info = await plex_auth.account_info(cid, token)
-    shared = settings_for(db, SHARED_ID).shared
-
-    user = db.query(User).filter(User.plex_user_id == info["id"], User.active.is_(True)).first()
-    if user is None and database.setup_required(db) and shared.plex_account_token:
-        # Installation d'une base existante : le propriétaire du compte Plex déjà relié devient l'admin
-        try:
-            owner = await plex_auth.account_info(cid, shared.plex_account_token)
-        except ServiceError:
-            owner = None
-        if owner and owner["id"] == info["id"]:
-            user = _first_admin(db)
-            user.plex_user_id = info["id"]
-            database.setup_code = None
-    if user is None:
-        login_limiter.fail(*keys)
-        raise HTTPException(403, f"Le compte Plex « {info['title']} » n'est pas autorisé sur ce SynCiné — demande à l'administrateur")
-
-    access = await plex_auth.server_access(cid, token, shared.plex_machine_id) if shared.plex_machine_id else None
-    if user.id == SHARED_ID:
-        # Compte principal : le serveur est déjà relié avec ses jetons, on n'y touche pas
-        if not shared.plex_account_token:
-            shared.plex_account_token = token
-        server_account = 1 if (access is None or access["owned"]) else info["id"]
-    else:
-        if access is None:
-            raise HTTPException(403, "Ce compte Plex n'a pas (ou plus) accès au serveur Plex de l'administrateur")
-        own = settings_for(db, user.id).own
-        own.plex_account_token = token  # watchlist, vus et notes plex.tv de ce membre
-        own.plex_token = access["token"]  # son propre accès au serveur (ses vus, sa progression)
-        server_account = 1 if access["owned"] else info["id"]
-    user.plex_username, user.plex_thumb = info["title"], info["thumb"]
-    if user.plex_server_account_id != server_account:
-        user.plex_server_account_id = server_account
-        db.commit()
-        assign_plex_events(db, server_account, user.id)
-    login_limiter.reset(*keys)
-    db.commit()  # jetons Plex rafraîchis, même si la 2FA est demandée ensuite
-    response.delete_cookie(PIN_COOKIE, path="/api/auth")
-    if user.totp_secret:
-        return {"authorized": True, **_me(db, None), **_two_factor_ticket(user)}
-    auth.open_session(db, user, request, response)
-    return {"authorized": True, **_me(db, user)}

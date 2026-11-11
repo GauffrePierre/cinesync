@@ -146,7 +146,7 @@ async def _on_deck(ctx: Ctx, index: dict) -> list[dict]:
 async def tonight(
     media_type: Literal["all", "movie", "tv"] = "all",
     max_runtime: int | None = Query(None, ge=20, le=400),
-    mood: str | None = None,
+    mood: str | None = Query(None, max_length=40),
     sort: Literal["relevance", "release", "title", "year", "rating", "critics", "audience", "added"] = "relevance",
     seen: Literal["unseen", "seen", "all"] = "unseen",
     tz_offset_min: int = Query(0, ge=-840, le=840),  # fuseau de l'appareil (jour de la semaine local)

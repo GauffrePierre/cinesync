@@ -10,6 +10,11 @@ export function useCurrentUser() {
 }
 
 export const useIsAdmin = () => !!useCurrentUser()?.is_admin
+// Administrateur complet (réglages du serveur) : le principal, ou les autres s'il leur laisse l'accès
+export const useIsServerAdmin = () => {
+  const u = useCurrentUser()
+  return !!u?.is_admin && u.server_admin !== false
+}
 
 // Version personnelle : une seule personne, ni connexion ni comptes de la famille
 export const usePersonal = () => useMe().data?.mode === 'personal'

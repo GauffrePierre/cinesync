@@ -9,7 +9,7 @@ import Skeleton from '../components/ui/Skeleton'
 import WatchLink from '../components/ui/WatchLink'
 import { news } from '../services/news'
 import { user as userApi } from '../services/user'
-import { useIsAdmin } from '../hooks/useAuth'
+import { useIsServerAdmin } from '../hooks/useAuth'
 import { relativeTime } from '../lib/format'
 import { toast } from '../store/uiStore'
 import { useT } from '../i18n'
@@ -86,7 +86,7 @@ function Toggle({ on, onChange, label, sub }) {
 function SourcesModal({ open, onClose }) {
   const t = useT()
   const qc = useQueryClient()
-  const isAdmin = useIsAdmin()
+  const isAdmin = useIsServerAdmin()
   const [url, setUrl] = useState('')
   const [ytKey, setYtKey] = useState('')
   const { data } = useQuery({ queryKey: ['news-catalog'], queryFn: news.catalog, enabled: open })

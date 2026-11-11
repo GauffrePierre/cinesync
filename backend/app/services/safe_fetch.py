@@ -124,7 +124,8 @@ async def fetch(url: str, timeout: float = 15.0) -> tuple[str, bytes, str]:
 
 async def _fetch(url: str, timeout: float) -> tuple[str, bytes, str]:
     headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "gzip"}
-    async with httpx.AsyncClient(transport=_transport(), follow_redirects=False, timeout=timeout, headers=headers) as client:
+    # trust_env=False : un proxy défini dans l'environnement ferait la connexion à notre place, sans le contrôle d'adresse
+    async with httpx.AsyncClient(transport=_transport(), follow_redirects=False, timeout=timeout, headers=headers, trust_env=False) as client:
         for _ in range(MAX_REDIRECTS + 1):
             await check_url(url)
             try:

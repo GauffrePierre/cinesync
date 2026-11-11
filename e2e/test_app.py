@@ -99,3 +99,32 @@ def test_phone_layout(pw, browser, server, admin_state):
     assert box and box["x"] + box["width"] <= page.viewport_size["width"]
     assert page.errors == []
     page.context.close()
+
+
+def test_personal_edition_is_protected_with_the_code_from_the_logs(browser, personal_server):
+    """Version personnelle : le premier mot de passe demande le code écrit dans les journaux du serveur ;
+    ensuite, un autre appareil doit se connecter."""
+    page = open_page(browser, personal_server)
+    page.goto("/")
+    page.get_by_role("button", name="Passer l’assistant").click()
+    page.goto("/profile?tab=account")
+    page.get_by_role("button", name="Protéger par un mot de passe").click()
+    expect(page.get_by_text("Code de sécurité")).to_be_visible()
+    page.locator("input[autocomplete=username]").fill("alex")
+    passwords = page.locator("input[autocomplete=new-password]")
+    passwords.nth(0).fill("mot-de-passe-solide")
+    passwords.nth(1).fill("mot-de-passe-solide")
+    code = page.locator("input[autocomplete=one-time-code]")
+    code.fill("AAAA-BBBB-CCCC")
+    page.get_by_role("button", name="Enregistrer le mot de passe").click()
+    expect(page.get_by_text("Code incorrect ou expiré")).to_be_visible()
+    # Le refus affiché prouve que le serveur a déjà écrit le code dans ses journaux
+    code.fill(re.findall(r"définir le mot de passe -> (\S+)", personal_server["log"].read_text())[-1])
+    page.get_by_role("button", name="Enregistrer le mot de passe").click()
+    expect(page.get_by_text("Mot de passe enregistré")).to_be_visible()
+    assert page.errors == []
+    page.context.close()
+    other = open_page(browser, personal_server)
+    other.goto("/")
+    expect(other.get_by_role("button", name="Se connecter")).to_be_visible()
+    other.context.close()

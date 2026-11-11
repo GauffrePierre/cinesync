@@ -144,11 +144,31 @@ def test_sign_in_with_an_authorized_jellyfin_account(fresh, monkeypatch):  # noq
     assert r.status_code == 200 and r.json()["user"]["name"] == "Alex"
     assert c.get("/api/settings/status").json()["jellyfin"]["linked"] is True
     assert {u["name"]: u["jellyfin"] for u in admin.get("/api/admin/users").json()["results"]}["Alex"] == "alex"
-    # Deux échecs par jour au plus pour un compte visé : SynCiné ne peut pas servir à le bloquer sur le serveur
+    # Deux échecs au plus pour un compte visé : SynCiné ne peut pas servir à le bloquer sur le serveur
     for _ in range(2):
         assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "faux"}).status_code == 401
     assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 429
     assert calls.count("alex") == 4
+    # Le lendemain, toujours bloqué : le compteur du serveur Jellyfin ne repart qu'après une connexion réussie
+    import time
+
+    from app.services import auth as limits
+
+    real = time.monotonic
+    monkeypatch.setattr(limits.time, "monotonic", lambda: real() + 25 * 3600)
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 429
+    monkeypatch.setattr(limits.time, "monotonic", real)
+    # L'appareil déjà connecté à ce compte garde ses propres essais : personne ne peut enfermer son propriétaire dehors
+    c.post("/api/auth/logout")
+    assert c.post("/api/auth/jellyfin", json={"username": "alex", "password": "faux"}).status_code == 401
+    assert c.post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 200
+    # Sa réussite a remis le compteur à zéro pour tout le monde ; l'administrateur peut aussi lever un blocage
+    for _ in range(2):
+        assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "faux"}).status_code == 401
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 429
+    alex = next(u for u in admin.get("/api/admin/users").json()["results"] if u["name"] == "Alex")
+    assert admin.patch(f"/api/admin/users/{alex['id']}", json={"jellyfin_login": True}).status_code == 200
+    assert client().post("/api/auth/jellyfin", json={"username": "alex", "password": "bon"}).status_code == 200
     # L'administrateur retire l'autorisation : connexion par Jellyfin refusée
     alex_id = r.json()["user"]["id"]
     assert admin.patch(f"/api/admin/users/{alex_id}", json={"jellyfin_login": False}).status_code == 200

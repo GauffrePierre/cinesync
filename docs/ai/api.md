@@ -41,6 +41,7 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 | POST | `/api/auth/2fa/recovery-codes` | `two_factor_new_codes` | signed in | Nouveaux codes de secours (code exigé). |
 | POST | `/api/auth/logout` | `logout` | public (no session) |  |
 | POST | `/api/auth/password` | `change_password` | signed in (`current_user`, allowed with a temporary password) | Nouveau mot de passe. L'actuel est demandé, sauf juste après une connexion avec un mot de passe provisoire. |
+| POST | `/api/auth/protect/code` | `protect_code` | personal edition, open access only (409 once a password exists) | Écrit dans les journaux du serveur le code demandé par `POST /api/auth/password` pour définir le premier mot de passe (champ `code`). |
 | DELETE | `/api/auth/password` | `remove_password` | signed in (`current_user`, allowed with a temporary password) | Supprime le mot de passe. Version personnelle : l'accès redevient libre. Version serveur : seulement pour un compte qui peut encore se connecter avec Plex. |
 | PUT | `/api/auth/profile` | `update_profile` | signed in (`current_user`, allowed with a temporary password) |  |
 | POST | `/api/auth/plex/pin` | `plex_pin` | public, server edition | Étape 1 : code plex.tv. Le code est lié à ce navigateur (cookie) : personne d'autre ne peut l'utiliser. |

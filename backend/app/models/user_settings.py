@@ -5,6 +5,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.services.crypto import EncryptedString
 
 
 class UserSettings(Base):
@@ -19,33 +20,33 @@ class UserSettings(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
 
     # TMDB (clé v3 ou jeton de lecture v4)
-    tmdb_api_key: Mapped[str] = mapped_column(String, default="")
+    tmdb_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
     language: Mapped[str] = mapped_column(String, default="fr-FR")
 
     # Plex : URL + token du serveur choisi (saisis à la main, ou obtenus via le compte plex.tv)
     # Jellyfin / Emby : serveur (ligne de l'admin) et compte relié (ligne de chaque compte)
     jellyfin_url: Mapped[str] = mapped_column(String, default="")  # adresse vue depuis SynCiné
     jellyfin_public_url: Mapped[str] = mapped_column(String, default="")  # adresse des liens « Lire » (vue des utilisateurs)
-    jellyfin_api_key: Mapped[str] = mapped_column(String, default="")
+    jellyfin_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
     jellyfin_server_id: Mapped[str] = mapped_column(String, default="")
     jellyfin_server_name: Mapped[str] = mapped_column(String, default="")
     jellyfin_kind: Mapped[str] = mapped_column(String(8), default="jellyfin")  # jellyfin | emby
     jellyfin_user_id: Mapped[str] = mapped_column(String, default="")
     jellyfin_username: Mapped[str] = mapped_column(String, default="")
-    jellyfin_token: Mapped[str] = mapped_column(String, default="")
+    jellyfin_token: Mapped[str] = mapped_column(EncryptedString, default="")
     plex_url: Mapped[str] = mapped_column(String, default="")
-    plex_token: Mapped[str] = mapped_column(String, default="")
+    plex_token: Mapped[str] = mapped_column(EncryptedString, default="")
     plex_client_id: Mapped[str] = mapped_column(String, default="")  # identifiant de SynCiné auprès de plex.tv
-    plex_account_token: Mapped[str] = mapped_column(String, default="")  # jeton du compte plex.tv
+    plex_account_token: Mapped[str] = mapped_column(EncryptedString, default="")  # jeton du compte plex.tv
     plex_server_name: Mapped[str] = mapped_column(String, default="")
     plex_machine_id: Mapped[str] = mapped_column(String, default="")
 
     # Trakt (application à créer sur trakt.tv/oauth/applications)
     trakt_client_id: Mapped[str] = mapped_column(String, default="")
-    trakt_client_secret: Mapped[str] = mapped_column(String, default="")  # obsolète chez Trakt, facultatif
-    trakt_code_verifier: Mapped[str] = mapped_column(String, default="")  # PKCE, le temps de la connexion
-    trakt_access_token: Mapped[str] = mapped_column(String, default="")
-    trakt_refresh_token: Mapped[str] = mapped_column(String, default="")
+    trakt_client_secret: Mapped[str] = mapped_column(EncryptedString, default="")  # obsolète chez Trakt, facultatif
+    trakt_code_verifier: Mapped[str] = mapped_column(EncryptedString, default="")  # PKCE, le temps de la connexion
+    trakt_access_token: Mapped[str] = mapped_column(EncryptedString, default="")
+    trakt_refresh_token: Mapped[str] = mapped_column(EncryptedString, default="")
     trakt_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     trakt_username: Mapped[str] = mapped_column(String, default="")
     trakt_oauth_state: Mapped[str] = mapped_column(String, default="")
@@ -53,7 +54,7 @@ class UserSettings(Base):
 
     # Seerr
     seerr_url: Mapped[str] = mapped_column(String, default="")
-    seerr_api_key: Mapped[str] = mapped_column(String, default="")
+    seerr_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
 
     # Letterboxd (RSS public)
     letterboxd_username: Mapped[str] = mapped_column(String, default="")
@@ -86,6 +87,9 @@ class UserSettings(Base):
     hide_seen: Mapped[bool] = mapped_column(Boolean, default=False)
     # Watchlist visible par les administrateurs (Profil → Admin → Demandes → Watchlists) : choix du compte, désactivé par défaut
     share_watchlist: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Réglage du serveur (ligne 1) : les autres administrateurs voient le serveur multimédia (tableau de bord,
+    # bibliothèque sans compte relié) ; sinon ils n'y ont pas plus accès qu'un membre
+    admins_full_access: Mapped[bool] = mapped_column(Boolean, default=True)
     # Goûts (coups de cœur, bonnes notes) utilisés par « La famille a aimé » et « À deux » des membres qui partagent aussi
     share_taste: Mapped[bool] = mapped_column(Boolean, default=False)
     # Enfants du foyer : tranches d'âge (petits 3-6 ans, enfants 7-10, ados 11-14), pour « Pour ce soir » avec les enfants
@@ -106,7 +110,7 @@ class UserSettings(Base):
     # Actu Ciné : sources choisies, JSON [{id, name, url, kind, home}] (vide = sélection par défaut selon la langue)
     news_sources: Mapped[str] = mapped_column(Text, default="")
     # Clé API YouTube (réglage du serveur, facultatif) : secours quand le flux public d'une chaîne ne répond pas
-    youtube_api_key: Mapped[str] = mapped_column(String, default="")
+    youtube_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

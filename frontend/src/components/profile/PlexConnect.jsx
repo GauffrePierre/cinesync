@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Copy, ExternalLink, Loader2, LogIn, LogOut, RefreshCw, Server, WifiOff } from 'lucide-react'
 import Button from '../ui/Button'
 import { plex } from '../../services/plex'
+import { copyText } from '../../lib/clipboard'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
@@ -89,7 +90,7 @@ export default function PlexConnect({ settings }) {
       const p = await plex.authPin('link')
       setPin(p)
       setPhase('link')
-      navigator.clipboard?.writeText(p.code).catch(() => {})
+      copyText(p.code) // sans message : la plupart des navigateurs ne copient que sur un clic
       watch(p)
     } catch (e) {
       toast(e.message, 'error')
@@ -145,14 +146,14 @@ export default function PlexConnect({ settings }) {
       <div className="rounded-xl border border-plex/30 bg-plex/5 p-4 text-center">
         <p className="text-sm text-text2">{t('Va sur plex.tv/link (connecté à ton compte Plex) et saisis ce code :')}</p>
         <button
-          onClick={() => {
-            navigator.clipboard?.writeText(pin.code)
-            toast(t('Code copié'), 'success')
+          onClick={async () => {
+            const ok = await copyText(pin.code)
+            toast(ok ? t('Code copié') : t('Copie impossible : sélectionne le texte et copie-le à la main'), ok ? 'success' : 'error')
           }}
           className="mx-auto mt-3 flex items-center gap-2 rounded-xl bg-bg px-4 py-2"
           title={t('Copier')}
         >
-          <span className="font-mono text-3xl font-semibold tracking-[0.3em]">{pin.code}</span>
+          <span className="select-text font-mono text-3xl font-semibold tracking-[0.3em]">{pin.code}</span>
           <Copy className="h-4 w-4 text-text3" />
         </button>
         <a

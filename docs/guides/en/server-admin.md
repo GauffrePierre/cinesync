@@ -55,12 +55,14 @@ For people who have an account on your Jellyfin or Emby server:
 
 A member who already has a SynCiné account can also link their Jellyfin account themselves (**Profile → Connections → + → Jellyfin / Emby → Link my account**, with their SynCiné password) to get their library and watched titles. **Signing in** to SynCiné with that account still needs your approval: tick **Can sign in with their Jellyfin account** on their account, in **Profile → Admin → Accounts**.
 
+**Too many wrong Jellyfin passwords**: after 2 wrong passwords for a Jellyfin account, SynCiné stops passing them to the server (otherwise it could be used to get that account locked by the server itself). The person can still sign in from a device they already used, or with their SynCiné password. To lift the block: untick then tick **Can sign in with their Jellyfin account** on their account.
+
 ### Without a Plex account
 These accounts see nothing of your Plex server (library, server name, watched titles) and can't make add requests.
 
 1. **SynCiné accounts → Add**.
 2. Choose a **username** and a **temporary password** (**Generate** button), tick the options you need.
-3. Pass on the address, username and password: they change the password when they first sign in.
+3. Pass on the address, username and password: they change the password when they first sign in. A temporary password is valid for **7 days**; after that, set a new one (account menu → **New temporary password**).
 
 Later, an account's **⋯** menu lets you give or renew a password, make someone administrator, disable or delete the account.
 
@@ -79,12 +81,14 @@ When a member requests a title:
 
 When Plex **and** Jellyfin (or Emby) are both linked, a switcher at the top moves from one to the other; each server shows how many streams are playing on it. For Jellyfin and Emby, statistics count the last play of each title per account (these servers do not keep a full history).
 
+**Several administrators**: by default, the other administrators have the same access as you: this dashboard, the server's library without linking their own account (so with your watched titles), the server settings and the backups (which contain the services' tokens). To have them manage accounts and requests only, untick **Profile → Preferences → Sharing → Give the other administrators full access** (only the main administrator account sees this box).
+
 ## 6. Security checklist
 
 - [ ] Long, unique administrator password.
 - [ ] **Two-factor authentication** on (Profile → My account → Enable), recovery codes kept somewhere safe. If a member loses their phone: their account's **⋯** menu → **Reset two-factor authentication**.
 - [ ] Internet access only over **HTTPS** (reverse proxy or Tailscale), `PUBLIC_URL` set.
-- [ ] Automatic backups on (**Profile → Admin → Backups**, on by default), and now and then a downloaded copy kept off the server: it holds the services' tokens.
+- [ ] Automatic backups on (**Profile → Admin → Backups**, on by default), and now and then a downloaded copy kept off the server. The services' tokens are encrypted in it with the server key (`secret.key`, not part of backups): restored on another installation, it will ask you to reconnect the services.
 - [ ] Updates: `git pull && docker compose up -d --build`, or the published image.
 
 ---

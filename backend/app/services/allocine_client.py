@@ -9,6 +9,9 @@ Comme JustWatch, c'est une source non officielle : chaque appel est protégé.
 
 import logging
 
+import re
+from urllib.parse import quote
+
 import httpx
 
 from app.services.cache import MISS, cache
@@ -41,6 +44,10 @@ def site_of(country: str) -> str:
     return SITES.get((country or "FR").upper(), SITES["FR"])[0]
 
 
+_THEATER = re.compile(r"[A-Za-z0-9]{1,16}")
+_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
 async def _get(path: str, ttl: int, country: str = "FR") -> dict:
     base = site_of(country)
     key = ("allocine", base, path)
@@ -64,10 +71,11 @@ async def _get(path: str, ttl: int, country: str = "FR") -> dict:
 
 
 async def search(query: str, country: str = "FR") -> list[dict]:
-    q = query.strip().lower().replace(" ", "-")
+    # Nom de ville seulement (lettres, chiffres, apostrophe, tiret) : ce texte est placé dans l'adresse demandée
+    q = "-".join(re.sub(r"[^\w' -]", " ", query, flags=re.UNICODE).lower().split())[:60]
     if len(q) < 2:
         return []
-    data = await _get(f"/localization_city/{q}", ttl=86400, country=country)
+    data = await _get(f"/localization_city/{quote(q, safe='')}", ttl=86400, country=country)
     out = []
     for t in data.get("values", {}).get("theaters", []):
         n = t.get("node", {})
@@ -110,6 +118,9 @@ def _showtime(s: dict, group: str, country: str = "FR") -> dict:
 
 async def showtimes(theater_id: str, day: str, country: str = "FR") -> list[dict]:
     """Films et séances d'un cinéma pour une date (AAAA-MM-JJ)."""
+    # L'identifiant vient des réglages du compte et la date de la requête : tous deux placés dans l'adresse demandée
+    if not _THEATER.fullmatch(str(theater_id)) or not _DAY.fullmatch(str(day)):
+        raise ServiceError("cinema", "Cinéma ou date invalide", 422)
     out, page, total_pages = [], 1, 1
     while page <= total_pages and page <= 5:
         path = f"/showtimes/theater-{theater_id}/d-{day}/" + (f"p-{page}/" if page > 1 else "")

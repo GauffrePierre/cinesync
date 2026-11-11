@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 import random
 import re
 from datetime import date, datetime, timedelta
@@ -164,7 +165,7 @@ async def watchlist_releases(ctx: Ctx, days: int, cached_only: bool = False) -> 
     return found
 
 
-SEEDS_TOP, SEEDS_ROTATING = 6, 6  # références : les plus fortes, puis un tirage qui change chaque jour
+SEEDS_TOP, SEEDS_ROTATING = 20, 20  # références : les plus fortes, puis un tirage qui change chaque jour
 PER_SEED = 3  # suggestions au plus par référence (variété)
 MIN_DISCOVERY = 0.3  # part minimale de titres hors de tes plateformes et de ta bibliothèque, pour continuer à découvrir
 AVAILABLE_BOOST = 1.35  # ce que tu peux regarder remonte, sans écarter le reste
@@ -199,17 +200,20 @@ def signals(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tup
     pos: dict[tuple[str, int], dict] = {}
     neg: dict[tuple[str, int], dict] = {}
 
-    def add(table: dict, mt: str, tid: int | None, title: str, weight: float, when=None) -> None:
+    def add(table: dict, mt: str, tid: int | None, title: str, weight: float, when=None, loved: bool = False) -> None:
+        # loved : avis explicite (coup de cœur, bonne note, « J'aime », « plus comme ça ») — le seul signal qu'un
+        # autre compte peut lire quand les goûts sont partagés (voir services/family.py)
         if not tid or mt not in media_types or weight <= 0:
             return
         w = weight * _decay(when)
         cur = table.get((mt, tid))
         if cur is None:
-            table[(mt, tid)] = {"media_type": mt, "tmdb_id": tid, "title": title or "", "weight": w, "signals": 1}
+            table[(mt, tid)] = {"media_type": mt, "tmdb_id": tid, "title": title or "", "weight": w, "signals": 1, "loved": loved}
         else:  # plusieurs signaux pour un même titre : le plus fort, plus un petit bonus
             cur["weight"] = max(cur["weight"], w) + 0.15
             cur["signals"] += 1
             cur["title"] = cur["title"] or title or ""
+            cur["loved"] = cur["loved"] or loved
 
     for r in ctx.db.execute(_of(MediaState, user_id)).scalars():
         when = r.watched_at or r.listed_at or r.updated_at
@@ -217,10 +221,10 @@ def signals(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tup
             add(neg, r.media_type, r.tmdb_id, r.title, 1.0, r.updated_at)
             continue
         if r.liked:
-            add(pos, r.media_type, r.tmdb_id, r.title, 1.5, when)
+            add(pos, r.media_type, r.tmdb_id, r.title, 1.5, when, loved=True)
         if r.rating is not None:
             if r.rating >= 8:
-                add(pos, r.media_type, r.tmdb_id, r.title, 1.0 + (r.rating - 7) * 0.25, when)
+                add(pos, r.media_type, r.tmdb_id, r.title, 1.0 + (r.rating - 7) * 0.25, when, loved=True)
             elif r.rating <= 4:
                 add(neg, r.media_type, r.tmdb_id, r.title, 0.6 + (4 - r.rating) * 0.2, when)
         elif r.watched:
@@ -229,9 +233,9 @@ def signals(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tup
             add(pos, r.media_type, r.tmdb_id, r.title, 0.5, r.listed_at)
     for r in ctx.db.execute(_of(SwipeHistory, user_id).where(SwipeHistory.action.in_(("like", "watchlist", "seen")))).scalars():
         weight = {"like": 1.5, "watchlist": 0.8}.get(r.action, 1.0 if (r.rating or 0) >= 4 else 0)
-        add(pos, r.media_type, r.tmdb_id, r.title, weight, r.created_at)
+        add(pos, r.media_type, r.tmdb_id, r.title, weight, r.created_at, loved=r.action == "like")
     for r in ctx.db.execute(_of(SuggestionFeedback, user_id)).scalars():
-        add(pos if r.value > 0 else neg, r.media_type, r.tmdb_id, r.title, 1.3 if r.value > 0 else 1.0, r.created_at)
+        add(pos if r.value > 0 else neg, r.media_type, r.tmdb_id, r.title, 1.3 if r.value > 0 else 1.0, r.created_at, loved=r.value > 0)
     # Historique : films vus, séries suivies (plus d'épisodes vus, plus de poids)
     since = utcnow() - timedelta(days=365)
     q = (
@@ -251,11 +255,14 @@ def signals(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tup
     return sorted(pos.values(), key=lambda s: s["weight"], reverse=True), sorted(neg.values(), key=lambda s: s["weight"], reverse=True)
 
 
-def seeds(ctx: Ctx, media_types: list[str], user_id: int | None = None) -> tuple[list[dict], list[dict]]:
+def seeds(ctx: Ctx, media_types: list[str], user_id: int | None = None, loved_only: bool = False) -> tuple[list[dict], list[dict]]:
     """Références pour les recommandations : les plus fortes, plus un tirage pondéré qui change chaque jour (pour
-    renouveler les suggestions) ; et les 3 titres les plus rejetés."""
+    renouveler les suggestions) ; et les 3 titres les plus rejetés. loved_only : seulement les avis explicites
+    (références d'un autre compte qui partage ses goûts)."""
     ranked, negatives = signals(ctx, media_types, user_id)
-    top, rest = ranked[:SEEDS_TOP], ranked[SEEDS_TOP:SEEDS_TOP + 40]
+    if loved_only:
+        ranked = [s for s in ranked if s["loved"]]
+    top, rest = ranked[:SEEDS_TOP], ranked[SEEDS_TOP:SEEDS_TOP + 3 * SEEDS_ROTATING]
     rng = random.Random(f"{user_id or ctx.user.id}-{date.today().isoformat()}")  # même tirage toute la journée
     rotating = []
     while rest and len(rotating) < SEEDS_ROTATING:
@@ -304,15 +311,27 @@ def _mix_types(ordered: list[dict], media_types: list[str]) -> list[dict]:
     return out
 
 
-def _quality(item: dict) -> float:
-    """Titre presque inconnu (très peu de votes, déjà sorti) ou mal noté : en retrait."""
+RECENT_BOOST = 3.0  # titre sorti depuis moins d'un an
+RECENT_PAGES = 2  # sorties de l'année ajoutées aux candidats : pages de 20 titres, par type
+RECENT_SCORE = 0.5  # leur score de départ (une recommandation d'une référence forte vaut 1 à 2)
+RECENT_GROUPS = 1  # plafond de ces sorties dans la liste : PER_SEED x RECENT_GROUPS par type (0 : sans plafond)
+
+
+def _prior(item: dict) -> float:
+    """Intérêt a priori d'un candidat, avant les goûts : sortie récente, titre connu, bien noté.
+
+    Mesuré sur des historiques réels (banc hors ligne à coupure temporelle, voir docs/wiki/03-backend.md) : parmi les titres que TMDB recommande, ceux qui
+    sont regardés ensuite sont six fois plus souvent sortis dans l'année ; presque aucun n'a moins de 100 votes ou
+    une note sous 6. La popularité est volontairement adoucie (puissance 0,4) pour laisser remonter des découvertes."""
     votes, avg = item.get("vote_count") or 0, item.get("vote_average") or 0
-    released = (item.get("release_date") or "9999") <= (date.today() - timedelta(days=180)).isoformat()
-    if released and votes < 40:
-        return 0.4
-    if votes >= 40 and avg < 5.5:
-        return 0.6
-    return 1.0
+    try:
+        age = (date.today() - date.fromisoformat(item.get("release_date") or "")).days / 365
+    except ValueError:
+        age = None
+    recent = 1.0 if age is None or age < 0 else RECENT_BOOST if age < 1 else 1.0 if age < 10 else 0.8
+    known = (max(votes, 20) / 1500) ** 0.4
+    rated = min(4.5, max(0.15, math.exp(1.2 * (avg - 7)))) if avg else 0.5
+    return recent * known * rated
 
 
 def _available(item: dict, platforms: set[int]) -> bool:
@@ -421,7 +440,20 @@ async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_e
         for item in await refs_to_items(ctx, trakt_refs):
             add(item, 1.2, "Recommandé par Trakt", "trakt")
 
-    # 3. Complément : incontournables bien notés
+    # 3. Sorties de l'année les plus suivies : une bonne part de ce qui est regardé vient de sortir, et les
+    #    recommandations des références n'en font remonter qu'une partie
+    if RECENT_PAGES:
+        today = date.today()
+        since = (today - timedelta(days=365)).isoformat()
+        for mt in media_types:
+            field = "primary_release_date" if mt == "movie" else "first_air_date"
+            window = {f"{field}.gte": since, f"{field}.lte": today.isoformat()}
+            pages = await asyncio.gather(*(_safe(ctx.tmdb.discover(mt, page=p, sort_by="vote_count.desc", **window), []) for p in range(1, RECENT_PAGES + 1)))
+            for n, item in enumerate(i for page in pages for i in page):
+                # Origines réparties en groupes : la règle de variété (PER_SEED par origine) plafonne ainsi leur nombre
+                add(item, RECENT_SCORE, "Sortie récente remarquée", f"recent:{mt}:{n % RECENT_GROUPS}" if RECENT_GROUPS else "")
+
+    # 4. Complément : incontournables bien notés
     if len(items) < limit * 2:
         for mt in media_types:
             extra = await _safe(
@@ -451,7 +483,7 @@ async def suggestions(ctx: Ctx, media_type: str = "all", limit: int = 20, with_e
             scores[k] /= 1 + 0.35 * (shown[k] - 2)
 
     for k, it in items.items():
-        scores[k] *= _quality(it)
+        scores[k] *= _prior(it)
     ranked = sorted(items, key=lambda k: scores[k], reverse=True)
     pool = [items[k] for k in _variety(ranked, items, origin)][: limit * 2]
     await _apply_taste(ctx, media_types, pool, scores)

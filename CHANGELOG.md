@@ -4,6 +4,50 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.5.0 - 2026-11-11
+
+- Logo centred at the top of the sidebar.
+- README and Unraid store screenshots updated with the new logo and the current pages.
+- Security: when an account is deleted, everything it owned is removed, including its notification devices (a new
+  account created afterwards could otherwise have its notifications sent to the old account's device).
+- Security: changing a password, turning on two-factor sign-in or deactivating an account also stops push
+  notifications on the account's devices; the device you are using re-subscribes by itself.
+- Privacy: "Together" suggestions now use only another member's favourites and good ratings, as the sharing option
+  says, and no longer their watch history or watchlist.
+- Security: add requests accept only TMDB posters and bounded text, with at most 50 pending requests per member.
+- Security: a signed-in member can no longer use up the shared sign-in attempt limit and lock out new devices; with
+  that limit reached, signed-in accounts can still change their password. Simultaneous two-factor attempts are all
+  counted, and expired Plex sign-in codes no longer block "Sign in with Plex" until a restart.
+- Members without access to the media server no longer see Seerr's status.
+- Personal edition: setting the first password now asks for a security code written to the server logs, so a
+  visitor cannot set it before you do. You can still remove the password later to go back to open access.
+- Several administrators: the main administrator can withdraw full access from the other administrators (Profile →
+  Preferences → Sharing): no media server dashboard or library through the server's access, no server settings, no
+  backups; they then manage accounts and requests only.
+- Jellyfin / Emby sign-in: after 2 wrong passwords for an account, SynCiné stops forwarding passwords to the server
+  until a successful sign-in, so it cannot be used to lock the account on the server. A device already used by that
+  account can still sign in, and the administrator can lift the block.
+- The taste-sharing option now says that "Together" also shows the titles present in both watchlists.
+- Suggestions are much closer to what actually gets watched: more of your tastes are used as starting points (40
+  titles instead of 12), recent, well-known and well-rated titles now come first instead of obscure ones, and a few
+  notable releases of the year join the list. Measured on real watch histories, titles watched afterwards appear
+  about six times more often among the suggestions.
+- Faster, lighter suggestions: the first load of the day is almost twice as fast and uses far less memory.
+- Security: the tokens and API keys of connected services (Plex, Jellyfin, Trakt, TMDB, Seerr, YouTube) and the
+  two-factor secrets are now encrypted in the database with the server key (`secret.key` in the data folder, never
+  part of a backup). Existing values are encrypted at the first start. A backup restored on another installation
+  starts with the services disconnected; going back to an older version also requires reconnecting them.
+- A temporary password set by the administrator now expires after 7 days if it was never used.
+- Security: two-factor recovery codes are stored with a server key, and the "known device" marker expires after a year.
+- Fixed: the copy buttons (Plex and Trakt codes, recovery codes) now work on a plain-HTTP address too, and only say
+  "copied" when the text really was copied. The first-run assistant now shows confirmation and error messages.
+- Development: tests, translation check and build now run automatically on every push and pull request.
+- Signing out also clears the library images kept by the app on that device.
+- Security: another administrator can no longer reset the main administrator's password or two-factor sign-in, nor
+  attach the server owner's Plex account to their own account; server-wide watch statistics need full access.
+- Security: oversized requests are refused before being read, the Plex image relay only accepts library image
+  paths, and settings fields have length limits.
+
 ## 1.4.2 - 2026-11-10
 
 - The new logo images are sent with the right file type (WebP), so all browsers display them reliably.

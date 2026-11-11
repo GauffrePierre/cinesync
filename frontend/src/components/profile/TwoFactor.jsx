@@ -4,6 +4,7 @@ import { Copy, Download, ShieldCheck, ShieldOff } from 'lucide-react'
 import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 import { auth } from '../../services/auth'
+import { copyText } from '../../lib/clipboard'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
@@ -16,12 +17,8 @@ function RecoveryCodes({ codes, onDone }) {
   const t = useT()
   const text = codes.join('\n')
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast(t('Codes copiés'), 'success')
-    } catch {
-      toast(t('Copie impossible : note-les à la main'), 'error')
-    }
+    if (await copyText(text)) toast(t('Codes copiés'), 'success')
+    else toast(t('Copie impossible : note-les à la main'), 'error')
   }
   const download = () => {
     const url = URL.createObjectURL(new Blob([`SynCiné\n${text}\n`], { type: 'text/plain' }))

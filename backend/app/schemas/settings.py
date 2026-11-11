@@ -39,6 +39,7 @@ class SettingsOut(BaseModel):
     auto_sync: bool
     hide_seen: bool
     share_watchlist: bool
+    admins_full_access: bool
     share_taste: bool
     family_kids: list[str]
     recent_days: int
@@ -77,6 +78,7 @@ class SettingsOut(BaseModel):
             auto_sync=s.auto_sync,
             hide_seen=s.hide_seen,
             share_watchlist=s.share_watchlist,
+            admins_full_access=bool(s.admins_full_access),
             share_taste=s.share_taste,
             family_kids=s.kids,
             recent_days=s.recent_days,
@@ -97,24 +99,29 @@ class SettingsOut(BaseModel):
         )
 
 
+Text = Annotated[str, StringConstraints(max_length=500)]  # clés, jetons, adresses : jamais plus
+
+
 class SettingsUpdate(BaseModel):
     """Tous les champs sont optionnels : seuls ceux envoyés sont modifiés. Une chaîne vide efface."""
 
-    tmdb_api_key: str | None = None
-    language: str | None = None
-    plex_url: str | None = None
-    plex_token: str | None = None
-    trakt_client_id: str | None = None
-    trakt_client_secret: str | None = None
-    seerr_url: str | None = None
-    seerr_api_key: str | None = None
-    letterboxd_username: str | None = None
+    tmdb_api_key: Text | None = None
+    language: Annotated[str, StringConstraints(max_length=12)] | None = None
+    plex_url: Text | None = None
+    plex_token: Text | None = None
+    trakt_client_id: Text | None = None
+    trakt_client_secret: Text | None = None
+    seerr_url: Text | None = None
+    seerr_api_key: Text | None = None
+    # Pseudo Letterboxd (placé dans l'adresse du flux) : lettres, chiffres et tirets bas seulement
+    letterboxd_username: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^@?[A-Za-z0-9_]{0,40}$")] | None = None
     justwatch_enabled: bool | None = None
-    cinemas: list[dict] | None = None
+    cinemas: list[dict] | None = Field(default=None, max_length=50)
     cinema_films_only: bool | None = None
     auto_sync: bool | None = None
     hide_seen: bool | None = None
     share_watchlist: bool | None = None
+    admins_full_access: bool | None = None
     share_taste: bool | None = None
     family_kids: list[Literal["petits", "enfants", "ados"]] | None = Field(default=None, max_length=3)
     recent_days: int | None = Field(default=None, ge=0, le=365)
@@ -127,10 +134,10 @@ class SettingsUpdate(BaseModel):
     notify_episode_when: list[Literal["each", "first", "last", "season"]] | None = Field(default=None, max_length=4)
     notify_movie_via: list[Literal["platforms", "plex"]] | None = Field(default=None, max_length=2)
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
-    active_platforms: list[int] | None = None
+    active_platforms: list[int] | None = Field(default=None, max_length=300)
     theme: Literal["auto", "light", "dark"] | None = None
     ui_language: Literal["fr", "en", "it", "de", "es"] | None = None
-    youtube_api_key: str | None = None
+    youtube_api_key: Text | None = None
 
 
 class TestResult(BaseModel):

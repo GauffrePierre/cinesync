@@ -1,6 +1,6 @@
 """Notifications : titres de la watchlist devenus disponibles sur une plateforme active."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, update
 
 from app.models import Notification
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
 @router.get("")
-def list_notifications(limit: int = 50, ctx: Ctx = Depends(get_ctx)):
+def list_notifications(limit: int = Query(50, ge=1, le=200), ctx: Ctx = Depends(get_ctx)):
     rows = ctx.db.execute(select(Notification).order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit)).scalars()
     unread = ctx.db.execute(select(func.count()).select_from(Notification).where(Notification.read.is_(False))).scalar_one()
     return {"results": [r.to_dict() for r in rows], "unread": unread}
