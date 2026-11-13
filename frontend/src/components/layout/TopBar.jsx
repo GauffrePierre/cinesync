@@ -5,12 +5,13 @@ import NotificationBell from '../notifications/NotificationBell'
 import { useUiStore } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
-// Barre haute : logo (mobile) + loupe permanente + cloche
+// Barre haute : logo (mobile) + loupe permanente + cloche. Fond opaque : un flou translucide sous la barre d’état
+// iOS donnait une bande floue en haut de l’écran au défilement
 export default function TopBar() {
   const t = useT()
   const setSearchOpen = useUiStore((s) => s.setSearchOpen)
   return (
-    <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-xl lg:border-none lg:bg-transparent lg:backdrop-blur-none">
+    <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg lg:border-none lg:bg-transparent">
       <div className="flex h-14 items-center justify-between px-4 md:px-8 lg:h-16 lg:justify-end">
         <Link to="/" className="lg:hidden">
           <Logo />

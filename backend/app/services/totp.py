@@ -57,13 +57,9 @@ def provisioning_uri(secret: str, account: str) -> str:
 
 def qr_svg(uri: str) -> str:
     """QR code à scanner, en SVG (généré sur le serveur : le secret ne part chez aucun service tiers)."""
-    import io
+    from app.services import qr
 
-    import segno
-
-    out = io.BytesIO()
-    segno.make(uri, error="m").save(out, kind="svg", scale=5, border=2, dark="#000", light="#fff", xmldecl=False, svgns=True)
-    return out.getvalue().decode()
+    return qr.svg(uri)
 
 
 # --- Codes de secours ----------------------------------------------------------------------

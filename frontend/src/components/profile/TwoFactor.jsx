@@ -5,6 +5,7 @@ import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 import { auth } from '../../services/auth'
 import { copyText } from '../../lib/clipboard'
+import QrCode from '../ui/QrCode'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
 
@@ -210,7 +211,7 @@ export default function TwoFactor({ user }) {
             <p className="text-sm text-text2">
               {t('1. Scanne ce QR code avec ton application d’authentification (Aegis, Google Authenticator, Bitwarden, 1Password…).')}
             </p>
-            <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qr_svg)}`} alt={t('QR code à scanner')} className="mx-auto h-48 w-48 rounded-xl bg-white p-1" />
+            <QrCode svg={setup.qr_svg} />
             <details className="text-xs text-text2">
               <summary className="cursor-pointer">{t('Impossible de scanner ? Saisis la clé à la main')}</summary>
               <p className="mt-2 select-all break-all rounded-lg bg-bg3 p-2 font-mono">{setup.secret.match(/.{1,4}/g).join(' ')}</p>

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Copy, ExternalLink, Loader2, LogIn, LogOut, RefreshCw, Server, WifiOff } from 'lucide-react'
 import Button from '../ui/Button'
+import QrCode from '../ui/QrCode'
 import { plex } from '../../services/plex'
 import { copyText } from '../../lib/clipboard'
 import { toast } from '../../store/uiStore'
@@ -19,6 +20,7 @@ const rich = (str, nodes) =>
 /**
  * Connexion avec le compte plex.tv, puis choix du serveur.
  * - Par défaut : code à 4 caractères à saisir sur plex.tv/link (fonctionne partout, même depuis le téléphone).
+ * - À côté du code (écrans assez grands) : QR code qui ouvre plex.tv/link sur le téléphone, code déjà rempli.
  * - Alternative : fenêtre de connexion app.plex.tv.
  */
 export default function PlexConnect({ settings }) {
@@ -156,6 +158,12 @@ export default function PlexConnect({ settings }) {
           <span className="select-text font-mono text-3xl font-semibold tracking-[0.3em]">{pin.code}</span>
           <Copy className="h-4 w-4 text-text3" />
         </button>
+        {pin.qr_svg && (
+          <div className="mt-3 hidden space-y-2 sm:block">
+            <p className="text-xs text-text3">{t('ou scanne ce QR code avec ton téléphone : le code sera déjà rempli')}</p>
+            <QrCode svg={pin.qr_svg} className="h-40 w-40" />
+          </div>
+        )}
         <a
           href={pin.link_url}
           target="_blank"

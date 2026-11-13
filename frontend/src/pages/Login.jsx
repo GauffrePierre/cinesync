@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import Button from '../components/ui/Button'
+import QrCode from '../components/ui/QrCode'
 import QuickConnectCode from '../components/ui/QuickConnectCode'
 import { auth } from '../services/auth'
 import { useResetSession } from '../hooks/useAuth'
@@ -76,7 +77,8 @@ function Divider() {
 }
 
 /**
- * Connexion avec Plex : code à saisir sur plex.tv/link (fiable partout) ou fenêtre app.plex.tv.
+ * Connexion avec Plex : code à saisir sur plex.tv/link (fiable partout), avec à côté un QR code qui ouvre cette page,
+ * code prérempli, sur le téléphone qui le scanne (écrans assez grands seulement), ou fenêtre app.plex.tv.
  * Le serveur vérifie ensuite que ce compte Plex fait partie de ceux autorisés par l'administrateur.
  */
 function PlexLogin({ onDone, label }) {
@@ -137,6 +139,12 @@ function PlexLogin({ onDone, label }) {
       <div className="space-y-3 text-center">
         <p className="text-sm text-text2">{t('Sur plex.tv/link, saisis ce code :')}</p>
         <p className="font-mono text-3xl font-semibold tracking-[0.3em]">{pin.code}</p>
+        {pin.qr_svg && (
+          <div className="hidden space-y-2 sm:block">
+            <p className="text-xs text-text3">{t('ou scanne ce QR code avec ton téléphone : le code sera déjà rempli')}</p>
+            <QrCode svg={pin.qr_svg} className="h-40 w-40" />
+          </div>
+        )}
         <a href={pin.link_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-accent2 hover:underline">
           {t('Ouvrir plex.tv/link')} <ExternalLink className="h-3.5 w-3.5" />
         </a>

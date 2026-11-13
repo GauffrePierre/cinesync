@@ -43,7 +43,9 @@ async def _call(method: str, url: str, client_id: str, token: str | None = None,
 
 async def create_pin(client_id: str, mode: str = "link", forward_url: str | None = None) -> dict:
     """mode "link" : code court à saisir sur plex.tv/link (fiable partout, y compris sur mobile).
-    mode "window" : connexion dans une fenêtre app.plex.tv, qui revient ensuite sur forward_url."""
+    mode "window" : connexion dans une fenêtre app.plex.tv, qui revient ensuite sur forward_url.
+    Le code court vient aussi avec un QR code : plex.tv/link?token=… préremplit le code sur le téléphone qui le scanne
+    (la connexion app.plex.tv faite depuis un autre appareil n'est pas rattachée au code par plex.tv)."""
     params = {"strong": "true"} if mode == "window" else {}
     r = await _call("POST", f"{PLEX_TV}/pins", client_id, params=params)
     if r.status_code >= 400:
@@ -56,7 +58,10 @@ async def create_pin(client_id: str, mode: str = "link", forward_url: str | None
             q["forwardUrl"] = forward_url
         out["auth_url"] = f"https://app.plex.tv/auth#?{urlencode(q)}"
     else:
-        out["link_url"] = "https://plex.tv/link"
+        from app.services import qr
+
+        out["link_url"] = f"https://plex.tv/link?{urlencode({'token': d['code']})}"
+        out["qr_svg"] = qr.svg(out["link_url"])
     return out
 
 

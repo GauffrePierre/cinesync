@@ -4,6 +4,12 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.5.1 - 2026-11-13
+
+- "Sign in with Plex" (sign-in page and Profile): a QR code is shown next to the code. Scan it with your phone:
+  plex.tv/link opens with the code already filled in. The "Open plex.tv/link" link also fills in the code.
+- iPhone: the top bar is now opaque, so content scrolling under the status bar no longer shows a blurred band.
+
 ## 1.5.0 - 2026-11-11
 
 - Logo centred at the top of the sidebar.

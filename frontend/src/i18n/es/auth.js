@@ -3,6 +3,7 @@ export default {
   ou: 'o',
   'Sur plex.tv/link, saisis ce code :': 'En plex.tv/link, introduce este código:',
   'Ouvrir plex.tv/link': 'Abrir plex.tv/link',
+  'ou scanne ce QR code avec ton téléphone : le code sera déjà rempli': 'o escanea este código QR con tu teléfono: el código ya estará rellenado',
   'En attente de la validation sur plex.tv…': 'Esperando la confirmación en plex.tv…',
   'ou ouvrir la fenêtre de connexion Plex': 'o abrir la ventana de inicio de sesión de Plex',
   'Les deux mots de passe ne correspondent pas': 'Las dos contraseñas no coinciden',
